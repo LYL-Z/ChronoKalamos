@@ -129,7 +129,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
     await run(async () => {
       const saved = await savePrototypeSession(client, originId);
       setSaves((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
-      onMessage("原型存档已幂等写入。重复点击会更新同一存档，不会新建重复记录。 ");
+      onMessage("原型存档已幂等写入。重复点击会返回同一存档，不会覆盖已推进状态或新建重复记录。 ");
     });
   }
 
