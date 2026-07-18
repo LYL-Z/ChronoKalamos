@@ -1,12 +1,23 @@
 # Sand & Cinnabar design QA
 
-## current result: static gate passed; browser gate pending
+## current result: desktop core gate passed; cloud and mobile gates pending
 
 The selected reference is `C:\\Users\\Lenovo\\.codex\\visualizations\\2026\\07\\18\\chronokalamos-options\\direction-sand.html`.
 
-The local application builds successfully. The previous in-app browser attempt rejected both `http://localhost:4173/` and `http://terminal.local:4173/` with a client-side URL policy error. Because the prototype screenshot could not be captured, a same-viewport reference comparison and interaction QA remain unverified rather than marked as passed.
+The local application builds successfully. On 18 July 2026, the in-app browser reached the Vite development server at `http://127.0.0.1:4322/` and captured a full-page desktop screenshot. The rendered direction retains the selected sandpaper, cinnabar, indigo, and brass system. The map and timeline remain the dominant visual structure.
 
-The private Sites deployment is live, but opening it from the browser reaches the required ChatGPT sign-in gate. No credentials were entered, so remote visual QA also remains blocked.
+The browser run verified six core flows:
+
+1. the timed boot reaches the archive page;
+2. the five-language selector changes the interface skeleton;
+3. low-motion mode changes state and exposes `aria-pressed`;
+4. the setup dialog receives focus, closes on Escape, and restores focus;
+5. an origin can be selected and loaded into the game simulator;
+6. the unconfigured guest path opens the simulator while retaining the Supabase warning.
+
+The Windows `vinext start` process served the HTML shell but returned 404 for generated `/assets/*` paths during this run. The Vite development server did not reproduce the failure. The local package code builds static cache keys with Windows path separators, so this is treated as a Vinext Windows production-server limitation, not as proof that the deployed Linux worker is broken. It remains a deployment-risk item until upstream or a pinned upgrade resolves it.
+
+The private Sites deployment is live, but opening it from the isolated browser reaches the required ChatGPT sign-in gate. No credentials were entered, so remote visual QA remains unverified.
 
 ## Static checks completed
 
@@ -14,7 +25,7 @@ The private Sites deployment is live, but opening it from the browser reaches th
 - `npx tsc --noEmit`
 - `npm test`
 
-## What is now covered without browser access
+## Browser and static coverage
 
 - The language selector changes and persists the interface skeleton across five locales.
 - Low-motion state is persisted with a storage failure fallback.
@@ -24,4 +35,4 @@ The private Sites deployment is live, but opening it from the browser reaches th
 
 ## Required follow-up
 
-Open the deployed private preview in a browser that can access the Sites checkpoint. Re-run the first-load, guest start, origin selection, email form, low-motion toggle, language selector, and mobile breakpoint checks before calling the design gate passed.
+Open the deployed private site in a signed-in browser and repeat the core flow against the production worker. Run the mobile breakpoint and real Supabase email/upload flows. Until those checks exist, the desktop prototype gate is passed but the complete phase 2 and phase 3 exit conditions are not.
