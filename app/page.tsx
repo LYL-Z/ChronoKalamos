@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { IdentityPanel } from "@/components/identity-panel";
 
 type Origin = {
   id: string;
@@ -68,7 +69,6 @@ export default function Home() {
   const [showGame, setShowGame] = useState(false);
   const [language, setLanguage] = useState("中文");
   const [lowMotion, setLowMotion] = useState(() => typeof window !== "undefined" && window.localStorage.getItem("chronokalamos-low-motion") === "true");
-  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -105,19 +105,10 @@ export default function Home() {
     setMessage(`已载入 ${selected.title}。第一回合尚未提交。`);
   }
 
-  function submitEmail(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!email.trim()) {
-      setMessage("请先输入邮箱，或使用游客模式继续。 ");
-      return;
-    }
-    setMessage("邮箱入口已记录为开发模拟器，正式身份系统将在阶段3接入。 ");
-  }
-
   function selectNav(id: (typeof navItems)[number]["id"]) {
     setActiveNav(id);
     if (id === "new") setShowSetup(true);
-    if (id === "saves") setMessage("游客存档只保存在当前浏览器，清除数据后无法恢复。 ");
+    if (id === "saves") setMessage("存档由 Supabase RLS 按用户隔离；游客凭证丢失后仍无法恢复。 ");
     if (id === "settings") setMessage("低动态模式与语言切换已在右上角开放。 ");
     if (id === "support") setMessage("当前为前端原型：没有真实支付、短信、微信或QQ登录。 ");
   }
@@ -218,10 +209,9 @@ export default function Home() {
         </section>
 
         <aside className="login-sheet" aria-label="游客入口">
-          <span className="sheet-tab">VISITOR ACCESS</span><p className="sheet-label">ARCHIVE GATE / 00</p><h2>先留下一个入口。</h2><p className="sheet-copy">你可以先以游客身份开始。清除浏览器数据后，游客存档无法恢复。</p>
-          <form className="login-form" onSubmit={submitEmail}><label htmlFor="email">邮箱入口</label><input id="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} /><button className="primary-button" type="submit">记录邮箱</button></form>
-          <div className="guest"><button className="link-button" type="button" onClick={() => setShowSetup(true)}>以游客开始 →</button><p>微信、QQ、手机号：筹备中，不显示伪登录。</p></div>
-          <div className="in-prep"><span>阶段 1 / 7</span><span>前端原型</span></div>
+          <span className="sheet-tab">IDENTITY BOUNDARY</span><p className="sheet-label">ARCHIVE GATE / 03</p><h2>先留下一个入口。</h2><p className="sheet-copy">游客与邮箱账户使用同一用户 ID 升级路径。数据库和私有文件均由 RLS 限定为本人可见。</p>
+          <IdentityPanel originId={selectedOrigin} onGuestStarted={() => setShowSetup(true)} onMessage={setMessage} />
+          <div className="in-prep"><span>阶段 3 / 7</span><span>身份与存档</span></div>
         </aside>
       </div>
 

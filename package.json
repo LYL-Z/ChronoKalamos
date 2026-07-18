@@ -9,15 +9,20 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && npm run test:unit && npm run test:contracts",
+    "test:unit": "vitest run",
+    "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs",
+    "test:supabase:live": "node --test tests/supabase-live.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
@@ -35,6 +40,7 @@
     "typescript": "5.9.3",
     "vinext": "0.0.50",
     "vite": "8.0.13",
+    "vitest": "^4.1.10",
     "wrangler": "4.92.0"
   },
   "type": "module"
