@@ -6,6 +6,54 @@ const url = process.env.SUPABASE_TEST_URL;
 const publishableKey = process.env.SUPABASE_TEST_PUBLISHABLE_KEY;
 const upgradeEmail = process.env.SUPABASE_TEST_UPGRADE_EMAIL;
 
+test("phase 4 historical content is public-read and draft-hidden", {
+  skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
+  timeout: 30_000,
+}, async () => {
+  const publicClient = createClient(url, publishableKey, { auth: { persistSession: false, detectSessionInUrl: false } });
+  const { data: sources, error: sourcesError } = await publicClient
+    .from("historical_sources")
+    .select("id,published")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("published", true);
+  assert.ifError(sourcesError);
+  assert.equal(sources?.length, 12);
+  assert.ok(sources?.every((source) => source.published));
+
+  const { data: claims, error: claimsError } = await publicClient
+    .from("historical_claims")
+    .select("id,classification,published")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("published", true);
+  assert.ifError(claimsError);
+  assert.equal(claims?.length, 13);
+  assert.ok(claims?.some((claim) => claim.classification === "史料记载"));
+  assert.ok(claims?.some((claim) => claim.classification === "合理重建"));
+  assert.ok(claims?.some((claim) => claim.classification === "叙事虚构"));
+
+  const { data: mapFeatures, error: mapError } = await publicClient
+    .from("map_features")
+    .select("id,valid_from,valid_to,uncertainty_code,license_code")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("published", true);
+  assert.ifError(mapError);
+  assert.equal(mapFeatures?.length, 5);
+  assert.ok(mapFeatures?.every((feature) => feature.valid_from <= 742 && feature.valid_to >= 742));
+  assert.ok(mapFeatures?.every((feature) => feature.uncertainty_code && feature.license_code));
+
+  const { data: hiddenDrafts, error: draftError } = await publicClient
+    .from("historical_claims")
+    .select("id")
+    .eq("published", false);
+  assert.ifError(draftError);
+  assert.deepEqual(hiddenDrafts, []);
+
+  const { error: writeError } = await publicClient
+    .from("historical_claims")
+    .insert({ id: "C-TEST-ANON", classification: "叙事虚构", subject_kind: "scenario", subject_id: "tang-changan-742", text_zh: "不应写入", text_en: "must not write", source_ids: [], source_note: "test", valid_from: 742, valid_to: 742, published: true });
+  assert.ok(writeError, "public clients must not write historical claims");
+});
+
 test("two users are isolated and an optional controlled email can exercise guest upgrade", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
   timeout: 60_000,

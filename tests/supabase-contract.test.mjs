@@ -4,6 +4,7 @@ import test from "node:test";
 
 const migrationUrl = new URL("../supabase/migrations/202607180001_phase3_identity_saves.sql", import.meta.url);
 const hardeningMigrationUrl = new URL("../supabase/migrations/20260718122704_phase3_security_hardening.sql", import.meta.url);
+const phase4MigrationUrl = new URL("../supabase/migrations/20260718141002_phase4_historical_content.sql", import.meta.url);
 const envExampleUrl = new URL("../.env.example", import.meta.url);
 const browserClientUrl = new URL("../lib/supabase/browser.ts", import.meta.url);
 
@@ -65,4 +66,21 @@ test("phase 3 hardening limits grants, protects the trigger helper, and indexes 
   ]) {
     assert.match(sql, new RegExp(`create index if not exists ${index}`, "i"));
   }
+});
+
+test("phase 4 evidence tables are read-only, published-only, and explicitly exposed", async () => {
+  const sql = await readFile(phase4MigrationUrl, "utf8");
+  for (const table of ["historical_sources", "historical_claims", "historical_claim_sources", "map_features", "map_feature_sources"]) {
+    assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`, "i"));
+    assert.match(sql, new RegExp(`grant select on table[\\s\\S]*public\\.${table}[\\s\\S]*to anon, authenticated`, "i"));
+  }
+  assert.match(sql, /using \(published = true\)/i);
+  assert.match(sql, /historical_claims_source_check[\s\S]*classification = '叙事虚构'/i);
+  assert.match(sql, /map_features_uncertainty_check/i);
+  assert.match(sql, /map_features_license|license_code/i);
+  assert.match(sql, /historical_claim_sources[\s\S]*references public\.historical_sources/i);
+  assert.match(sql, /map_feature_sources[\s\S]*references public\.historical_sources/i);
+  assert.match(sql, /historical_claim_sources_source_id_idx[\s\S]*historical_claim_sources \(source_id\)/i);
+  assert.match(sql, /map_feature_sources_source_id_idx[\s\S]*map_feature_sources \(source_id\)/i);
+  assert.doesNotMatch(sql, /grant (insert|update|delete).*historical_(sources|claims)|grant (insert|update|delete).*map_features/i);
 });

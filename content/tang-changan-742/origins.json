@@ -1,0 +1,35 @@
+[
+  {
+    "id": "merchant",
+    "code": "O-01",
+    "title": "西市粟特商户家庭后辈",
+    "english": "Sogdian merchant household",
+    "detail": "在西市的往来、账簿和多语交易中长大；家庭与个人细节均是叙事参数。",
+    "classification": "合理重建",
+    "sourceIds": ["S-004", "S-005"],
+    "claimIds": ["C-O01-001", "C-O01-002"],
+    "published": true
+  },
+  {
+    "id": "craft",
+    "code": "O-02",
+    "title": "长安工匠家庭学徒",
+    "english": "Chang'an craft apprentice",
+    "detail": "从家族作坊开始，观察材料、工序与城市交易；具体作坊不指向已发现遗址。",
+    "classification": "合理重建",
+    "sourceIds": ["S-003", "S-004", "S-008"],
+    "claimIds": ["C-O02-001", "C-O02-002"],
+    "published": true
+  },
+  {
+    "id": "clerk",
+    "code": "O-03",
+    "title": "京兆基层吏员家庭成员",
+    "english": "Jingzhao clerical household",
+    "detail": "接触文书、里坊边界与基层行政的日常压力；具体履历不冒充人物档案。",
+    "classification": "合理重建",
+    "sourceIds": ["S-002", "S-006", "S-008"],
+    "claimIds": ["C-O03-001", "C-O03-002", "C-O03-003"],
+    "published": true
+  }
+]

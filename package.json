@@ -9,13 +9,14 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:contracts",
+    "test": "npm run content:validate && npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:contracts",
     "test:unit": "vitest run",
     "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs",
     "test:supabase:live": "node --env-file-if-exists=.env.test --test tests/supabase-live.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "content:validate": "node scripts/validate-phase4-content.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

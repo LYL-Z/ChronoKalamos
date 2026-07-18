@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IdentityPanel } from "@/components/identity-panel";
+import { changanContent, sourceLabel, sourceSummary, type HistoricalOrigin, type MapFeature } from "@/lib/historical/content";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
 
@@ -29,7 +30,7 @@ const uiCopy: Record<Locale, {
     restoreMotion: "恢复动态",
     method: "每段内容都标明：史料记载、合理重建或叙事虚构。",
     mapLayer: "HISTORICAL MAP LAYER",
-    mapNote: "这是首发内容包的原型图层。地理形状尚不等同于精确复原，发布前需补充来源、时间范围和许可信息。",
+    mapNote: "图层来自已审计的阶段4内容包。几何是手绘证据示意，不能当作742年的测量边界；点击节点查看来源、时间和许可。",
     languageNote: "中文史实内容已审校；其他语言仅翻译界面骨架。",
     loaded: (title) => `已载入 ${title}。第一回合尚未提交。`,
   },
@@ -39,7 +40,7 @@ const uiCopy: Record<Locale, {
     restoreMotion: "Restore motion",
     method: "Each passage is marked as record, reconstruction, or fiction.",
     mapLayer: "HISTORICAL MAP LAYER",
-    mapNote: "Prototype layer only. Geometry is not a verified reconstruction; sources, dates, and licenses remain required before release.",
+    mapNote: "This audited phase-4 layer is schematic evidence, not a surveyed 742 CE boundary. Select a node to inspect sources, dates, and licensing.",
     languageNote: "Chinese historical content is reviewed; other languages currently translate interface chrome only.",
     loaded: (title) => `${title} loaded. Turn one has not been submitted.`,
   },
@@ -49,7 +50,7 @@ const uiCopy: Record<Locale, {
     restoreMotion: "Rétablir le mouvement",
     method: "Chaque passage indique : source, reconstruction ou fiction.",
     mapLayer: "COUCHE CARTOGRAPHIQUE HISTORIQUE",
-    mapNote: "Couche de prototype. La géométrie n'est pas une reconstitution vérifiée ; les sources, dates et licences restent requises.",
+    mapNote: "Cette couche auditée reste une esquisse de preuve, pas une limite mesurée en 742. Sélectionnez un nœud pour voir les sources et les licences.",
     languageNote: "Le contenu historique chinois est révisé ; les autres langues ne traduisent pour l'instant que l'interface.",
     loaded: (title) => `${title} chargé. Le premier tour n'est pas soumis.`,
   },
@@ -59,7 +60,7 @@ const uiCopy: Record<Locale, {
     restoreMotion: "Επαναφορά κίνησης",
     method: "Κάθε απόσπασμα σημειώνεται ως πηγή, ανακατασκευή ή μυθοπλασία.",
     mapLayer: "ΙΣΤΟΡΙΚΟ ΕΠΙΠΕΔΟ ΧΑΡΤΗ",
-    mapNote: "Επίπεδο πρωτοτύπου. Η γεωμετρία δεν είναι επαληθευμένη ανακατασκευή· απαιτούνται πηγές, ημερομηνίες και άδειες.",
+    mapNote: "Το ελεγμένο επίπεδο είναι σχηματικό τεκμήριο, όχι μετρημένο όριο του 742. Επιλέξτε κόμβο για πηγές, χρονολογία και άδεια.",
     languageNote: "Το κινεζικό ιστορικό περιεχόμενο έχει ελεγχθεί· οι άλλες γλώσσες μεταφράζουν προς το παρόν μόνο το περιβάλλον.",
     loaded: (title) => `Φορτώθηκε: ${title}. Ο πρώτος γύρος δεν υποβλήθηκε.`,
   },
@@ -69,47 +70,16 @@ const uiCopy: Record<Locale, {
     restoreMotion: "Вернуть движение",
     method: "Каждый фрагмент отмечен как источник, реконструкция или вымысел.",
     mapLayer: "ИСТОРИЧЕСКИЙ СЛОЙ КАРТЫ",
-    mapNote: "Это прототип. Геометрия не является проверенной реконструкцией; до публикации нужны источники, даты и лицензии.",
+    mapNote: "Этот проверенный слой — схематическое свидетельство, а не измеренная граница 742 года. Выберите узел для источников, дат и лицензии.",
     languageNote: "Китайское историческое содержание проверено; другие языки пока переводят только элементы интерфейса.",
     loaded: (title) => `Загружено: ${title}. Первый ход ещё не отправлен.`,
   },
 };
 
-type Origin = {
-  id: string;
-  code: string;
-  title: string;
-  english: string;
-  detail: string;
-  source: string;
-};
-
-const origins: Origin[] = [
-  {
-    id: "merchant",
-    code: "O-01",
-    title: "西市粟特商户家庭后辈",
-    english: "Sogdian merchant household",
-    detail: "在西市的往来、账簿和多语交易中长大。",
-    source: "合理重建 · S-014",
-  },
-  {
-    id: "craft",
-    code: "O-02",
-    title: "长安工匠家庭学徒",
-    english: "Chang’an craft apprentice",
-    detail: "从家族作坊开始，观察材料、工序与行会秩序。",
-    source: "合理重建 · S-021",
-  },
-  {
-    id: "clerk",
-    code: "O-03",
-    title: "京兆基层吏员家庭成员",
-    english: "Jingzhao clerical household",
-    detail: "接触文书、里坊边界与基层行政的日常压力。",
-    source: "合理重建 · S-031",
-  },
-];
+const origins: HistoricalOrigin[] = changanContent.origins;
+const mapFeatures: MapFeature[] = changanContent.mapFeatures;
+const publishedClaimCount = changanContent.claims.filter((claim) => claim.published).length;
+const fictionClaimCount = changanContent.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
 
 const navItems = [
   { id: "new", label: "新开始", english: "Begin" },
@@ -136,7 +106,8 @@ export default function Home() {
   const [booting, setBooting] = useState(true);
   const [progress, setProgress] = useState(0);
   const [activeNav, setActiveNav] = useState<(typeof navItems)[number]["id"]>("new");
-  const [selectedOrigin, setSelectedOrigin] = useState("merchant");
+  const [selectedOrigin, setSelectedOrigin] = useState(origins[0].id);
+  const [selectedFeatureId, setSelectedFeatureId] = useState(mapFeatures[0].id);
   const [showSetup, setShowSetup] = useState(false);
   const [showGame, setShowGame] = useState(false);
   const [language, setLanguage] = useState<Locale>(() => {
@@ -198,6 +169,10 @@ export default function Home() {
   const selected = useMemo(
     () => origins.find((origin) => origin.id === selectedOrigin) ?? origins[0],
     [selectedOrigin],
+  );
+  const selectedFeature = useMemo(
+    () => mapFeatures.find((feature) => feature.id === selectedFeatureId) ?? mapFeatures[0],
+    [selectedFeatureId],
   );
 
   function toggleLowMotion() {
@@ -273,7 +248,7 @@ export default function Home() {
             <button className="primary-button" type="button" onClick={() => setMessage("开发模拟器尚未推进真实回合。 ")}>查看下一步</button>
           </aside>
           <article className="narrative-panel">
-            <div className="panel-heading"><span className="eyebrow">SCENE 00 · WESTERN MARKET</span><span className="source-chip">S-014 · 已发布</span></div>
+            <div className="panel-heading"><span className="eyebrow">SCENE 00 · WESTERN MARKET</span><span className="source-chip">{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span></div>
             <p className="narrative-lede">清晨的门声先于日光抵达。你还没有名字，只有一页被反复折叠的账纸。</p>
             <p>此处内容仅用于前端流程演示。它不会被标记为“史料记载”，也不会写入永久存档。</p>
             <div className="choice-list" aria-label="开发模拟选择">
@@ -310,16 +285,28 @@ export default function Home() {
 
         <section className="map-column" aria-labelledby="hero-title">
           <div className="map-stage">
-            <div className="map-topline"><span className="eyebrow">{copy.mapLayer}</span><span className="map-scale">西安 / 742 · 1 : 12,000</span></div>
+            <div className="map-topline"><span className="eyebrow">{copy.mapLayer}</span><span className="map-scale">西安 / 742 · {mapFeatures.length} EVIDENCE FEATURES</span></div>
             <h1 id="hero-title" className="map-title">历史总是对我紧追不舍。<em>Chang’an, 742 CE · a bounded beginning</em></h1>
             <div className="map-grid" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /><span /></div>
             <div className="district district-west"><strong>西市</strong><small>贸易与迁徙</small></div>
             <div className="district district-gate"><strong>金光门</strong><small>城门记录</small></div>
             <div className="district district-jingzhao"><strong>京兆府</strong><small>行政范围</small></div>
-            <div className="map-node node-market"><span className="node-dot" /><span>WESTERN MARKET</span></div>
-            <div className="map-node node-gate"><span className="node-dot" /><span>GATE / 03</span></div>
-            <div className="map-node node-office"><span className="node-dot brass" /><span>JINGZHAO</span></div>
+            {mapFeatures.map((feature) => <button
+              className={`map-node evidence-node ${selectedFeatureId === feature.id ? "selected" : ""}`}
+              key={feature.id}
+              type="button"
+              aria-pressed={selectedFeatureId === feature.id}
+              aria-label={`${feature.nameZh}：${feature.uncertaintyNoteZh}`}
+              style={{ left: `${feature.schematicPosition.left}%`, top: `${feature.schematicPosition.top}%` }}
+              onClick={() => setSelectedFeatureId(feature.id)}
+            ><span className={`node-dot ${feature.kind === "administration" ? "brass" : ""}`} /><span>{feature.nameEn.toUpperCase()}</span></button>)}
             <div className="map-legend"><span><i className="legend-line red" />水系与交通</span><span><i className="legend-line navy" />行政边界</span><span><i className="legend-line brass" />来源不确定性</span></div>
+            <div className="map-evidence-panel" aria-live="polite">
+              <div className="map-evidence-heading"><span className="source-chip">{sourceLabel(selectedFeature.classification)}</span><strong>{selectedFeature.nameZh}</strong></div>
+              <p>{selectedFeature.uncertaintyNoteZh}</p>
+              <dl><div><dt>有效时间</dt><dd>{selectedFeature.validFrom}–{selectedFeature.validTo}</dd></div><div><dt>精度</dt><dd>{selectedFeature.temporalPrecision}</dd></div><div><dt>来源</dt><dd>{sourceSummary(selectedFeature.sourceIds)}</dd></div><div><dt>许可</dt><dd>{selectedFeature.licenseCode}</dd></div></dl>
+              <small>{selectedFeature.attribution}</small>
+            </div>
             <p className="map-caption"><strong>地图说明</strong><br />{copy.mapNote}</p>
             <span className="date-stamp">天宝元年<br />SPRING / 742</span>
           </div>
@@ -337,14 +324,14 @@ export default function Home() {
         </aside>
       </div>
 
-      <section className="origin-deck" aria-labelledby="origins-title">
+       <section className="origin-deck" aria-labelledby="origins-title">
         <div className="origin-intro"><p className="eyebrow">FIRST RECORDED LIFE</p><h2 id="origins-title">三种出身，三个证据入口。</h2><p>先选择社会位置，再让故事获得边界。</p></div>
-        {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{origin.source}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
+        {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
       </section>
 
-      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 18 条 · 待核验 7 条 · 叙事虚构 3 条</span><span>{copy.languageNote} · 16+ · No real payments</span></footer>
+      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · 待核验 0 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · 16+ · No real payments</span></footer>
 
-      {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => setSelectedOrigin(origin.id)}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="setup-footer"><span><strong>标签：</strong>合理重建 · 来源待展开</span><button className="primary-button" type="button" onClick={startGame}>确认并进入</button></div></section></div>}
+       {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => setSelectedOrigin(origin.id)}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={startGame}>确认并进入</button></div></section></div>}
       {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}
     </main>
   );

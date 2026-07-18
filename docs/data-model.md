@@ -24,3 +24,16 @@
 
 迁移文件为 `supabase/migrations/202607180001_phase3_identity_saves.sql`。迁移会创建私有 `user-uploads` 桶，限制为 PNG、JPEG、WebP，单文件上限 5 MiB。
 
+## 阶段 4 历史内容表
+
+阶段 4 新增只读内容镜像：
+
+| 表 | 用途 | 客户端权限 |
+| --- | --- | --- |
+| `historical_sources` | 来源书目、定位、许可证和审校状态 | 只能读取 `published = true` |
+| `historical_claims` | 事实、合理重建、叙事虚构的最小声明 | 只能读取 `published = true` |
+| `historical_claim_sources` | claim 与来源的多对多关系 | 只能读取已发布 claim 的关系 |
+| `map_features` | 时间范围、示意几何、不确定性、许可和归属 | 只能读取 `published = true` |
+| `map_feature_sources` | 地图要素与来源的多对多关系 | 只能读取已发布要素的关系 |
+
+这五张表不接受浏览器写入。内容作者先修改 `content/tang-changan-742/` 下的 JSON，通过 Zod 和发布脚本后，再更新 Supabase 迁移。`source_ids` 仍保留在主表，关系表提供数据库级外键约束；两者必须保持一致。
