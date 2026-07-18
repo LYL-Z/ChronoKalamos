@@ -30,6 +30,20 @@ export async function sendEmailMagicLink(
   if (error) throw error;
 }
 
+export async function signInWithEmailPassword(
+  client: SupabaseClient,
+  email: string,
+  password: string,
+): Promise<void> {
+  const validatedEmail = emailSchema.parse(email);
+  const validatedPassword = z.string().min(6, "密码至少需要6位。 ").parse(password);
+  const { error } = await client.auth.signInWithPassword({
+    email: validatedEmail,
+    password: validatedPassword,
+  });
+  if (error) throw error;
+}
+
 export async function linkGuestToEmail(
   client: SupabaseClient,
   email: string,
@@ -48,4 +62,3 @@ export async function linkGuestToEmail(
   );
   if (error) throw error;
 }
-

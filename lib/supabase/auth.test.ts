@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { isAnonymousUser, linkGuestToEmail } from "./auth";
+import { isAnonymousUser, linkGuestToEmail, signInWithEmailPassword } from "./auth";
 
 function createAuthClient(user: Partial<User> | null) {
   const updateUser = vi.fn().mockResolvedValue({ error: null });
+  const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
   const client = {
     auth: {
       getSession: vi.fn().mockResolvedValue({
@@ -11,10 +12,11 @@ function createAuthClient(user: Partial<User> | null) {
         error: null,
       }),
       updateUser,
+      signInWithPassword,
     },
   } as unknown as SupabaseClient;
 
-  return { client, updateUser };
+  return { client, updateUser, signInWithPassword };
 }
 
 describe("anonymous identity upgrade", () => {
@@ -48,5 +50,13 @@ describe("anonymous identity upgrade", () => {
     await expect(linkGuestToEmail(client, "reader@example.com", "https://example.com/"))
       .rejects.toThrow("当前身份不是游客");
     expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("normalizes email before password sign-in", async () => {
+    const { client, signInWithPassword } = createAuthClient(null);
+
+    await signInWithEmailPassword(client, "  reader@example.com ", "secret1");
+
+    expect(signInWithPassword).toHaveBeenCalledWith({ email: "reader@example.com", password: "secret1" });
   });
 });

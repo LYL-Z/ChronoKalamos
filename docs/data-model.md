@@ -26,7 +26,7 @@
 
 ## 阶段 4 历史内容表
 
-阶段 4 新增只读内容镜像：
+阶段 4 新增只读内容镜像。首页启动后从 Supabase 读取已发布镜像，并在请求失败时退回经过 Zod 校验的本地包。回退状态会在界面明确标出，不得伪装成数据库已同步。
 
 | 表 | 用途 | 客户端权限 |
 | --- | --- | --- |
@@ -35,5 +35,12 @@
 | `historical_claim_sources` | claim 与来源的多对多关系 | 只能读取已发布 claim 的关系 |
 | `map_features` | 时间范围、示意几何、不确定性、许可和归属 | 只能读取 `published = true` |
 | `map_feature_sources` | 地图要素与来源的多对多关系 | 只能读取已发布要素的关系 |
+| `historical_origins` | 三种首发出身模板及其证据 ID | 只能读取 `published = true` |
+| `historical_origin_sources` | 出身与来源的多对多关系 | 只能读取已发布出身的关系 |
+| `historical_origin_claims` | 出身与主张的多对多关系 | 只能读取已发布出身的关系 |
 
-这五张表不接受浏览器写入。内容作者先修改 `content/tang-changan-742/` 下的 JSON，通过 Zod 和发布脚本后，再更新 Supabase 迁移。`source_ids` 仍保留在主表，关系表提供数据库级外键约束；两者必须保持一致。
+这八张表不接受浏览器写入。内容作者先修改 `content/tang-changan-742/` 下的 JSON，通过 Zod 和发布脚本后，再更新 Supabase 迁移。`source_ids`、`claim_ids` 仍保留在主表，关系表提供数据库级外键约束；客户端加载时会再次核对两套关系，发现不一致就拒绝发布内容。
+
+### 当前远端证据
+
+测试项目 `hqxtmaczhemaxjdfjtcz` 已应用 `phase4_historical_origins` 迁移。远端有 3 个已发布出身、8 条出身—来源关系和 7 条出身—主张关系。匿名读取只返回已发布行，浏览器角色没有任何历史内容写权限。

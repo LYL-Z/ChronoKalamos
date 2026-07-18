@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IdentityPanel } from "@/components/identity-panel";
 import { changanContent, sourceLabel, sourceSummary, type HistoricalOrigin, type MapFeature } from "@/lib/historical/content";
+import { loadPublishedChanganContent } from "@/lib/supabase/historical";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { HistoricalContent } from "@/lib/historical/content";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
 
@@ -76,11 +79,6 @@ const uiCopy: Record<Locale, {
   },
 };
 
-const origins: HistoricalOrigin[] = changanContent.origins;
-const mapFeatures: MapFeature[] = changanContent.mapFeatures;
-const publishedClaimCount = changanContent.claims.filter((claim) => claim.published).length;
-const fictionClaimCount = changanContent.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
-
 const navItems = [
   { id: "new", label: "新开始", english: "Begin" },
   { id: "saves", label: "历史存档", english: "Archives" },
@@ -105,9 +103,11 @@ function BrandMark() {
 export default function Home() {
   const [booting, setBooting] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [content, setContent] = useState<HistoricalContent>(changanContent);
+  const [contentSource, setContentSource] = useState<"syncing" | "database" | "fallback">(() => getSupabaseBrowserClient() ? "syncing" : "fallback");
   const [activeNav, setActiveNav] = useState<(typeof navItems)[number]["id"]>("new");
-  const [selectedOrigin, setSelectedOrigin] = useState(origins[0].id);
-  const [selectedFeatureId, setSelectedFeatureId] = useState(mapFeatures[0].id);
+  const [selectedOrigin, setSelectedOrigin] = useState(changanContent.origins[0].id);
+  const [selectedFeatureId, setSelectedFeatureId] = useState(changanContent.mapFeatures[0].id);
   const [showSetup, setShowSetup] = useState(false);
   const [showGame, setShowGame] = useState(false);
   const [language, setLanguage] = useState<Locale>(() => {
@@ -130,6 +130,32 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const setupCloseButtonRef = useRef<HTMLButtonElement>(null);
   const copy = uiCopy[language];
+  const origins: HistoricalOrigin[] = content.origins;
+  const mapFeatures: MapFeature[] = content.mapFeatures;
+  const publishedClaimCount = content.claims.filter((claim) => claim.published).length;
+  const fictionClaimCount = content.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
+
+  useEffect(() => {
+    const client = getSupabaseBrowserClient();
+    if (!client) return;
+
+    let active = true;
+    void loadPublishedChanganContent(client)
+      .then((nextContent) => {
+        if (!active) return;
+        setContent(nextContent);
+        setContentSource("database");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setContentSource("fallback");
+        setMessage(`数据库内容同步失败，当前显示本地校验包：${error instanceof Error ? error.message : "未知错误"}`);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const startedAt = window.performance.now();
@@ -168,11 +194,11 @@ export default function Home() {
 
   const selected = useMemo(
     () => origins.find((origin) => origin.id === selectedOrigin) ?? origins[0],
-    [selectedOrigin],
+    [origins, selectedOrigin],
   );
   const selectedFeature = useMemo(
     () => mapFeatures.find((feature) => feature.id === selectedFeatureId) ?? mapFeatures[0],
-    [selectedFeatureId],
+    [mapFeatures, selectedFeatureId],
   );
 
   function toggleLowMotion() {
@@ -286,6 +312,7 @@ export default function Home() {
         <section className="map-column" aria-labelledby="hero-title">
           <div className="map-stage">
             <div className="map-topline"><span className="eyebrow">{copy.mapLayer}</span><span className="map-scale">西安 / 742 · {mapFeatures.length} EVIDENCE FEATURES</span></div>
+            <div className={`content-sync ${contentSource}`} data-content-source={contentSource} role="status"><span className="status-dot" />{contentSource === "database" ? "SUPABASE / PUBLISHED MIRROR" : contentSource === "syncing" ? "SYNCING EVIDENCE PACKAGE" : "LOCAL VALIDATED FALLBACK"}</div>
             <h1 id="hero-title" className="map-title">历史总是对我紧追不舍。<em>Chang’an, 742 CE · a bounded beginning</em></h1>
             <div className="map-grid" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /><span /></div>
             <div className="district district-west"><strong>西市</strong><small>贸易与迁徙</small></div>
@@ -329,7 +356,7 @@ export default function Home() {
         {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
       </section>
 
-      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · 待核验 0 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · 16+ · No real payments</span></footer>
+      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · 待核验 0 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "内容来自 Supabase 已发布镜像" : "内容来自本地校验包"} · 16+ · No real payments</span></footer>
 
        {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => setSelectedOrigin(origin.id)}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={startGame}>确认并进入</button></div></section></div>}
       {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}

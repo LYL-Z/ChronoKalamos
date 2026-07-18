@@ -16,6 +16,8 @@
 - `game_checkpoints`
 - `user_uploads`
 
+阶段 4 的 `historical_*` 与 `map_*` 表也全部启用 RLS。它们是公开可读、发布态限定的证据镜像，不允许浏览器写入；来源、主张、出身和地图关系由外键与发布策略共同约束。
+
 远端 hardening 迁移还完成了三项修复：
 
 - `private.handle_new_user()` 不再暴露在 `public` schema，且撤销 `anon`、`authenticated` 和 `public` 的执行权限。

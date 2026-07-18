@@ -3,7 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { ZodError } from "zod";
-import { isAnonymousUser, linkGuestToEmail, sendEmailMagicLink, signInAsGuest } from "@/lib/supabase/auth";
+import { isAnonymousUser, linkGuestToEmail, sendEmailMagicLink, signInAsGuest, signInWithEmailPassword } from "@/lib/supabase/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { listOwnSaves, savePrototypeSession, type SaveSummary } from "@/lib/supabase/saves";
 import { uploadPrivateImage } from "@/lib/supabase/uploads";
@@ -28,6 +28,8 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
   const client = useMemo(() => getSupabaseBrowserClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailMode, setEmailMode] = useState<"magic" | "password">("magic");
   const [busy, setBusy] = useState(false);
   const [loadingSession, setLoadingSession] = useState(Boolean(client));
   const [saves, setSaves] = useState<SaveSummary[]>([]);
@@ -44,9 +46,11 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
       setLoadingSession(false);
     });
 
-    const { data: subscription } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = client.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) setSaves([]);
+      if (event === "SIGNED_IN") onMessage("邮箱确认或密码登录已完成。当前身份已恢复，可以读取本人的存档。 ");
+      if (event === "USER_UPDATED" && session?.user.email_confirmed_at) onMessage("邮箱已确认。当前游客身份与已有存档保持不变。 ");
     });
 
     return () => {
@@ -112,8 +116,13 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
         await linkGuestToEmail(client, email, redirectTo);
         onMessage("确认邮件已发送。完成验证后，当前游客 ID 与存档会保留。若邮箱已存在，请改为登录该账户，系统不会自动合并两个用户。 ");
       } else if (!user) {
-        await sendEmailMagicLink(client, email, redirectTo);
-        onMessage("邮箱登录链接已发送。请在同一浏览器完成验证。 ");
+        if (emailMode === "password") {
+          await signInWithEmailPassword(client, email, password);
+          onMessage("密码登录成功。 ");
+        } else {
+          await sendEmailMagicLink(client, email, redirectTo);
+          onMessage("邮箱登录链接已发送。请在同一浏览器完成验证；链接确认后会自动返回本站。 ");
+        }
       } else {
         onMessage("当前已经是正式账户，无需再次绑定邮箱。 ");
       }
@@ -179,10 +188,13 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
       </div>
 
       {(!user || isAnonymousUser(user)) && (
-        <form className="login-form" onSubmit={submitEmail}>
-          <label htmlFor="identity-email">{user ? "升级游客账户" : "邮箱登录入口"}</label>
-          <input id="identity-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy} />
-          <button className="primary-button" type="submit" disabled={busy}>{user ? "绑定并保留存档" : "发送登录链接"}</button>
+        <form className="login-form" data-testid="identity-email-form" onSubmit={submitEmail}>
+          <div className="email-heading"><label htmlFor="identity-email">{user ? "升级游客账户" : "邮箱登录入口"}</label><span>真实 Supabase Auth</span></div>
+          {!user && <div className="email-mode" role="group" aria-label="邮箱登录方式"><button type="button" className={emailMode === "magic" ? "selected" : ""} aria-pressed={emailMode === "magic"} onClick={() => setEmailMode("magic")} disabled={busy}>验证链接</button><button type="button" className={emailMode === "password" ? "selected" : ""} aria-pressed={emailMode === "password"} onClick={() => setEmailMode("password")} disabled={busy}>密码登录</button></div>}
+          <input id="identity-email" data-testid="identity-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy} />
+          {!user && emailMode === "password" && <input id="identity-password" data-testid="identity-password" type="password" autoComplete="current-password" placeholder="至少 6 位密码" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} />}
+          <button className="primary-button" data-testid="identity-submit" type="submit" disabled={busy}>{user ? "绑定并保留存档" : emailMode === "password" ? "登录邮箱账户" : "发送验证链接"}</button>
+          {!user && <p className="email-hint">验证链接适合首次登录或忘记密码；密码登录适合已设置密码的账户。</p>}
         </form>
       )}
 

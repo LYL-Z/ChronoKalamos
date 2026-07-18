@@ -5,12 +5,14 @@ import test from "node:test";
 const page = new URL("../app/page.tsx", import.meta.url);
 const layout = new URL("../app/layout.tsx", import.meta.url);
 const identityPanel = new URL("../components/identity-panel.tsx", import.meta.url);
+const historicalClient = new URL("../lib/supabase/historical.ts", import.meta.url);
 
 test("ChronoKalamos prototype keeps the evidence-bound core visible", async () => {
-  const [pageSource, layoutSource, identitySource] = await Promise.all([
+  const [pageSource, layoutSource, identitySource, historicalSource] = await Promise.all([
     readFile(page, "utf8"),
     readFile(layout, "utf8"),
     readFile(identityPanel, "utf8"),
+    readFile(historicalClient, "utf8"),
   ]);
 
   assert.match(pageSource, /历史总是对我紧追不舍/);
@@ -27,6 +29,13 @@ test("ChronoKalamos prototype keeps the evidence-bound core visible", async () =
   assert.match(pageSource, /value: "ru"/);
   assert.match(identitySource, /微信、QQ、手机号/);
   assert.match(identitySource, /Supabase 未配置/);
+  assert.match(identitySource, /真实 Supabase Auth/);
+  assert.match(identitySource, /密码登录/);
+  assert.match(identitySource, /data-testid="identity-email-form"/);
+  assert.match(pageSource, /SUPABASE \/ PUBLISHED MIRROR/);
+  assert.match(pageSource, /loadPublishedChanganContent/);
+  assert.match(historicalSource, /from\("historical_origins"\)/);
+  assert.match(historicalSource, /validateChanganContent/);
   assert.doesNotMatch(pageSource, /SkeletonPreview|codex-preview/);
   assert.match(layoutSource, /ChronoKalamos/);
   assert.match(layoutSource, /zh-CN/);

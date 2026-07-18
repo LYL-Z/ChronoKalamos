@@ -41,6 +41,29 @@ test("phase 4 historical content is public-read and draft-hidden", {
   assert.ok(mapFeatures?.every((feature) => feature.valid_from <= 742 && feature.valid_to >= 742));
   assert.ok(mapFeatures?.every((feature) => feature.uncertainty_code && feature.license_code));
 
+  const { data: origins, error: originsError } = await publicClient
+    .from("historical_origins")
+    .select("id,code,source_ids,claim_ids,published")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("published", true)
+    .order("code");
+  assert.ifError(originsError);
+  assert.deepEqual(origins?.map((origin) => origin.code), ["O-01", "O-02", "O-03"]);
+  assert.ok(origins?.every((origin) => origin.source_ids.length > 0 && origin.claim_ids.length > 0));
+
+  const { data: originSources, error: originSourcesError } = await publicClient
+    .from("historical_origin_sources")
+    .select("origin_id,source_id");
+  assert.ifError(originSourcesError);
+  assert.equal(originSources?.length, 8);
+
+  const { data: hiddenOrigins, error: hiddenOriginsError } = await publicClient
+    .from("historical_origins")
+    .select("id")
+    .eq("published", false);
+  assert.ifError(hiddenOriginsError);
+  assert.deepEqual(hiddenOrigins, []);
+
   const { data: hiddenDrafts, error: draftError } = await publicClient
     .from("historical_claims")
     .select("id")
@@ -52,6 +75,11 @@ test("phase 4 historical content is public-read and draft-hidden", {
     .from("historical_claims")
     .insert({ id: "C-TEST-ANON", classification: "叙事虚构", subject_kind: "scenario", subject_id: "tang-changan-742", text_zh: "不应写入", text_en: "must not write", source_ids: [], source_note: "test", valid_from: 742, valid_to: 742, published: true });
   assert.ok(writeError, "public clients must not write historical claims");
+
+  const { error: originWriteError } = await publicClient
+    .from("historical_origins")
+    .insert({ id: "merchant", code: "O-01", title: "不应写入", english: "must not write", detail: "test", classification: "叙事虚构", source_ids: [], claim_ids: [], published: true });
+  assert.ok(originWriteError, "public clients must not write historical origins");
 });
 
 test("two users are isolated and an optional controlled email can exercise guest upgrade", {
