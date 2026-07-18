@@ -1,0 +1,2 @@
+-- Remote migration-history marker for the already-applied full production schema.
+-- The schema itself is defined in 202607180001_phase3_identity_saves.sql.

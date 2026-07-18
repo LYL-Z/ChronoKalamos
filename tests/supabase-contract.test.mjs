@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL("../supabase/migrations/202607180001_phase3_identity_saves.sql", import.meta.url);
+const hardeningMigrationUrl = new URL("../supabase/migrations/20260718122704_phase3_security_hardening.sql", import.meta.url);
 const envExampleUrl = new URL("../.env.example", import.meta.url);
 const browserClientUrl = new URL("../lib/supabase/browser.ts", import.meta.url);
 
@@ -38,6 +39,29 @@ test("browser configuration contains only publishable Supabase values", async ()
 
   assert.match(envExample, /NEXT_PUBLIC_SUPABASE_URL=/);
   assert.match(envExample, /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=/);
+  assert.match(envExample, /SUPABASE_TEST_URL=/);
+  assert.match(envExample, /SUPABASE_TEST_PUBLISHABLE_KEY=/);
   assert.doesNotMatch(envExample, /SERVICE_ROLE_KEY=/);
   assert.doesNotMatch(browserClient, /service.role|service_role/i);
+});
+
+test("phase 3 hardening limits grants, protects the trigger helper, and indexes foreign keys", async () => {
+  const sql = await readFile(hardeningMigrationUrl, "utf8");
+
+  assert.match(sql, /create schema if not exists private/i);
+  assert.match(sql, /function private\.handle_new_user\(\)[\s\S]*security definer[\s\S]*set search_path = ''/i);
+  assert.match(sql, /revoke all on function private\.handle_new_user\(\) from public, anon, authenticated/i);
+  assert.match(sql, /drop function if exists public\.handle_new_user\(\)/i);
+  assert.match(sql, /revoke all on table[\s\S]*from anon/i);
+  assert.match(sql, /grant select, insert, update on table public\.profiles to authenticated/i);
+  assert.match(sql, /grant select, insert, update, delete on table[\s\S]*public\.user_uploads[\s\S]*to authenticated/i);
+
+  for (const index of [
+    "game_checkpoints_owner_id_idx",
+    "game_checkpoints_session_owner_idx",
+    "game_turns_session_owner_idx",
+    "user_uploads_owner_id_idx",
+  ]) {
+    assert.match(sql, new RegExp(`create index if not exists ${index}`, "i"));
+  }
 });

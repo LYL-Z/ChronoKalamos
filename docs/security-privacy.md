@@ -1,27 +1,35 @@
-# 阶段3安全与隐私边界
+# 阶段 3 安全与隐私边界
 
 ## 浏览器密钥
 
-浏览器只读取 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。publishable key 用于识别项目，不授予绕过 RLS 的权限。服务角色密钥不得出现在 `.env.example`、客户端模块、构建产物或 Sites 环境中。
+浏览器只读取 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。publishable key 用于识别项目，不能绕过 RLS。服务角色密钥不得出现在 `.env.example`、客户端模块、构建产物或 Sites 环境中。
+
+`.env.test` 只存放测试项目 URL 和 publishable key。它被 `.gitignore` 忽略，不能提交到仓库。生产 Sites 只配置两个 `NEXT_PUBLIC_*` 变量。
 
 ## 数据隔离
 
-`profiles`、`game_sessions`、`game_turns`、`game_checkpoints` 和 `user_uploads` 全部启用 RLS。选择、插入、更新和删除均检查 `auth.uid()`。私有桶额外检查：
+以下表全部启用 RLS，并以 `auth.uid()` 检查归属：
 
-- 桶必须是 `user-uploads`；
-- 对象路径首段必须等于用户 UUID；
-- `storage.objects.owner_id` 必须等于当前用户 UUID；
-- 文件格式限 PNG、JPEG、WebP；
-- 文件大小不超过 5 MiB。
+- `profiles`
+- `game_sessions`
+- `game_turns`
+- `game_checkpoints`
+- `user_uploads`
 
-存储对象只能通过本人 JWT 或后续生成的短时签名 URL 读取。应用通过 Storage API 删除对象，不直接修改 `storage` schema。
+远端 hardening 迁移还完成了三项修复：
 
-## 当前未完成的验证
+- `private.handle_new_user()` 不再暴露在 `public` schema，且撤销 `anon`、`authenticated` 和 `public` 的执行权限。
+- `anon` 没有上述业务表权限；`authenticated` 只获得浏览器实际需要的最小 CRUD 权限。
+- 四个外键和 RLS 查询路径新增索引。
 
-静态契约测试只能证明迁移包含预期策略，不能证明云端项目已正确应用。阶段3退出必须在已迁移的 Supabase 测试项目运行 `npm run test:supabase:live`。该测试创建两个匿名用户，并验证用户 B 无法读取或覆盖用户 A 的存档，也无法下载用户 A 的私有对象。
+私有桶 `user-uploads` 额外检查桶名、用户 UUID 路径、对象 owner、MIME 和 5 MiB 上限。对象只能通过本人 JWT 或短时签名 URL 读取。应用通过 Storage API 删除对象，不直接修改 `storage` schema。
 
-没有项目凭证时，该测试会明确跳过。跳过不等于通过。
+## 真实验证
 
-## 依赖审计
+```bash
+npm run test:supabase:live
+```
 
-2026-07-18 的 `npm audit --omit=dev` 报告 2 项中危，均来自 Next 依赖的 PostCSS。完整审计另有 1 项低危、7 项中危和 6 项高危，主要位于 Vite、Wrangler、Miniflare 与 Cloudflare 开发工具链。审计建议的 Next 修复会降级到 9.3.3，不能采用；这会破坏现有 React 19 和 Vinext 兼容关系。阶段6必须在升级 Sites/Vinext 锁定栈后重新审计。在修复前，不应把当前版本称为公开测试版。
+该测试使用两个独立匿名客户端，验证存档、上传对象和上传元数据的跨用户不可见性，并验证重复 client ID 的幂等行为。测试结束会删除业务数据；测试用户用专用 metadata 标记，并在管理端确认后清理。
+
+Supabase 顾问的匿名策略提示是预期结果：匿名会话使用 `authenticated` 角色。它不等于开放读取，因为每条策略仍检查 `auth.uid()`。若出现新的 SECURITY DEFINER、未索引外键或匿名表权限告警，必须先修复再发布。

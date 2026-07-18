@@ -12,8 +12,8 @@
     "test": "npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:contracts",
     "test:unit": "vitest run",
     "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs",
-    "test:supabase:live": "node --test tests/supabase-live.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "test:supabase:live": "node --env-file-if-exists=.env.test --test tests/supabase-live.test.mjs",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },
@@ -37,6 +37,7 @@
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
     "react-server-dom-webpack": "19.2.6",
+    "supabase": "^2.109.1",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
