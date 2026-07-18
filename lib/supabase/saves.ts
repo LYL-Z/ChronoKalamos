@@ -81,10 +81,16 @@ export async function savePrototypeSession(
     originId,
     getOrCreateClientSessionId(originId),
   );
+  const { error: upsertError } = await client
+    .from("game_sessions")
+    .upsert(payload, { onConflict: "owner_id,client_session_id", ignoreDuplicates: true });
+  if (upsertError) throw upsertError;
+
   const { data, error } = await client
     .from("game_sessions")
-    .upsert(payload, { onConflict: "owner_id,client_session_id" })
     .select("id,client_session_id,scenario_id,title,status,state_version,updated_at")
+    .eq("owner_id", payload.owner_id)
+    .eq("client_session_id", payload.client_session_id)
     .single();
 
   if (error) throw error;
@@ -100,4 +106,3 @@ export async function listOwnSaves(client: SupabaseClient): Promise<SaveSummary[
   if (error) throw error;
   return z.array(saveSummarySchema).parse(data ?? []);
 }
-

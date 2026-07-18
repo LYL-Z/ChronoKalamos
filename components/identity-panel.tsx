@@ -31,6 +31,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
   const [busy, setBusy] = useState(false);
   const [loadingSession, setLoadingSession] = useState(Boolean(client));
   const [saves, setSaves] = useState<SaveSummary[]>([]);
+  const userId = user?.id;
 
   useEffect(() => {
     if (!client) return;
@@ -55,11 +56,19 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
   }, [client, onMessage]);
 
   useEffect(() => {
-    if (!client || !user) return;
+    if (!client || !userId) return;
+    let active = true;
     void listOwnSaves(client)
-      .then(setSaves)
-      .catch((error: unknown) => onMessage(`存档读取失败：${describeError(error)}`));
-  }, [client, onMessage, user]);
+      .then((nextSaves) => {
+        if (active) setSaves(nextSaves);
+      })
+      .catch((error: unknown) => {
+        if (active) onMessage(`存档读取失败：${describeError(error)}`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, onMessage, userId]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);

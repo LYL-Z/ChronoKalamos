@@ -1,5 +1,5 @@
 {
-  "name": "site-creator-vinext-starter",
+  "name": "chronokalamos",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -9,11 +9,12 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run build && npm run test:unit && npm run test:contracts",
+    "test": "npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run test:contracts",
     "test:unit": "vitest run",
     "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs",
     "test:supabase:live": "node --test tests/supabase-live.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
