@@ -26,6 +26,7 @@ test("private storage has bucket, size, MIME, folder, and owner constraints", as
   assert.match(sql, /array\['image\/png', 'image\/jpeg', 'image\/webp'\]/i);
   assert.match(sql, /storage\.foldername\(name\)\)\[1\] = \(select auth\.uid\(\)::text\)/i);
   assert.match(sql, /owner_id = \(select auth\.uid\(\)::text\)/i);
+  assert.match(sql, /user_uploads_path_owner_check check \(storage_path like \(owner_id::text \|\| '\/%'\)\)/i);
   assert.doesNotMatch(sql, /service_role/i);
 });
 
@@ -40,4 +41,3 @@ test("browser configuration contains only publishable Supabase values", async ()
   assert.doesNotMatch(envExample, /SERVICE_ROLE_KEY=/);
   assert.doesNotMatch(browserClient, /service.role|service_role/i);
 });
-

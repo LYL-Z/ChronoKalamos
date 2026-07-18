@@ -97,6 +97,7 @@ create table if not exists public.user_uploads (
   deleted_at timestamptz,
   constraint user_uploads_path_key unique (storage_path),
   constraint user_uploads_bucket_check check (bucket_id = 'user-uploads'),
+  constraint user_uploads_path_owner_check check (storage_path like (owner_id::text || '/%')),
   constraint user_uploads_mime_check check (mime_type in ('image/png', 'image/jpeg', 'image/webp')),
   constraint user_uploads_size_check check (size_bytes > 0 and size_bytes <= 5242880),
   constraint user_uploads_status_check check (status in ('ready', 'deleted'))
@@ -271,4 +272,3 @@ create policy "storage_user_uploads_delete_own" on storage.objects
     and (storage.foldername(name))[1] = (select auth.uid()::text)
     and owner_id = (select auth.uid()::text)
   );
-
