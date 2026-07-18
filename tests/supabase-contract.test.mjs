@@ -41,6 +41,7 @@ test("browser configuration contains only publishable Supabase values", async ()
   assert.match(envExample, /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=/);
   assert.match(envExample, /SUPABASE_TEST_URL=/);
   assert.match(envExample, /SUPABASE_TEST_PUBLISHABLE_KEY=/);
+  assert.match(envExample, /SUPABASE_TEST_UPGRADE_EMAIL=/);
   assert.doesNotMatch(envExample, /SERVICE_ROLE_KEY=/);
   assert.doesNotMatch(browserClient, /service.role|service_role/i);
 });

@@ -34,6 +34,8 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```text
 SUPABASE_TEST_URL=
 SUPABASE_TEST_PUBLISHABLE_KEY=
+# 可选：只使用你控制的测试收件箱
+SUPABASE_TEST_UPGRADE_EMAIL=
 ```
 
 测试项目需要启用匿名登录、手动身份关联，并把生产站和本地地址加入重定向白名单。邮箱确认在正式配置中保持开启。不要把 service-role key 放进浏览器环境。
@@ -47,7 +49,7 @@ npm test
 npm run test:supabase:live
 ```
 
-最后一项会创建两个真实匿名用户，验证存档和私有上传隔离，再验证游客 UUID 连续性。它会清理业务数据和带专用 metadata 的测试用户。缺少 `.env.test` 时测试会跳过；跳过不等于通过。
+最后一项会创建两个真实匿名用户，验证存档和私有上传隔离。只有配置受控的 `SUPABASE_TEST_UPGRADE_EMAIL` 时才发起邮箱升级。它会清理业务数据和带专用 metadata 的测试用户。缺少 `.env.test` 时测试会跳过；跳过不等于通过。
 
 ## 文档入口
 
