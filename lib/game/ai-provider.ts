@@ -151,7 +151,7 @@ export class DeepSeekChatProvider implements AIProvider {
     this.baseUrl = (options.baseUrl ?? "https://api.deepseek.com").replace(/\/+$/, "");
     this.model = options.model ?? "deepseek-v4-pro";
     this.fetcher = options.fetcher ?? fetch;
-    this.timeoutMs = options.timeoutMs ?? 45000;
+    this.timeoutMs = options.timeoutMs ?? 25000;
   }
 
   private async request(body: unknown): Promise<unknown> {
@@ -197,16 +197,12 @@ export class DeepSeekChatProvider implements AIProvider {
       );
     }
 
-    const jsonExample = JSON.stringify({
-      narrative: { title: "示例", text: "至少一段叙事文本", classification: "合理重建" },
-      choices: [],
-      stateDelta: {},
-      sourceIds: ["S-001"],
-    });
+    const outputJsonSchema = JSON.stringify(z.toJSONSchema(turnGenerationSchema));
     const userPrompt = [
       "请根据以下 JSON 上下文生成一个 ChronoKalamos 回合。",
       "只返回 JSON 对象。不要添加解释或 Markdown。",
-      `JSON 输出形状示例：${jsonExample}`,
+      "输出必须严格匹配下面的 JSON Schema。不要省略任何必填字段。",
+      `JSON Schema：${outputJsonSchema}`,
       JSON.stringify(historicalContext(context)),
     ].join("\n");
 
@@ -217,7 +213,8 @@ export class DeepSeekChatProvider implements AIProvider {
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 2200,
+      thinking: { type: "disabled" },
+      max_tokens: 1800,
       stream: false,
     });
 

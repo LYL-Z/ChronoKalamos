@@ -35,6 +35,7 @@ describe("DeepSeek provider", () => {
     await expect(provider.generate(context)).rejects.toMatchObject({ code: "model_failed" });
     expect(requestUrl).toBe("https://api.deepseek.com/chat/completions");
     expect(requestBody?.response_format).toEqual({ type: "json_object" });
+    expect(requestBody?.thinking).toEqual({ type: "disabled" });
     expect(requestBody?.model).toBe("deepseek-v4-pro");
     expect(fetcher).toHaveBeenCalledOnce();
   });
