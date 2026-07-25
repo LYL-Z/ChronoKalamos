@@ -4,7 +4,9 @@
 
 浏览器只读取 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。publishable key 用于识别项目，不能绕过 RLS。服务角色密钥不得出现在 `.env.example`、客户端模块、构建产物或 Sites 环境中。
 
-`.env.test` 只存放测试项目 URL 和 publishable key。它被 `.gitignore` 忽略，不能提交到仓库。生产 Sites 只配置两个 `NEXT_PUBLIC_*` 变量。
+`.env.test` 只存放测试项目 URL 和 publishable key。它被 `.gitignore` 忽略，不能提交到仓库。
+
+Sites 使用预构建归档时，两个 `NEXT_PUBLIC_*` 值必须在客户端构建阶段存在。只设置 Sites 运行时变量不会改写已经生成的浏览器资源。发布前必须同时检查客户端产物只包含公开 URL 与 publishable key，并在未登录访客视图确认邮箱入口和数据库镜像已启用。service-role key 不得参与客户端构建，也不得写入 Sites 环境。
 
 ## 数据隔离
 

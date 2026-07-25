@@ -46,6 +46,8 @@
 
 生产站版本 9 已在 Chrome 登录态下复核。390px 与 768px 均无横向溢出，游客会话和存档刷新后仍可恢复。复核中发现的 5 个小于 24px 的按钮目标已修复。截图与审计记录位于 `audit/phase3-production/`。
 
+生产站版本 16 已在未登录公共访客视图复核。Sites 访问策略为 `public`。邮箱验证链接与密码登录入口直接可见，阶段 4 内容状态为 `SUPABASE / PUBLISHED MIRROR`。390px 与 1280px 均无文档级横向溢出。第 15 版暴露的构建期 `NEXT_PUBLIC_*` 缺失已修复；审计记录位于 `audit/phase0-4-production/`。
+
 ## 运行命令
 
 ```bash
