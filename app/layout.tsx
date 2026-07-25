@@ -10,10 +10,27 @@ export const metadata: Metadata = {
   },
 };
 
+function publicSupabaseConfigScript(): string {
+  const config = JSON.stringify({
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "",
+    publishableKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+      ?? process.env.SUPABASE_PUBLISHABLE_KEY
+      ?? "",
+  });
+  return config.replace(/</g, "\\u003c");
+}
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <script
+          id="chronokalamos-public-config"
+          type="application/json"
+          dangerouslySetInnerHTML={{ __html: publicSupabaseConfigScript() }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
