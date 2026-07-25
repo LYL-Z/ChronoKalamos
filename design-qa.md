@@ -30,7 +30,7 @@ Verified states:
 9. desktop and mobile have no horizontal overflow;
 10. mobile map-node labels are suppressed while their accessible labels and evidence panel remain available, eliminating the visible label collisions found in the first mobile capture.
 
-The live production site at `https://chronokalamos.com/` returned HTTP 200. Chrome confirmed `SUPABASE / PUBLISHED MIRROR`, the visible email-login entry, verification-link mode, password mode, and guest entry. The phase 5 source state was not deployed during this phase.
+The live production site at `https://chronokalamos.com/` returned HTTP 200. Chrome confirmed `SUPABASE / PUBLISHED MIRROR`, the visible email-login entry, verification-link mode, password mode, and guest entry. The phase 5 DeepSeek source state is deployed to production.
 
 ## Static and integration checks
 
@@ -51,4 +51,8 @@ The Windows `vinext start` server returned HTTP 200 for HTML but 404 for the gen
 
 ## Remaining gate
 
-The repository has no `DEEPSEEK_API_KEY` or `SUPABASE_SECRET_KEY`. The browser failure boundary and database service-wrapper transaction are verified, but a real DeepSeek model turn is not. Phase 5 cannot be declared fully complete until both server-only keys are configured and the 60-case model evaluation suite runs against the selected model.
+Phase 5 has no remaining model-evaluation gate. Production validation completed 60/60
+DeepSeek turns across the three bounded origins. Phase 4 still requires an external
+historian review before the Chang'an content package can be described as historically
+peer-reviewed. Phase 6 security, accessibility, performance, observability, and release
+hardening remains outside the first five phases.
