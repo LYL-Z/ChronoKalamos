@@ -1,0 +1,1099 @@
+{
+  "runId": "cd911935-9771-4caf-a210-03ecc777aeec",
+  "siteUrl": "https://chronokalamos.com",
+  "startedAt": "2026-07-25T14:14:24.415Z",
+  "finishedAt": "2026-07-25T14:19:29.273Z",
+  "requestedModelTurns": 60,
+  "committedModelTurns": 60,
+  "failedModelTurns": 0,
+  "meanLatencyMs": 13358,
+  "maxLatencyMs": 26886,
+  "sourceValidationPassed": true,
+  "stateValidationPassed": true,
+  "duplicateValidationPassed": true,
+  "providerValidationPassed": true,
+  "results": [
+    {
+      "origin": "merchant",
+      "sessionId": "21ba0419-f156-4814-8b95-449b6b81360d",
+      "turnsRequested": 20,
+      "turnsCommitted": 20,
+      "finalStateVersion": 20,
+      "finalWorldTurn": 20,
+      "duplicatePassed": true,
+      "databaseTurnCount": 20,
+      "providers": [
+        "deepseek-chat"
+      ],
+      "turns": [
+        {
+          "turn": 1,
+          "status": "committed",
+          "latencyMs": 12797,
+          "stateVersion": 1,
+          "worldYear": 742,
+          "worldTurn": 1,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 2,
+          "status": "committed",
+          "latencyMs": 16668,
+          "stateVersion": 2,
+          "worldYear": 742,
+          "worldTurn": 2,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 3,
+          "status": "committed",
+          "latencyMs": 10575,
+          "stateVersion": 3,
+          "worldYear": 742,
+          "worldTurn": 3,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-007"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 4,
+          "status": "committed",
+          "latencyMs": 10213,
+          "stateVersion": 4,
+          "worldYear": 742,
+          "worldTurn": 4,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 5,
+          "status": "committed",
+          "latencyMs": 11773,
+          "stateVersion": 5,
+          "worldYear": 742,
+          "worldTurn": 5,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 6,
+          "status": "committed",
+          "latencyMs": 13508,
+          "stateVersion": 6,
+          "worldYear": 742,
+          "worldTurn": 6,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 7,
+          "status": "committed",
+          "latencyMs": 22296,
+          "stateVersion": 7,
+          "worldYear": 742,
+          "worldTurn": 7,
+          "choiceCount": 3,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 8,
+          "status": "committed",
+          "latencyMs": 12978,
+          "stateVersion": 8,
+          "worldYear": 742,
+          "worldTurn": 8,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 9,
+          "status": "committed",
+          "latencyMs": 12879,
+          "stateVersion": 9,
+          "worldYear": 742,
+          "worldTurn": 9,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 10,
+          "status": "committed",
+          "latencyMs": 11807,
+          "stateVersion": 10,
+          "worldYear": 742,
+          "worldTurn": 10,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-007"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 11,
+          "status": "committed",
+          "latencyMs": 11166,
+          "stateVersion": 11,
+          "worldYear": 742,
+          "worldTurn": 11,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 12,
+          "status": "committed",
+          "latencyMs": 11069,
+          "stateVersion": 12,
+          "worldYear": 742,
+          "worldTurn": 12,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 13,
+          "status": "committed",
+          "latencyMs": 12695,
+          "stateVersion": 13,
+          "worldYear": 742,
+          "worldTurn": 13,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 14,
+          "status": "committed",
+          "latencyMs": 15130,
+          "stateVersion": 14,
+          "worldYear": 742,
+          "worldTurn": 14,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 15,
+          "status": "committed",
+          "latencyMs": 13551,
+          "stateVersion": 15,
+          "worldYear": 742,
+          "worldTurn": 15,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 16,
+          "status": "committed",
+          "latencyMs": 11087,
+          "stateVersion": 16,
+          "worldYear": 742,
+          "worldTurn": 16,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 17,
+          "status": "committed",
+          "latencyMs": 13121,
+          "stateVersion": 17,
+          "worldYear": 742,
+          "worldTurn": 17,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 18,
+          "status": "committed",
+          "latencyMs": 10784,
+          "stateVersion": 18,
+          "worldYear": 742,
+          "worldTurn": 18,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 19,
+          "status": "committed",
+          "latencyMs": 10712,
+          "stateVersion": 19,
+          "worldYear": 742,
+          "worldTurn": 19,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 20,
+          "status": "committed",
+          "latencyMs": 10441,
+          "stateVersion": 20,
+          "worldYear": 742,
+          "worldTurn": 20,
+          "choiceCount": 3,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        }
+      ]
+    },
+    {
+      "origin": "craft",
+      "sessionId": "1c4a220e-182b-4c6d-bcb6-f464d1644dc6",
+      "turnsRequested": 20,
+      "turnsCommitted": 20,
+      "finalStateVersion": 20,
+      "finalWorldTurn": 20,
+      "duplicatePassed": true,
+      "databaseTurnCount": 20,
+      "providers": [
+        "deepseek-chat"
+      ],
+      "turns": [
+        {
+          "turn": 1,
+          "status": "committed",
+          "latencyMs": 13661,
+          "stateVersion": 1,
+          "worldYear": 742,
+          "worldTurn": 1,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 2,
+          "status": "committed",
+          "latencyMs": 14646,
+          "stateVersion": 2,
+          "worldYear": 742,
+          "worldTurn": 2,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 3,
+          "status": "committed",
+          "latencyMs": 14118,
+          "stateVersion": 3,
+          "worldYear": 742,
+          "worldTurn": 3,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 4,
+          "status": "committed",
+          "latencyMs": 13173,
+          "stateVersion": 4,
+          "worldYear": 742,
+          "worldTurn": 4,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 5,
+          "status": "committed",
+          "latencyMs": 12474,
+          "stateVersion": 5,
+          "worldYear": 742,
+          "worldTurn": 5,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-007"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 6,
+          "status": "committed",
+          "latencyMs": 13402,
+          "stateVersion": 6,
+          "worldYear": 742,
+          "worldTurn": 6,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 7,
+          "status": "committed",
+          "latencyMs": 16796,
+          "stateVersion": 7,
+          "worldYear": 742,
+          "worldTurn": 7,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 8,
+          "status": "committed",
+          "latencyMs": 11675,
+          "stateVersion": 8,
+          "worldYear": 742,
+          "worldTurn": 8,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-008",
+            "S-001"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 9,
+          "status": "committed",
+          "latencyMs": 18667,
+          "stateVersion": 9,
+          "worldYear": 742,
+          "worldTurn": 9,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 10,
+          "status": "committed",
+          "latencyMs": 15254,
+          "stateVersion": 10,
+          "worldYear": 742,
+          "worldTurn": 10,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-007",
+            "S-004"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 11,
+          "status": "committed",
+          "latencyMs": 19176,
+          "stateVersion": 11,
+          "worldYear": 742,
+          "worldTurn": 11,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 12,
+          "status": "committed",
+          "latencyMs": 12053,
+          "stateVersion": 12,
+          "worldYear": 742,
+          "worldTurn": 12,
+          "choiceCount": 4,
+          "classification": "叙事虚构",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 13,
+          "status": "committed",
+          "latencyMs": 26886,
+          "stateVersion": 13,
+          "worldYear": 742,
+          "worldTurn": 13,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-008",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 14,
+          "status": "committed",
+          "latencyMs": 14722,
+          "stateVersion": 14,
+          "worldYear": 742,
+          "worldTurn": 14,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 15,
+          "status": "committed",
+          "latencyMs": 15346,
+          "stateVersion": 15,
+          "worldYear": 742,
+          "worldTurn": 15,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 16,
+          "status": "committed",
+          "latencyMs": 15252,
+          "stateVersion": 16,
+          "worldYear": 742,
+          "worldTurn": 16,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 17,
+          "status": "committed",
+          "latencyMs": 9853,
+          "stateVersion": 17,
+          "worldYear": 742,
+          "worldTurn": 17,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 18,
+          "status": "committed",
+          "latencyMs": 13088,
+          "stateVersion": 18,
+          "worldYear": 742,
+          "worldTurn": 18,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 19,
+          "status": "committed",
+          "latencyMs": 15947,
+          "stateVersion": 19,
+          "worldYear": 742,
+          "worldTurn": 19,
+          "choiceCount": 4,
+          "classification": "叙事虚构",
+          "sourceIds": [
+            "S-002",
+            "S-003",
+            "S-004",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 20,
+          "status": "committed",
+          "latencyMs": 15508,
+          "stateVersion": 20,
+          "worldYear": 742,
+          "worldTurn": 20,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        }
+      ]
+    },
+    {
+      "origin": "clerk",
+      "sessionId": "7d651d98-2add-45d9-a8e1-78d4a0c34487",
+      "turnsRequested": 20,
+      "turnsCommitted": 20,
+      "finalStateVersion": 20,
+      "finalWorldTurn": 20,
+      "duplicatePassed": true,
+      "databaseTurnCount": 20,
+      "providers": [
+        "deepseek-chat"
+      ],
+      "turns": [
+        {
+          "turn": 1,
+          "status": "committed",
+          "latencyMs": 15268,
+          "stateVersion": 1,
+          "worldYear": 742,
+          "worldTurn": 1,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 2,
+          "status": "committed",
+          "latencyMs": 11057,
+          "stateVersion": 2,
+          "worldYear": 742,
+          "worldTurn": 2,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-002",
+            "S-003",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 3,
+          "status": "committed",
+          "latencyMs": 10768,
+          "stateVersion": 3,
+          "worldYear": 742,
+          "worldTurn": 3,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 4,
+          "status": "committed",
+          "latencyMs": 12453,
+          "stateVersion": 4,
+          "worldYear": 742,
+          "worldTurn": 4,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 5,
+          "status": "committed",
+          "latencyMs": 13525,
+          "stateVersion": 5,
+          "worldYear": 742,
+          "worldTurn": 5,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 6,
+          "status": "committed",
+          "latencyMs": 10818,
+          "stateVersion": 6,
+          "worldYear": 742,
+          "worldTurn": 6,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 7,
+          "status": "committed",
+          "latencyMs": 11119,
+          "stateVersion": 7,
+          "worldYear": 742,
+          "worldTurn": 7,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-002",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 8,
+          "status": "committed",
+          "latencyMs": 12805,
+          "stateVersion": 8,
+          "worldYear": 742,
+          "worldTurn": 8,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-002",
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 9,
+          "status": "committed",
+          "latencyMs": 12631,
+          "stateVersion": 9,
+          "worldYear": 742,
+          "worldTurn": 9,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 10,
+          "status": "committed",
+          "latencyMs": 12595,
+          "stateVersion": 10,
+          "worldYear": 742,
+          "worldTurn": 10,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 11,
+          "status": "committed",
+          "latencyMs": 12200,
+          "stateVersion": 11,
+          "worldYear": 742,
+          "worldTurn": 11,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 12,
+          "status": "committed",
+          "latencyMs": 11732,
+          "stateVersion": 12,
+          "worldYear": 742,
+          "worldTurn": 12,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-002",
+            "S-003",
+            "S-004",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 13,
+          "status": "committed",
+          "latencyMs": 12904,
+          "stateVersion": 13,
+          "worldYear": 742,
+          "worldTurn": 13,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 14,
+          "status": "committed",
+          "latencyMs": 10924,
+          "stateVersion": 14,
+          "worldYear": 742,
+          "worldTurn": 14,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 15,
+          "status": "committed",
+          "latencyMs": 9717,
+          "stateVersion": 15,
+          "worldYear": 742,
+          "worldTurn": 15,
+          "choiceCount": 3,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 16,
+          "status": "committed",
+          "latencyMs": 12168,
+          "stateVersion": 16,
+          "worldYear": 742,
+          "worldTurn": 16,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 17,
+          "status": "committed",
+          "latencyMs": 13748,
+          "stateVersion": 17,
+          "worldYear": 742,
+          "worldTurn": 17,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-002",
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 18,
+          "status": "committed",
+          "latencyMs": 13304,
+          "stateVersion": 18,
+          "worldYear": 742,
+          "worldTurn": 18,
+          "choiceCount": 4,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-002",
+            "S-003",
+            "S-004",
+            "S-005",
+            "S-006",
+            "S-007",
+            "S-008"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 19,
+          "status": "committed",
+          "latencyMs": 10985,
+          "stateVersion": 19,
+          "worldYear": 742,
+          "worldTurn": 19,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-002"
+          ],
+          "sourcesPublished": true
+        },
+        {
+          "turn": 20,
+          "status": "committed",
+          "latencyMs": 13836,
+          "stateVersion": 20,
+          "worldYear": 742,
+          "worldTurn": 20,
+          "choiceCount": 5,
+          "classification": "合理重建",
+          "sourceIds": [
+            "S-001",
+            "S-003",
+            "S-004",
+            "S-006",
+            "S-007"
+          ],
+          "sourcesPublished": true
+        }
+      ]
+    }
+  ]
+}
