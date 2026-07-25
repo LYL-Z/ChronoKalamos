@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { createInitialWorldState } from "@/lib/game/rules";
+import { worldStateSchema } from "@/lib/game/schemas";
 
 const originSchema = z.enum(["merchant", "craft", "clerk"]);
 
@@ -14,6 +16,12 @@ export const saveSummarySchema = z.object({
 });
 
 export type SaveSummary = z.infer<typeof saveSummarySchema>;
+
+export const gameSessionSchema = saveSummarySchema.extend({
+  world_state: worldStateSchema,
+});
+
+export type GameSession = z.infer<typeof gameSessionSchema>;
 
 export function prototypeSaveStorageKey(originId: string): string {
   return `chronokalamos:prototype-session:${originSchema.parse(originId)}`;
@@ -47,21 +55,7 @@ export function createPrototypeSavePayload(
     scenario_id: "tang-changan-742",
     title: titles[origin],
     character_profile: { origin },
-    world_state: {
-      time: "742-01-01",
-      location: "changan",
-      health: { condition: "stable" },
-      socialIdentity: origin,
-      occupation: null,
-      money: {},
-      items: [],
-      relationships: [],
-      reputation: {},
-      skills: {},
-      quests: [],
-      risks: [],
-      death: null,
-    },
+    world_state: createInitialWorldState(origin),
     status: "draft" as const,
     state_version: 0,
     updated_at: new Date().toISOString(),
@@ -72,29 +66,25 @@ export async function savePrototypeSession(
   client: SupabaseClient,
   originId: string,
 ): Promise<SaveSummary> {
+  const session = await getOrCreateGameSession(client, originId);
+  return saveSummarySchema.parse(session);
+}
+
+export async function getOrCreateGameSession(
+  client: SupabaseClient,
+  originId: string,
+): Promise<GameSession> {
   const { data: userData, error: userError } = await client.auth.getUser();
   if (userError) throw userError;
   if (!userData.user) throw new Error("请先创建游客身份或登录邮箱账户。");
 
-  const payload = createPrototypeSavePayload(
-    userData.user.id,
-    originId,
-    getOrCreateClientSessionId(originId),
-  );
-  const { error: upsertError } = await client
-    .from("game_sessions")
-    .upsert(payload, { onConflict: "owner_id,client_session_id", ignoreDuplicates: true });
-  if (upsertError) throw upsertError;
-
-  const { data, error } = await client
-    .from("game_sessions")
-    .select("id,client_session_id,scenario_id,title,status,state_version,updated_at")
-    .eq("owner_id", payload.owner_id)
-    .eq("client_session_id", payload.client_session_id)
-    .single();
-
+  originSchema.parse(originId);
+  const { data, error } = await client.rpc("create_or_get_game_session", {
+    p_client_session_id: getOrCreateClientSessionId(originId),
+    p_origin_id: originId,
+  });
   if (error) throw error;
-  return saveSummarySchema.parse(data);
+  return gameSessionSchema.parse(data);
 }
 
 export async function listOwnSaves(client: SupabaseClient): Promise<SaveSummary[]> {

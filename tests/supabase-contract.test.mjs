@@ -3,9 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migrationUrl = new URL("../supabase/migrations/202607180001_phase3_identity_saves.sql", import.meta.url);
-const hardeningMigrationUrl = new URL("../supabase/migrations/20260718122704_phase3_security_hardening.sql", import.meta.url);
-const phase4MigrationUrl = new URL("../supabase/migrations/20260718141002_phase4_historical_content.sql", import.meta.url);
-const phase4OriginsMigrationUrl = new URL("../supabase/migrations/20260718150814_phase4_historical_origins.sql", import.meta.url);
+const hardeningMigrationUrl = new URL("../supabase/migrations/20260718123627_phase3_security_hardening.sql", import.meta.url);
+const phase4MigrationUrl = new URL("../supabase/migrations/20260718142752_phase4_historical_content.sql", import.meta.url);
+const phase4OriginsMigrationUrl = new URL("../supabase/migrations/20260718150936_phase4_historical_origins.sql", import.meta.url);
+const phase5MigrationUrl = new URL("../supabase/migrations/20260725121824_phase5_turn_transactions.sql", import.meta.url);
+const deepSeekMigrationUrl = new URL("../supabase/migrations/20260725213000_phase5_deepseek_provider.sql", import.meta.url);
 const envExampleUrl = new URL("../.env.example", import.meta.url);
 const browserClientUrl = new URL("../lib/supabase/browser.ts", import.meta.url);
 
@@ -44,6 +46,9 @@ test("browser configuration contains only publishable Supabase values", async ()
   assert.match(envExample, /SUPABASE_TEST_URL=/);
   assert.match(envExample, /SUPABASE_TEST_PUBLISHABLE_KEY=/);
   assert.match(envExample, /SUPABASE_TEST_UPGRADE_EMAIL=/);
+  assert.match(envExample, /DEEPSEEK_API_KEY=/);
+  assert.match(envExample, /DEEPSEEK_BASE_URL=https:\/\/api\.deepseek\.com/);
+  assert.match(envExample, /DEEPSEEK_MODEL=/);
   assert.doesNotMatch(envExample, /SERVICE_ROLE_KEY=/);
   assert.doesNotMatch(browserClient, /service.role|service_role/i);
 });
@@ -96,4 +101,68 @@ test("phase 4 origins are database-backed, published-only, and relation-safe", a
   assert.match(sql, /historical_origin_sources[\s\S]*references public\.historical_sources/i);
   assert.match(sql, /historical_origin_claims[\s\S]*references public\.historical_claims/i);
   assert.doesNotMatch(sql, /grant (insert|update|delete).*historical_origins/i);
+});
+
+test("phase 5 turns are reserved, atomic, source-bound, and not directly writable", async () => {
+  const sql = await readFile(phase5MigrationUrl, "utf8");
+  assert.match(sql, /create table if not exists public\.game_turn_requests/i);
+  assert.match(sql, /unique \(owner_id, client_turn_id\)/i);
+  assert.match(sql, /input_hash/i);
+  assert.match(sql, /create or replace function public\.reserve_game_turn/i);
+  assert.match(sql, /create or replace function public\.commit_game_turn/i);
+  assert.match(sql, /create or replace function public\.fail_game_turn/i);
+  assert.match(sql, /for update/i);
+  assert.match(sql, /state_version_conflict/i);
+  assert.match(sql, /unpublished_source_reference/i);
+  assert.match(sql, /revoke insert, update, delete on public\.game_sessions from anon, authenticated/i);
+  assert.match(sql, /revoke insert, update, delete on public\.game_turns from anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.commit_game_turn/i);
+});
+
+test("phase 5 session deletion is owner-scoped and does not restore table writes", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20260725130108_phase5_session_cleanup.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(sql, /create or replace function public\.delete_game_session/i);
+  assert.match(sql, /owner_id = v_user_id/i);
+  assert.match(sql, /security definer/i);
+  assert.match(sql, /revoke all on function public\.delete_game_session\(uuid\) from public, anon/i);
+  assert.match(sql, /grant execute on function public\.delete_game_session\(uuid\) to authenticated/i);
+});
+
+test("phase 5 commits are service-role only", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20260725131032_phase5_server_only_commit.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(sql, /revoke execute on function public\.commit_game_turn[\s\S]*from authenticated/i);
+  assert.match(sql, /revoke execute on function public\.fail_game_turn[\s\S]*from authenticated/i);
+  assert.match(sql, /create or replace function public\.server_commit_game_turn/i);
+  assert.match(sql, /set_config\('request\.jwt\.claim\.sub', p_owner_id::text, true\)/i);
+  assert.match(sql, /from public, anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.server_commit_game_turn[\s\S]*to service_role/i);
+});
+
+test("phase 5 turn-request foreign key has a covering index", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20260725131336_phase5_request_fk_index.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    sql,
+    /create index if not exists game_turn_requests_session_owner_idx[\s\S]*\(session_id, owner_id\)/i,
+  );
+});
+
+test("phase 5 provider cutover normalizes legacy rows and enforces DeepSeek", async () => {
+  const sql = await readFile(deepSeekMigrationUrl, "utf8");
+  assert.match(sql, /update public\.game_turns[\s\S]*provider = 'deepseek-chat'/i);
+  assert.match(sql, /alter column provider set default 'deepseek-chat'/i);
+  assert.match(sql, /check \(provider = 'deepseek-chat'\)/i);
+  assert.match(sql, /create trigger normalize_game_turn_provider/i);
+  assert.match(sql, /new\.provider = 'openai-responses'/i);
 });

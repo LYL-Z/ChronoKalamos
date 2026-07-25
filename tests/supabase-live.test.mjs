@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.SUPABASE_TEST_URL;
 const publishableKey = process.env.SUPABASE_TEST_PUBLISHABLE_KEY;
+const secretKey = process.env.SUPABASE_TEST_SECRET_KEY;
 const upgradeEmail = process.env.SUPABASE_TEST_UPGRADE_EMAIL;
 
 test("phase 4 historical content is public-read and draft-hidden", {
@@ -89,6 +90,7 @@ test("two users are isolated and an optional controlled email can exercise guest
   const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
   const userA = createClient(url, publishableKey, options);
   const userB = createClient(url, publishableKey, options);
+  const serverClient = secretKey ? createClient(url, secretKey, options) : null;
   const runId = crypto.randomUUID();
   const testMetadata = { chronokalamos_test_run: runId };
   const { data: authA, error: authAError } = await userA.auth.signInAnonymously({ options: { data: testMetadata } });
@@ -100,6 +102,7 @@ test("two users are isolated and an optional controlled email can exercise guest
 
   const clientSessionId = crypto.randomUUID();
   let saveId;
+  let saveBId;
   let uploadPath;
   let uploadId;
   let upgradedUser = userA;
@@ -115,37 +118,32 @@ test("two users are isolated and an optional controlled email can exercise guest
       assert.equal(profile?.id, ownerId, "the auth trigger must create an owner profile");
     }
 
-    const { data: saveA, error: insertError } = await userA
-      .from("game_sessions")
-      .insert({
-        owner_id: authA.user.id,
-        client_session_id: clientSessionId,
-        title: "RLS live test",
-      })
-      .select("id")
-      .single();
-    assert.ifError(insertError);
+    const { data: saveA, error: createError } = await userA.rpc("create_or_get_game_session", {
+      p_client_session_id: clientSessionId,
+      p_origin_id: "merchant",
+    });
+    assert.ifError(createError);
     assert.ok(saveA?.id);
     saveId = saveA.id;
+    assert.equal(saveA.state_version, 0);
+    assert.equal(saveA.world_state?.time?.year, 742);
+    assert.equal(saveA.world_state?.socialIdentity, "merchant");
 
-    const { error: retryError } = await userA
-      .from("game_sessions")
-      .upsert({
-        owner_id: authA.user.id,
-        client_session_id: clientSessionId,
-        title: "must not overwrite on retry",
-      }, { onConflict: "owner_id,client_session_id", ignoreDuplicates: true });
+    const { data: retryResult, error: retryError } = await userA.rpc("create_or_get_game_session", {
+      p_client_session_id: clientSessionId,
+      p_origin_id: "merchant",
+    });
     assert.ifError(retryError);
+    assert.equal(retryResult?.id, saveId, "session creation must be idempotent");
+    assert.equal(retryResult?.state_version, 0);
 
-    const { data: retryResult, error: retryReadError } = await userA
-      .from("game_sessions")
-      .select("id,title")
-      .eq("owner_id", authA.user.id)
-      .eq("client_session_id", clientSessionId)
-      .single();
-    assert.ifError(retryReadError);
-    assert.equal(retryResult?.id, saveId);
-    assert.equal(retryResult?.title, "RLS live test");
+    const { data: saveB, error: createBError } = await userB.rpc("create_or_get_game_session", {
+      p_client_session_id: crypto.randomUUID(),
+      p_origin_id: "craft",
+    });
+    assert.ifError(createBError);
+    assert.ok(saveB?.id);
+    saveBId = saveB.id;
 
     const { data: invisibleToB, error: readError } = await userB
       .from("game_sessions")
@@ -159,8 +157,113 @@ test("two users are isolated and an optional controlled email can exercise guest
       .update({ title: "cross-user overwrite" })
       .eq("id", saveId)
       .select("id");
-    assert.ifError(updateError);
-    assert.deepEqual(attemptedUpdate, []);
+    assert.ok(updateError, "direct session writes must be revoked");
+    assert.equal(attemptedUpdate, null);
+
+    const turnInput = {
+      action: {
+        kind: "free_text",
+        text: "观察西市今日货物，并向家人询问来往商旅。",
+      },
+    };
+    const clientTurnId = crypto.randomUUID();
+    const { data: reservation, error: reservationError } = await userA.rpc("reserve_game_turn", {
+      p_session_id: saveId,
+      p_client_turn_id: clientTurnId,
+      p_expected_state_version: 0,
+      p_input: turnInput,
+    });
+    assert.ifError(reservationError);
+    assert.equal(reservation?.status, "reserved");
+
+    const stateAfter = structuredClone(saveA.world_state);
+    stateAfter.time = {
+      ...stateAfter.time,
+      minuteOfDay: 370,
+      totalMinutes: 10,
+      turn: 1,
+    };
+    const narrative = {
+      text: "你在西市的门槛旁停下，先辨认货包上的封记，再向家人确认今日该接待哪一批商旅。这个决定没有改变你的身份，却让你开始把记忆和谨慎当作谋生的本钱。",
+      choices: [
+        { id: "ask-family", label: "继续询问家人", consequenceHint: "获得更完整的来客信息" },
+        { id: "inspect-goods", label: "检查货包封记", consequenceHint: "尝试判断货物来源" },
+        { id: "wait", label: "先在门旁观察", consequenceHint: "等待新的线索出现" },
+      ],
+      classification: "合理重建",
+      sourceIds: ["S-004"],
+      evidence: [
+        { sourceId: "S-004", classification: "合理重建", claim: "西市作为长安商业活动的重要场所，为叙事行动提供空间背景。" },
+      ],
+    };
+    const commitArguments = {
+      p_session_id: saveId,
+      p_client_turn_id: clientTurnId,
+      p_expected_state_version: 0,
+      p_input: turnInput,
+      p_narrative: narrative,
+      p_state_after: stateAfter,
+      p_source_ids: ["S-004"],
+      p_provider_response_id: "supabase-live-contract",
+    };
+    const { data: forbiddenCommit, error: forbiddenCommitError } = await userA.rpc("commit_game_turn", {
+      ...commitArguments,
+    });
+    assert.ok(forbiddenCommitError, "a signed-in browser must not call the commit RPC directly");
+    assert.equal(forbiddenCommit, null);
+
+    let committed = null;
+    if (serverClient) {
+      const { data, error } = await serverClient.rpc("server_commit_game_turn", {
+        p_owner_id: authA.user.id,
+        ...commitArguments,
+      });
+      assert.ifError(error);
+      committed = data;
+      assert.equal(committed?.stateVersion, 1);
+      assert.equal(committed?.worldState?.time?.turn, 1);
+    }
+
+    const { data: ownTurns, error: ownTurnsError } = await userA
+      .from("game_turns")
+      .select("id,client_turn_id,committed_state_version")
+      .eq("session_id", saveId);
+    assert.ifError(ownTurnsError);
+    assert.equal(ownTurns?.length, serverClient ? 1 : 0);
+    if (serverClient) assert.equal(ownTurns?.[0]?.client_turn_id, clientTurnId);
+
+    for (const table of ["game_turns", "game_checkpoints", "game_turn_requests"]) {
+      const { data: foreignRows, error: foreignRowsError } = await userB
+        .from(table)
+        .select("id")
+        .eq(table === "game_turn_requests" ? "session_id" : "session_id", saveId);
+      assert.ifError(foreignRowsError);
+      assert.deepEqual(foreignRows, [], `user B must not read user A's ${table}`);
+    }
+
+    const { data: duplicateReservation, error: duplicateReservationError } = await userA.rpc("reserve_game_turn", {
+      p_session_id: saveId,
+      p_client_turn_id: clientTurnId,
+      p_expected_state_version: 0,
+      p_input: turnInput,
+    });
+    assert.ifError(duplicateReservationError);
+    assert.equal(duplicateReservation?.status, serverClient ? "committed" : "in_progress");
+    if (serverClient) assert.equal(duplicateReservation?.snapshot?.stateVersion, 1);
+
+    const { error: foreignReservationError } = await userB.rpc("reserve_game_turn", {
+      p_session_id: saveId,
+      p_client_turn_id: crypto.randomUUID(),
+      p_expected_state_version: serverClient ? 1 : 0,
+      p_input: turnInput,
+    });
+    assert.ok(foreignReservationError, "user B must not reserve a turn in user A's session");
+
+    const { data: foreignDelete, error: foreignDeleteError } = await userB.rpc("delete_game_session", {
+      p_session_id: saveId,
+    });
+    assert.ifError(foreignDeleteError);
+    assert.equal(foreignDelete, false, "user B must not delete user A's session");
 
     uploadPath = `${authA.user.id}/${crypto.randomUUID()}/rls-test.png`;
     const onePixelPng = Uint8Array.from([
@@ -270,7 +373,16 @@ test("two users are isolated and an optional controlled email can exercise guest
   } finally {
     if (uploadId) await upgradedUser.from("user_uploads").delete().eq("id", uploadId);
     if (uploadPath) await upgradedUser.storage.from("user-uploads").remove([uploadPath]);
-    if (saveId) await upgradedUser.from("game_sessions").delete().eq("id", saveId);
+    if (saveId) {
+      const { data, error } = await upgradedUser.rpc("delete_game_session", { p_session_id: saveId });
+      assert.ifError(error);
+      assert.equal(data, true);
+    }
+    if (saveBId) {
+      const { data, error } = await userB.rpc("delete_game_session", { p_session_id: saveBId });
+      assert.ifError(error);
+      assert.equal(data, true);
+    }
     await Promise.all([upgradedUser.auth.signOut(), userB.auth.signOut()]);
   }
 });

@@ -1,38 +1,54 @@
 # Sand & Cinnabar design QA
 
-## current result: desktop core gate passed; cloud and mobile gates pending
+## Current result: phase 5 desktop and mobile screens passed local visual QA
 
-The selected reference is `C:\\Users\\Lenovo\\.codex\\visualizations\\2026\\07\\18\\chronokalamos-options\\direction-sand.html`.
+Selected reference:
 
-The local application builds successfully. On 18 July 2026, the in-app browser reached the Vite development server at `http://127.0.0.1:4322/` and captured a full-page desktop screenshot. The rendered direction retains the selected sandpaper, cinnabar, indigo, and brass system. The map and timeline remain the dominant visual structure.
+`C:\Users\Lenovo\.codex\visualizations\2026\07\18\chronokalamos-options\direction-sand.html`
 
-The browser run verified six core flows:
+On 25 July 2026, the reference and the rendered application were captured at the same 1440 × 1000 viewport and reviewed together. The implementation retains the selected sandpaper, cinnabar, indigo, and brass system. The map, evidence panel, and timeline remain the dominant archive structure. The phase 5 game screen extends that system with one indigo rule column, one paper narrative column, and one indigo world-state column.
+
+The reference uses decorative route lines. The implementation replaces them with published feature nodes, uncertainty labels, source IDs, validity dates, and license data. This is a deliberate product change. It supports the evidence-bound brief and does not alter the selected visual language.
+
+## Browser checks
+
+Chrome rendered the local authenticated test preview at:
+
+- desktop: 1440 × 1000;
+- mobile: 390 × 844.
+
+Verified states:
 
 1. the timed boot reaches the archive page;
-2. the five-language selector changes the interface skeleton;
-3. low-motion mode changes state and exposes `aria-pressed`;
-4. the setup dialog receives focus, closes on Escape, and restores focus;
-5. an origin can be selected and loaded into the game simulator;
-6. the unconfigured guest path opens the simulator while retaining the Supabase warning.
+2. the public homepage shows five published map features and three bounded origins;
+3. the new-session dialog works at desktop and mobile widths;
+4. an unauthenticated visitor is upgraded to a real anonymous Supabase user;
+5. session creation uses the authoritative `create_or_get_game_session` RPC;
+6. the phase 5 game screen renders the rule pipeline, candidate narrative, choices, free input, private-image input, world state, reputation, time axis, and source boundary;
+7. a missing `DEEPSEEK_API_KEY` produces a visible `本回合未提交` state;
+8. the failed turn leaves the session at state version `v0`;
+9. desktop and mobile have no horizontal overflow;
+10. mobile map-node labels are suppressed while their accessible labels and evidence panel remain available, eliminating the visible label collisions found in the first mobile capture.
 
-The Windows `vinext start` process served the HTML shell but returned 404 for generated `/assets/*` paths during this run. The Vite development server did not reproduce the failure. The local package code builds static cache keys with Windows path separators, so this is treated as a Vinext Windows production-server limitation, not as proof that the deployed Linux worker is broken. It remains a deployment-risk item until upstream or a pinned upgrade resolves it.
+The live production site at `https://chronokalamos.com/` returned HTTP 200. Chrome confirmed `SUPABASE / PUBLISHED MIRROR`, the visible email-login entry, verification-link mode, password mode, and guest entry. The phase 5 source state was not deployed during this phase.
 
-The private Sites deployment is live, but opening it from the isolated browser reaches the required ChatGPT sign-in gate. No credentials were entered, so remote visual QA remains unverified.
+## Static and integration checks
 
-## Static checks completed
-
+- `npm run content:validate`
 - `npm run lint`
-- `npx tsc --noEmit`
+- `npm run typecheck`
+- `npm run build`
+- `npm run test:unit`
+- `npm run test:contracts`
+- `npm run test:supabase:live`
 - `npm test`
 
-## Browser and static coverage
+The publishable-key Supabase live suite verified two-user isolation, private upload isolation, session RPC idempotency, and that a signed-in browser cannot call the commit RPC. A separate management-API transaction smoke test verified the service-only wrapper: reservation status `reserved`, committed version `1`, world-state turn `1`, then owner cleanup returned `true`.
 
-- The language selector changes and persists the interface skeleton across five locales.
-- Low-motion state is persisted with a storage failure fallback.
-- The setup dialog closes on Escape, restores focus, exposes a description, and marks selected options.
-- The identity panel clearly separates Supabase configuration from the development simulator.
-- The map remains explicitly labeled as a prototype layer, not a verified reconstruction.
+## Known deployment risk
 
-## Required follow-up
+The Windows `vinext start` server returned HTTP 200 for HTML but 404 for the generated `/assets/*` path. The Vite development server served the same asset correctly. This appears limited to the local Windows production server path. It is not evidence that the Cloudflare worker is broken, because the existing Sites deployment serves its assets and the production page renders correctly. A phase 6 deployment check must still verify every current asset URL after the phase 5 source is saved and deployed.
 
-Open the deployed private site in a signed-in browser and repeat the core flow against the production worker. Run the mobile breakpoint and real Supabase email/upload flows. Until those checks exist, the desktop prototype gate is passed but the complete phase 2 and phase 3 exit conditions are not.
+## Remaining gate
+
+The repository has no `DEEPSEEK_API_KEY` or `SUPABASE_SECRET_KEY`. The browser failure boundary and database service-wrapper transaction are verified, but a real DeepSeek model turn is not. Phase 5 cannot be declared fully complete until both server-only keys are configured and the 60-case model evaluation suite runs against the selected model.
