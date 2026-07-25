@@ -65,6 +65,9 @@ function classifyUnexpected(error: unknown): TurnFailure {
   if (raw.includes("turn_in_progress")) {
     return new TurnFailure("turn_in_progress", "相同回合正在处理中，没有发起第二次模型调用。", true);
   }
+  if (raw.includes("turn_rate_limited")) {
+    return new TurnFailure("rate_limited", "操作过于频繁，请稍后重试。本回合未提交。", true);
+  }
   return new TurnFailure("turn_failed", "回合处理失败，数据库状态未改变。", true);
 }
 

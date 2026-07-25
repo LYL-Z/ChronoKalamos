@@ -114,11 +114,12 @@ function decodeJson(value: string): unknown {
 }
 
 function localModeration(text: string): ModerationResult {
+  const normalized = text.normalize("NFKC").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim();
   const categories: string[] = [];
-  if (/(ignore|disregard)\s+(all\s+)?previous\s+(instructions?|messages?)/i.test(text)) {
+  if (/(ignore|disregard)\s+(all\s+)?previous\s+(instructions?|messages?)/i.test(normalized)) {
     categories.push("prompt_injection");
   }
-  if (/(system\s+prompt|developer\s+message|api[_ -]?key|泄露.*提示词|忽略.*指令)/i.test(text)) {
+  if (/(system\s+prompt|developer\s+message|api[_ -]?key|泄露.*提示词|忽略.*指令)/i.test(normalized)) {
     categories.push("prompt_injection");
   }
   return { flagged: categories.length > 0, categories: [...new Set(categories)] };
@@ -148,7 +149,14 @@ export class DeepSeekChatProvider implements AIProvider {
       throw new AIProviderError("ai_not_configured", "DEEPSEEK_API_KEY 尚未配置。");
     }
     this.apiKey = options.apiKey.trim();
-    this.baseUrl = (options.baseUrl ?? "https://api.deepseek.com").replace(/\/+$/, "");
+    const baseUrl = (options.baseUrl ?? "https://api.deepseek.com").replace(/\/+$/, "");
+    try {
+      const parsed = new URL(baseUrl);
+      if (parsed.protocol !== "https:") throw new Error("invalid_protocol");
+    } catch {
+      throw new AIProviderError("model_failed", "DeepSeek 服务地址无效，本回合未提交。");
+    }
+    this.baseUrl = baseUrl;
     this.model = options.model ?? "deepseek-v4-pro";
     this.fetcher = options.fetcher ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 25000;
@@ -161,13 +169,14 @@ export class DeepSeekChatProvider implements AIProvider {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
+          Accept: "application/json",
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (error) {
-      if (error instanceof DOMException && error.name === "TimeoutError") {
+      if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
         throw new AIProviderError("model_timeout", "DeepSeek 响应超时，本回合未提交。");
       }
       throw new AIProviderError("model_failed", "无法连接 DeepSeek，本回合未提交。");

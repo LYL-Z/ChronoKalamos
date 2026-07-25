@@ -386,3 +386,56 @@ test("two users are isolated and an optional controlled email can exercise guest
     await Promise.all([upgradedUser.auth.signOut(), userB.auth.signOut()]);
   }
 });
+
+test("phase 6 admission control limits new turn reservations per owner", {
+  skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
+  timeout: 30_000,
+}, async () => {
+  const client = createClient(url, publishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const runId = crypto.randomUUID();
+  let sessionId;
+  const { data: auth, error: authError } = await client.auth.signInAnonymously({
+    options: { data: { chronokalamos_rate_limit_test: runId } },
+  });
+  assert.ifError(authError);
+  assert.ok(auth.user);
+
+  try {
+    const { data: session, error: sessionError } = await client.rpc("create_or_get_game_session", {
+      p_client_session_id: crypto.randomUUID(),
+      p_origin_id: "merchant",
+    });
+    assert.ifError(sessionError);
+    assert.ok(session?.id);
+    sessionId = session.id;
+
+    for (let index = 0; index < 12; index += 1) {
+      const { data, error } = await client.rpc("reserve_game_turn", {
+        p_session_id: sessionId,
+        p_client_turn_id: crypto.randomUUID(),
+        p_expected_state_version: 0,
+        p_input: { action: { kind: "free_text", text: `第${index + 1}次受控测试` } },
+      });
+      assert.ifError(error);
+      assert.equal(data?.status, "reserved");
+    }
+
+    const { data: blocked, error: blockedError } = await client.rpc("reserve_game_turn", {
+      p_session_id: sessionId,
+      p_client_turn_id: crypto.randomUUID(),
+      p_expected_state_version: 0,
+      p_input: { action: { kind: "free_text", text: "第13次应被限流" } },
+    });
+    assert.ok(blockedError);
+    assert.equal(blocked, null);
+    assert.match(blockedError.message, /turn_rate_limited/);
+  } finally {
+    if (sessionId) {
+      const { error } = await client.rpc("delete_game_session", { p_session_id: sessionId });
+      assert.ifError(error);
+    }
+    await client.auth.signOut();
+  }
+});

@@ -192,7 +192,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
           <div className="email-heading"><label htmlFor="identity-email">{user ? "升级游客账户" : "邮箱登录入口"}</label><span>真实 Supabase Auth</span></div>
           {!user && <div className="email-mode" role="group" aria-label="邮箱登录方式"><button type="button" className={emailMode === "magic" ? "selected" : ""} aria-pressed={emailMode === "magic"} onClick={() => setEmailMode("magic")} disabled={busy}>验证链接</button><button type="button" className={emailMode === "password" ? "selected" : ""} aria-pressed={emailMode === "password"} onClick={() => setEmailMode("password")} disabled={busy}>密码登录</button></div>}
           <input id="identity-email" data-testid="identity-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy} />
-          {!user && emailMode === "password" && <input id="identity-password" data-testid="identity-password" type="password" autoComplete="current-password" placeholder="至少 6 位密码" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} />}
+          {!user && emailMode === "password" && <><label htmlFor="identity-password">密码</label><input id="identity-password" data-testid="identity-password" type="password" autoComplete="current-password" placeholder="至少 6 位密码" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
           <button className="primary-button" data-testid="identity-submit" type="submit" disabled={busy}>{user ? "绑定并保留存档" : emailMode === "password" ? "登录邮箱账户" : "发送验证链接"}</button>
           {!user && <p className="email-hint">验证链接适合首次登录或忘记密码；密码登录适合已设置密码的账户。</p>}
         </form>
