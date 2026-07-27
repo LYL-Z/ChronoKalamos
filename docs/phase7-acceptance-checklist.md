@@ -8,7 +8,7 @@
 | 2 | 取得短信供应商、沙箱与配额 | 部分完成 | Twilio 控制台核对 Verify Service、试用目的号码、账户余额与地理权限 | 试用账号只可向已验证号码发送；中国大陆送达与正式配额未证实 |
 | 3 | 完成发送主体、模板、签名和当地资质审核 | 未完成 | 保存供应商、运营商和当地合规审核记录 | 中国大陆短信合规、签名和模板证据缺失 |
 | 4 | 完成单号、单 IP、设备和项目预算上限 | 代码完成，证据待留 | Supabase `phone_auth_audit` 与 RPC 集成测试；核对 `PHONE_AUTH_DAILY_LIMIT` | 设备级限流和预算告警仍需生产观测接入 |
-| 5 | OTP 前 CAPTCHA 与服务端限流 | 代码完成，凭证待留 | Turnstile siteverify 有效/无效/缺失测试；发送路由审计和 RPC 并发测试 | Cloudflare API 当前返回 10000 Authentication error，生产 widget/sitekey 未核验 |
+| 5 | OTP 前 CAPTCHA 与服务端限流 | 代码完成，Cloudflare widget 已创建 | Turnstile siteverify 有效/无效/缺失测试；发送路由审计和 RPC 并发测试；Cloudflare 控制台核对 `ChronoKalamos Phone Auth` Managed widget 与 `chronokalamos.com` 主机名 | 需要在生产凭证齐备后完成一次真实 token 发送演练；Cloudflare API 连接器仍不能作为验证证据 |
 | 6 | 换号、回收、SIM swap、恢复规则 | 未完成 | 审核 `docs/provider-onboarding.md` 中的恢复政策并保留批准记录 | 尚未接入 Supabase phone identity 绑定，不得把手机号当唯一恢复凭证 |
 | 7 | 过期 `phone_change` 清理、冲突拒绝、审计 | 部分完成 | 运行清理作业演练；检查审计只含 hash 与掩码 | 真实 Supabase Auth 手机绑定流程仍未启用 |
 | 8 | 隔离项目真实短信端到端测试 | 未完成 | 在独立测试项目完成发送、正确码、错误码、过期码、重复请求和双用户隔离 | 当前 `.env.test` 只有 Supabase URL/publishable key；Twilio 与 Turnstile 沙箱凭证缺失 |
