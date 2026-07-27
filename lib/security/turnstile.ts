@@ -34,6 +34,7 @@ export type VerifyTurnstileOptions = {
   remoteIp?: string;
   expectedAction?: string;
   expectedHostname?: string;
+  idempotencyKey?: string;
   secret?: string;
   fetcher?: typeof fetch;
   timeoutMs?: number;
@@ -48,6 +49,7 @@ export async function verifyTurnstileToken({
   remoteIp,
   expectedAction,
   expectedHostname,
+  idempotencyKey,
   secret = process.env.TURNSTILE_SECRET,
   fetcher = fetch,
   timeoutMs = 5000,
@@ -71,6 +73,7 @@ export async function verifyTurnstileToken({
     response: normalizedToken,
   });
   if (remoteIp?.trim()) body.set("remoteip", remoteIp.trim());
+  if (idempotencyKey?.trim()) body.set("idempotency_key", idempotencyKey.trim());
 
   let response: Response;
   try {

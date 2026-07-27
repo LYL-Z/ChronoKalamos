@@ -22,6 +22,7 @@ describe("Turnstile verification", () => {
       secret: "server-secret",
       remoteIp: "203.0.113.4",
       expectedAction: "phone-auth",
+      idempotencyKey: "0d72863e-0981-4d78-8825-0b6831ae2f44",
       fetcher,
     });
 
@@ -31,6 +32,7 @@ describe("Turnstile verification", () => {
     expect(request?.body).toBeInstanceOf(URLSearchParams);
     expect(String(request?.body)).toContain("secret=server-secret");
     expect(String(request?.body)).toContain("response=challenge-token");
+    expect(String(request?.body)).toContain("idempotency_key=0d72863e-0981-4d78-8825-0b6831ae2f44");
   });
 
   it("rejects an unexpected action", async () => {

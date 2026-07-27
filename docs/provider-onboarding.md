@@ -2,9 +2,10 @@
 
 ## 当前唯一轨道
 
-本轮只评估手机号登录。微信、QQ、真实打赏和第二历史场景均保持 `not_started`。
-手机号登录当前为 `evaluating`，不是 `ready`，更不是 `enabled`。公开站不得出现可提交
-手机号或验证码的入口。
+本轮只评估“已登录邮箱账户绑定手机号”这一辅助身份能力。它不是独立手机号登录，
+也不提供手机号单独恢复账户。微信、QQ、真实打赏和第二历史场景均保持
+`not_started`。手机号轨道当前为 `evaluating`，不是 `ready`，更不是 `enabled`。
+公开站在门禁关闭时不得出现可提交手机号或验证码的入口。
 
 ## 为什么不能直接开启
 
@@ -12,10 +13,10 @@ Supabase 托管项目的手机号 OTP 需要单独启用 Phone Auth，并配置�
 列表包括 MessageBird、Twilio 和 Vonage；TextLocal 属于社区支持。官方同时要求控制
 短信费用、设置速率限制与 CAPTCHA，并核对实际运营国家的短信法规。
 
-游客升级还存在独立风险。匿名用户可以通过 `updateUser({ phone })` 绑定电话身份，但
-2026 年 7 月的 Supabase 故障说明指出，多个未完成验证记录可能留下相同的
-`phone_change`。验证过程若按该字段查找，可能把号码更新到错误用户。未建立过期记录
-清理、唯一性冲突检测和失败恢复前，不得把手机号升级路径投入生产。
+本项目不允许游客直接绑定手机号。只有已确认邮箱的正式账户才可在 Twilio Verify
+通过后由服务端调用 `auth.admin.updateUserById` 绑定。服务端预检使用手机号级事务锁，
+拒绝跨用户冲突、拒绝覆盖已有手机号，并在 24 小时宽限期后清理废弃的 `phone_change`。
+这解决账户归属风险，但不替代中国大陆短信合规和真实送达证据。
 
 ## 启用证据
 
@@ -38,13 +39,13 @@ Supabase 托管项目的手机号 OTP 需要单独启用 Phone Auth，并配置�
 
 手机号轨道至少覆盖以下用例：
 
-- 游客先建立存档，再绑定手机号；验证前后 `auth.users.id` 保持不变。
-- 退出后以手机号重新登录，原存档和私有图片仍可读取。
+- 已确认邮箱账户绑定手机号；验证前后 `auth.users.id` 保持不变。
+- 手机号不能单独建立 Supabase 会话或恢复账户；邮箱仍是主要恢复方式。
 - 第二个手机号用户不能读取第一个用户的存档、回合、检查点或上传。
 - 已属于其他用户的手机号必须拒绝绑定，不自动合并账号。
 - 重复发送、错误验证码、过期验证码、并发验证和超出预算均有明确失败结果。
 - 废弃的 `phone_change` 在宽限期后被清理，并留下不含完整手机号的审计记录。
-- 手机号不能作为未经风险评估的唯一恢复凭证。
+- 号码恢复与 SIM swap 边界见 [`docs/phone-recovery-policy.md`](./phone-recovery-policy.md)。
 
 ## 其他能力的后续入口
 
@@ -121,3 +122,16 @@ The current exit condition is "provider preparation with guardrails
 published", not "Chinese SMS login completed". Cloudflare API authentication
 still needs to be restored before a production Turnstile widget/sitekey can be
 verified. No production secret was invented.
+
+## 2026-07-27 console evidence
+
+- Twilio Console shows the account as `Trial` with a balance of `$14.35`.
+- Verify Service `ChronoKalamos Login` exists with a `VA...` service identifier.
+- Verify Geo Permissions shows mainland China SMS under “Monitor all traffic for
+  blocking fraud”.
+- Verify Template Management shows `No custom template`.
+
+These observations are sufficient to document the preparation state. They are
+not evidence of a paid production account, an approved mainland China template,
+or successful delivery to a real destination. `PHONE_AUTH_POLICY_VERIFIED` must
+therefore remain `false`.

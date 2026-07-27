@@ -1,6 +1,11 @@
 import { getPhoneAuthReadiness } from "@/lib/auth/phone/config";
 import { getPhoneAuthProvider, PhoneProviderError } from "@/lib/auth/phone/provider";
 import { completePhoneSend, recordPhoneAudit, requestIp, reservePhoneSend, PhoneGuardrailError } from "@/lib/auth/phone/guardrails";
+import {
+  bearerAccessToken,
+  PhoneIdentityError,
+  preflightPhoneIdentityBinding,
+} from "@/lib/auth/phone/identity-binding";
 import { verifyTurnstileToken, TurnstileVerificationError } from "@/lib/security/turnstile";
 import { withSecurityHeaders } from "@/lib/security/http";
 import { z } from "zod";
@@ -60,11 +65,17 @@ export async function POST(request: Request): Promise<Response> {
   const requestId = requestIdOrNew(parsed.data.requestId);
   const ip = requestIp(request);
   try {
+    const accessToken = bearerAccessToken(request);
+    await preflightPhoneIdentityBinding({
+      accessToken,
+      phone: parsed.data.phone,
+    });
     await verifyTurnstileToken({
       token: parsed.data.turnstileToken,
       remoteIp: ip,
       expectedAction: "phone-auth",
       expectedHostname: process.env.TURNSTILE_EXPECTED_HOSTNAME,
+      idempotencyKey: requestId,
     });
 
     const reservation = await reservePhoneSend({
@@ -102,6 +113,18 @@ export async function POST(request: Request): Promise<Response> {
       throw providerError;
     }
   } catch (error) {
+    if (error instanceof PhoneIdentityError) {
+      await bestEffortAudit({
+        requestId,
+        operation: "send",
+        phone: parsed.data.phone,
+        ip,
+        provider: readiness.providerMode,
+        resultCode: error.code,
+        metadata: { identityPreflight: false },
+      });
+      return response(request, { code: error.code, message: error.message }, error.status);
+    }
     if (error instanceof TurnstileVerificationError) {
       await bestEffortAudit({
         requestId,

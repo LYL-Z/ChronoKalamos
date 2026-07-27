@@ -29,7 +29,7 @@ export type Phase7Capability = {
 export const phase7Capabilities = [
   {
     id: "phone-auth",
-    label: "中国大陆手机号登录",
+    label: "中国大陆手机号辅助身份绑定",
     status: "evaluating",
     gates: [
       {
@@ -66,13 +66,13 @@ export const phase7Capabilities = [
         id: "recovery-policy",
         label: "换号、回收号码和账号恢复策略",
         status: "missing",
-        decision: "手机号不作为唯一恢复凭证；恢复政策和客服路径仍需审定。",
+        decision: "已写入邮箱主恢复、号码回收、SIM swap 和人工恢复边界；安全通知与批准记录仍缺。",
       },
       {
         id: "phone-change-cleanup",
         label: "过期 phone_change 清理与冲突处理",
         status: "missing",
-        decision: "必须在 Supabase Auth 真实沙箱完成冲突、过期和回滚验证。",
+        decision: "已应用服务端预检迁移，拒绝跨用户冲突、覆盖和活动 phone_change；真实沙箱演练仍缺。",
       },
       {
         id: "sandbox-e2e",
@@ -124,10 +124,10 @@ export function assertPhase7Policy(
 
 assertPhase7Policy();
 
-export const phase7ActiveTrackLabel = "中国大陆手机号 · Twilio Verify + Turnstile 准备版";
+export const phase7ActiveTrackLabel = "中国大陆手机号辅助身份 · Twilio Verify + Turnstile 准备版";
 
 export const phase7PublicIdentityStatus =
-  "中国大陆手机号：Twilio Verify 与 Cloudflare Turnstile 已锁定为接入方案，当前为公开准备版；真实短信入口尚未启用。";
+  "中国大陆手机号辅助身份：Twilio Verify 与 Cloudflare Turnstile 已锁定为接入方案，当前为公开准备版；手机号登录入口保持关闭，真实短信入口尚未启用。";
 
 export const phase7PublicSupportStatus =
-  "第 7 阶段当前只发布中国大陆手机号的供应商准备层。Twilio Verify、Cloudflare Turnstile、送达权限、恢复政策和 Supabase 沙箱验收未全部完成；真实短信、微信、QQ 和支付仍保持关闭。";
+  "第 7 阶段当前只发布中国大陆手机号辅助身份的供应商准备层。Twilio Verify、Cloudflare Turnstile、送达权限、恢复政策和 Supabase 沙箱验收未全部完成；真实短信、微信、QQ 和支付仍保持关闭。";

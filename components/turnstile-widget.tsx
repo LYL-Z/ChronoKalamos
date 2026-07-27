@@ -54,10 +54,12 @@ export function TurnstileWidget({
   siteKey,
   onToken,
   onError,
+  resetKey = 0,
 }: {
   siteKey: string;
   onToken: (token: string) => void;
   onError?: (message: string) => void;
+  resetKey?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | number | undefined>(undefined);
@@ -90,6 +92,12 @@ export function TurnstileWidget({
       widgetIdRef.current = undefined;
     };
   }, [onError, onToken, siteKey]);
+
+  useEffect(() => {
+    if (window.turnstile && widgetIdRef.current !== undefined) {
+      window.turnstile.reset(widgetIdRef.current);
+    }
+  }, [resetKey]);
 
   return <div ref={containerRef} className="turnstile-widget" aria-label="Cloudflare Turnstile 验证" />;
 }

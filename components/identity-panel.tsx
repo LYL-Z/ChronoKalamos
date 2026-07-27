@@ -202,7 +202,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
 
       {!user && <button className="link-button identity-guest-button" type="button" onClick={startGuest} disabled={busy}>以游客身份开始 →</button>}
 
-      <PhoneAuthPanel onMessage={onMessage} />
+      <PhoneAuthPanel user={user} onMessage={onMessage} />
 
       {user && (
         <div className="identity-actions">

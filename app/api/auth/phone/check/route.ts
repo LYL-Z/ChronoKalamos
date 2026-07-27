@@ -1,6 +1,11 @@
 import { getPhoneAuthReadiness } from "@/lib/auth/phone/config";
 import { getPhoneAuthProvider, PhoneProviderError } from "@/lib/auth/phone/provider";
 import { recordPhoneAudit, requestIp, PhoneGuardrailError } from "@/lib/auth/phone/guardrails";
+import {
+  bearerAccessToken,
+  bindVerifiedPhoneIdentity,
+  PhoneIdentityError,
+} from "@/lib/auth/phone/identity-binding";
 import { verifyTurnstileToken, TurnstileVerificationError } from "@/lib/security/turnstile";
 import { withSecurityHeaders } from "@/lib/security/http";
 import { z } from "zod";
@@ -56,31 +61,76 @@ export async function POST(request: Request): Promise<Response> {
   const requestId = parsed.data.requestId ?? crypto.randomUUID();
   const ip = requestIp(request);
   try {
+    const accessToken = bearerAccessToken(request);
     await verifyTurnstileToken({
       token: parsed.data.turnstileToken,
       remoteIp: ip,
       expectedAction: "phone-auth",
       expectedHostname: process.env.TURNSTILE_EXPECTED_HOSTNAME,
+      idempotencyKey: requestId,
     });
     const provider = getPhoneAuthProvider(readiness.providerMode);
     const result = await provider.check(parsed.data.phone, parsed.data.code);
+    if (result.status !== "approved") {
+      await recordPhoneAudit({
+        requestId,
+        operation: "check",
+        phone: parsed.data.phone,
+        ip,
+        provider: readiness.providerMode,
+        resultCode: result.status,
+        providerStatus: result.status,
+        providerRequestId: result.sid,
+        metadata: { identityBound: false },
+      });
+      return response(request, {
+        approved: false,
+        status: result.status,
+        destination: result.to,
+        requestId,
+      }, 400);
+    }
+
+    const binding = await bindVerifiedPhoneIdentity({
+      accessToken,
+      phone: parsed.data.phone,
+    });
     await recordPhoneAudit({
       requestId,
       operation: "check",
       phone: parsed.data.phone,
       ip,
       provider: readiness.providerMode,
-      resultCode: result.status === "approved" ? "approved" : result.status,
+      resultCode: "approved_and_bound",
       providerStatus: result.status,
       providerRequestId: result.sid,
+      metadata: {
+        identityBound: true,
+        alreadyBound: binding.alreadyBound,
+        recoveryMode: "email-primary",
+      },
     });
     return response(request, {
-      approved: result.status === "approved",
+      approved: true,
       status: result.status,
       destination: result.to,
       requestId,
-    }, result.status === "approved" ? 200 : 400);
+      identityBound: true,
+      recoveryMode: "email-primary",
+    }, 200);
   } catch (error) {
+    if (error instanceof PhoneIdentityError) {
+      await bestEffortAudit({
+        requestId,
+        operation: "check",
+        phone: parsed.data.phone,
+        ip,
+        provider: readiness.providerMode,
+        resultCode: error.code,
+        metadata: { identityBound: false },
+      });
+      return response(request, { code: error.code, message: error.message }, error.status);
+    }
     if (error instanceof TurnstileVerificationError) {
       await bestEffortAudit({
         requestId,
