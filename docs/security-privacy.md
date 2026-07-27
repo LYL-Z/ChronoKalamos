@@ -40,3 +40,16 @@ npm run test:supabase:live
 该测试使用两个独立匿名客户端，验证存档、回合、检查点、上传对象和上传元数据的跨用户不可见性，并验证重复 `clientTurnId` 的幂等行为。测试结束通过 owner-scoped RPC 删除业务会话，并删除上传对象和元数据。匿名 Auth 用户用专用 metadata 标记；删除 Auth 用户仍需要测试项目管理员执行，publishable key 不能承担该权限。
 
 Supabase 顾问的匿名策略提示是预期结果：匿名会话使用 `authenticated` 角色。它不等于开放读取，因为每条策略仍检查 `auth.uid()`。若出现新的 SECURITY DEFINER、未索引外键或匿名表权限告警，必须先修复再发布。
+
+## Phase 7 provider secret boundary
+
+The phone-auth preparation track keeps all provider credentials on the server.
+`TWILIO_AUTH_TOKEN`, `TURNSTILE_SECRET`, and `SUPABASE_SECRET_KEY` must not be
+prefixed with `NEXT_PUBLIC_`, bundled into client code, returned by a readiness
+endpoint, or written to logs. The client may receive only the Turnstile site
+key.
+
+Phone numbers are sensitive account data. Before enabling the track, document
+retention, deletion, access logging, recovery, number reuse, and the handling
+of failed or expired `phone_change` records. A phone number is not accepted as
+the sole account-recovery factor.

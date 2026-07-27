@@ -84,3 +84,11 @@ npm run test:supabase:live
 - `docs/game-state.md`、`docs/model-routing.md`、`docs/ai-evals.md`：阶段 5 状态、模型边界和评测门槛。
 - `docs/provider-onboarding.md`：阶段 7 外部能力的供应商、政策与沙箱门禁。
 - `docs/scenario-expansion-template.md`：第二历史场景的来源、许可、规则和 60 回合模板。
+
+### Phase 7 preparation release
+
+The authorized preparation direction is mainland China + Twilio Verify +
+Cloudflare Turnstile. The public release exposes only the preparation status.
+The server adapter, Turnstile verification boundary, and GitHub CI are present,
+but no real SMS is sent until delivery permission, cost/rate gates, recovery
+policy, and sandbox evidence are complete.

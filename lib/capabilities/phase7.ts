@@ -16,6 +16,7 @@ export type Phase7Gate = {
   label: string;
   status: "missing" | "verified";
   evidence?: string;
+  decision?: string;
 };
 
 export type Phase7Capability = {
@@ -28,17 +29,57 @@ export type Phase7Capability = {
 export const phase7Capabilities = [
   {
     id: "phone-auth",
-    label: "手机号登录",
+    label: "中国大陆手机号登录",
     status: "evaluating",
     gates: [
-      { id: "target-markets", label: "首发国家或地区清单", status: "missing" },
-      { id: "provider-account", label: "短信供应商正式账号与沙箱", status: "missing" },
-      { id: "sender-registration", label: "发送主体、模板和当地资质", status: "missing" },
-      { id: "cost-controls", label: "发送预算、速率限制和异常停发阈值", status: "missing" },
-      { id: "captcha", label: "CAPTCHA 与自动化滥用防护", status: "missing" },
-      { id: "recovery-policy", label: "换号、回收号码和账号恢复策略", status: "missing" },
-      { id: "phone-change-cleanup", label: "过期 phone_change 清理与冲突处理", status: "missing" },
-      { id: "sandbox-e2e", label: "同一 UUID 的游客升级与双用户隔离验收", status: "missing" },
+      {
+        id: "target-markets",
+        label: "首发国家或地区清单",
+        status: "missing",
+        decision: "已选中国大陆；香港、澳门和台湾不在本次授权范围内。",
+      },
+      {
+        id: "provider-account",
+        label: "Twilio Verify 正式账号、Verify Service 与沙箱",
+        status: "missing",
+        decision: "已选 Twilio Verify；当前仅建立服务端适配，未证明中国短信送达。",
+      },
+      {
+        id: "sender-registration",
+        label: "中国短信送达、发送主体和本地资质",
+        status: "missing",
+        decision: "Twilio Verify 不等于中国本地送达许可；必须取得账号地理权限与合规结论。",
+      },
+      {
+        id: "cost-controls",
+        label: "发送预算、速率限制和异常停发阈值",
+        status: "missing",
+        decision: "采用 Verify 的服务级限制，并在应用层增加账号、IP 和预算闸门。",
+      },
+      {
+        id: "captcha",
+        label: "Cloudflare Turnstile 与自动化滥用防护",
+        status: "missing",
+        decision: "已选 Cloudflare Turnstile；站点密钥与服务端密钥尚未写入生产环境。",
+      },
+      {
+        id: "recovery-policy",
+        label: "换号、回收号码和账号恢复策略",
+        status: "missing",
+        decision: "手机号不作为唯一恢复凭证；恢复政策和客服路径仍需审定。",
+      },
+      {
+        id: "phone-change-cleanup",
+        label: "过期 phone_change 清理与冲突处理",
+        status: "missing",
+        decision: "必须在 Supabase Auth 真实沙箱完成冲突、过期和回滚验证。",
+      },
+      {
+        id: "sandbox-e2e",
+        label: "同一 UUID 的游客升级与双用户隔离验收",
+        status: "missing",
+        decision: "仍未执行真实 Twilio Verify + Turnstile + Supabase Auth 端到端验收。",
+      },
     ],
   },
   { id: "wechat-auth", label: "微信登录", status: "not_started", gates: [] },
@@ -83,10 +124,10 @@ export function assertPhase7Policy(
 
 assertPhase7Policy();
 
-export const phase7ActiveTrackLabel = "手机号登录评估 · 尚未启用";
+export const phase7ActiveTrackLabel = "中国大陆手机号 · Twilio Verify + Turnstile 准备版";
 
 export const phase7PublicIdentityStatus =
-  "手机号登录：第 7 阶段评估中，短信供应商、目标地区、反滥用和恢复规则未就绪；微信、QQ 仍未启动。";
+  "中国大陆手机号：Twilio Verify 与 Cloudflare Turnstile 已锁定为接入方案，当前为公开准备版；真实短信入口尚未启用。";
 
 export const phase7PublicSupportStatus =
-  "第 7 阶段仅评估手机号登录。真实短信、微信、QQ 和支付仍保持关闭；未完成供应商、政策与沙箱验收前不会显示可用入口。";
+  "第 7 阶段当前只发布中国大陆手机号的供应商准备层。Twilio Verify、Cloudflare Turnstile、送达权限、恢复政策和 Supabase 沙箱验收未全部完成；真实短信、微信、QQ 和支付仍保持关闭。";

@@ -67,3 +67,47 @@ Supabase 托管项目的手机号 OTP 需要单独启用 Phone Auth，并配置�
 - “Unexpected Behavior with `auth.updateUser({ phone })`.” *Supabase Docs*, Supabase,
   [supabase.com/docs/guides/troubleshooting/unexpected-behavior-with-authupdateuser-phone-phone-linked-to-incorrect-user-id-45368f](https://supabase.com/docs/guides/troubleshooting/unexpected-behavior-with-authupdateuser-phone-phone-linked-to-incorrect-user-id-45368f).
   Accessed 27 July 2026.
+## Phase 7 preparation decision: China mainland + Twilio Verify + Turnstile
+
+The authorized preparation track is limited to mainland China (`CN-mainland`).
+Hong Kong, Macao, and Taiwan are separate launch scopes. They are not implied
+by the word "China" in this release.
+
+The implementation now contains a server-only Twilio Verify adapter and a
+server-only Cloudflare Turnstile verifier. The public site exposes only the
+preparation status. It does not expose a phone form and it does not send SMS.
+
+Twilio Verify provides code generation, expiry, verification attempts, and
+service-level fraud controls. It does not prove that a particular Chinese
+number can receive traffic. Production requires an account with the correct
+geographic permissions, an approved Verify Service, a documented sender and
+consent policy, cost limits, and a real sandbox run.
+Twilio Verify is not an A2P 10DLC sender-registration shortcut for Chinese
+traffic; local delivery and regulatory checks remain separate.
+
+Turnstile must be validated at
+`https://challenges.cloudflare.com/turnstile/v0/siteverify`. The secret is
+server-only. The browser may receive `NEXT_PUBLIC_TURNSTILE_SITE_KEY` after a
+widget is created, but it must never receive `TURNSTILE_SECRET`,
+`TWILIO_AUTH_TOKEN`, or `SUPABASE_SECRET_KEY`.
+
+The preparation environment uses these names:
+
+```text
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_VERIFY_SERVICE_SID
+TURNSTILE_SITE_KEY
+TURNSTILE_SECRET
+PHONE_AUTH_ENABLED=false
+PHONE_AUTH_POLICY_VERIFIED=false
+```
+
+`PHONE_AUTH_ENABLED=true` is insufficient by itself. The application also
+requires `PHONE_AUTH_POLICY_VERIFIED=true`, and the capability registry still
+requires auditable evidence for every gate before the public identity panel can
+show an enabled phone-login entry.
+
+The current exit condition is "provider preparation published", not "Chinese
+SMS login completed". Cloudflare API authentication was unavailable during this
+run, so no production Turnstile widget or secret was invented.

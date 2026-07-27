@@ -16,6 +16,9 @@ function publicSupabaseConfigScript(): string {
     publishableKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       ?? process.env.SUPABASE_PUBLISHABLE_KEY
       ?? "",
+    turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+      ?? process.env.TURNSTILE_SITE_KEY
+      ?? "",
   });
   return config.replace(/</g, "\\u003c");
 }
