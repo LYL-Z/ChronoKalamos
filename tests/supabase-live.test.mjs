@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { describe } from "node:test";
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.SUPABASE_TEST_URL;
@@ -7,9 +7,24 @@ const publishableKey = process.env.SUPABASE_TEST_PUBLISHABLE_KEY;
 const secretKey = process.env.SUPABASE_TEST_SECRET_KEY;
 const upgradeEmail = process.env.SUPABASE_TEST_UPGRADE_EMAIL;
 
+async function deleteSessionWithTransientRetry(client, sessionId) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const result = await client.rpc("delete_game_session", { p_session_id: sessionId });
+    if (!result.error) return result.data;
+    lastError = result.error;
+    if (!/fetch failed|socket/i.test(`${result.error.message} ${result.error.details ?? ""}`)) {
+      throw result.error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+  }
+  throw lastError;
+}
+
+describe("Supabase live integration", { concurrency: 3 }, () => {
 test("phase 4 historical content is public-read and draft-hidden", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
-  timeout: 30_000,
+  timeout: 90_000,
 }, async () => {
   const publicClient = createClient(url, publishableKey, { auth: { persistSession: false, detectSessionInUrl: false } });
   const { data: sources, error: sourcesError } = await publicClient
@@ -85,7 +100,7 @@ test("phase 4 historical content is public-read and draft-hidden", {
 
 test("two users are isolated and an optional controlled email can exercise guest upgrade", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
-  timeout: 60_000,
+  timeout: 240_000,
 }, async () => {
   const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
   const userA = createClient(url, publishableKey, options);
@@ -374,13 +389,11 @@ test("two users are isolated and an optional controlled email can exercise guest
     if (uploadId) await upgradedUser.from("user_uploads").delete().eq("id", uploadId);
     if (uploadPath) await upgradedUser.storage.from("user-uploads").remove([uploadPath]);
     if (saveId) {
-      const { data, error } = await upgradedUser.rpc("delete_game_session", { p_session_id: saveId });
-      assert.ifError(error);
+      const data = await deleteSessionWithTransientRetry(upgradedUser, saveId);
       assert.equal(data, true);
     }
     if (saveBId) {
-      const { data, error } = await userB.rpc("delete_game_session", { p_session_id: saveBId });
-      assert.ifError(error);
+      const data = await deleteSessionWithTransientRetry(userB, saveBId);
       assert.equal(data, true);
     }
     await Promise.all([upgradedUser.auth.signOut(), userB.auth.signOut()]);
@@ -389,7 +402,7 @@ test("two users are isolated and an optional controlled email can exercise guest
 
 test("phase 6 admission control limits new turn reservations per owner", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
-  timeout: 30_000,
+  timeout: 120_000,
 }, async () => {
   const client = createClient(url, publishableKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -433,9 +446,10 @@ test("phase 6 admission control limits new turn reservations per owner", {
     assert.match(blockedError.message, /turn_rate_limited/);
   } finally {
     if (sessionId) {
-      const { error } = await client.rpc("delete_game_session", { p_session_id: sessionId });
-      assert.ifError(error);
+      const deleted = await deleteSessionWithTransientRetry(client, sessionId);
+      assert.equal(deleted, true);
     }
     await client.auth.signOut();
   }
+});
 });

@@ -142,7 +142,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .email-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .email-heading span { color: var(--cinnabar-deep); font: 8px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .login-form label { color: var(--ink-soft); font: 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
-.login-form input { width: 100%; height: 40px; border: 1px solid rgba(24, 36, 63, .45); border-radius: 0; background: rgba(255, 250, 235, .72); color: var(--ink); padding: 0 10px; font: 11px/1 var(--mono); }
+.login-form input, .login-form select { width: 100%; height: 40px; border: 1px solid rgba(24, 36, 63, .45); border-radius: 0; background: rgba(255, 250, 235, .72); color: var(--ink); padding: 0 10px; font: 11px/1 var(--mono); }
 .email-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .email-mode button { min-height: 30px; border: 1px solid rgba(24, 36, 63, .3); background: transparent; color: var(--ink-soft); font: 9px/1 var(--mono); letter-spacing: .08em; }
 .email-mode button:hover, .email-mode button.selected { border-color: var(--cinnabar); color: var(--cinnabar-deep); background: rgba(163, 61, 46, .08); }
@@ -167,8 +167,24 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .save-list div { display: flex; justify-content: space-between; gap: 10px; }
 .save-list strong { color: var(--ink); font: 10px/1.25 var(--serif); }
 .save-list small { color: var(--ink-soft); font: 8px/1.25 var(--mono); text-align: right; }
+.totp-panel { display: grid; gap: 11px; padding: 13px; border: 1px solid rgba(24, 36, 63, .35); background: rgba(255, 250, 235, .34); }
+.totp-panel h3 { margin: 0; color: var(--ink); font: 700 13px/1.15 var(--serif); }
+.totp-panel > p, .totp-recovery, .totp-empty { margin: 0; color: var(--ink-soft); font: 9px/1.5 var(--mono); }
+.totp-challenge { border-color: var(--cinnabar); background: rgba(163, 61, 46, .07); }
+.totp-enrollment { display: grid; gap: 10px; }
+.totp-enrollment > label { color: var(--ink-soft); font: 9px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.totp-qr { width: 192px; max-width: 100%; height: auto; justify-self: center; padding: 8px; border: 1px solid var(--line); background: #fff; }
+.totp-secret-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.totp-secret-row input { min-width: 0; height: 36px; border: 1px solid var(--line); background: rgba(255, 250, 235, .72); color: var(--ink); padding: 0 9px; font: 10px/1 var(--mono); }
+.totp-factor-list { display: grid; gap: 7px; }
+.totp-factor-list > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 7px; border-top: 1px dashed var(--line); }
+.totp-factor-list span { display: grid; gap: 3px; }
+.totp-factor-list strong { font: 700 10px/1.2 var(--mono); }
+.totp-factor-list small { color: var(--ink-soft); font: 8px/1 var(--mono); }
+.totp-error { padding: 8px 9px; border-left: 2px solid var(--cinnabar); background: rgba(163, 61, 46, .08); color: var(--cinnabar-deep) !important; }
+.totp-recovery { padding-top: 9px; border-top: 1px dashed var(--line); }
 .identity-unconfigured .primary-button { width: 100%; }
-.identity-panel button:disabled, .identity-panel input:disabled { cursor: not-allowed; opacity: .55; }
+.identity-panel button:disabled, .identity-panel input:disabled, .identity-panel select:disabled { cursor: not-allowed; opacity: .55; }
 .in-prep { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; padding-top: 12px; border-top: 1px dashed var(--line); color: var(--ink-soft); font: 9px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .in-prep span:first-child { color: var(--cinnabar); }
 
