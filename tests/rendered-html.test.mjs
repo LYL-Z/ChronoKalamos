@@ -6,13 +6,15 @@ const page = new URL("../app/page.tsx", import.meta.url);
 const layout = new URL("../app/layout.tsx", import.meta.url);
 const identityPanel = new URL("../components/identity-panel.tsx", import.meta.url);
 const historicalClient = new URL("../lib/supabase/historical.ts", import.meta.url);
+const phase7Capabilities = new URL("../lib/capabilities/phase7.ts", import.meta.url);
 
 test("ChronoKalamos prototype keeps the evidence-bound core visible", async () => {
-  const [pageSource, layoutSource, identitySource, historicalSource] = await Promise.all([
+  const [pageSource, layoutSource, identitySource, historicalSource, phase7Source] = await Promise.all([
     readFile(page, "utf8"),
     readFile(layout, "utf8"),
     readFile(identityPanel, "utf8"),
     readFile(historicalClient, "utf8"),
+    readFile(phase7Capabilities, "utf8"),
   ]);
 
   assert.match(pageSource, /历史总是对我紧追不舍/);
@@ -27,7 +29,8 @@ test("ChronoKalamos prototype keeps the evidence-bound core visible", async () =
   assert.match(pageSource, /value: "fr"/);
   assert.match(pageSource, /value: "el"/);
   assert.match(pageSource, /value: "ru"/);
-  assert.match(identitySource, /微信、QQ、手机号/);
+  assert.match(phase7Source, /微信、QQ/);
+  assert.match(phase7Source, /手机号登录/);
   assert.match(identitySource, /Supabase 未配置/);
   assert.match(identitySource, /真实 Supabase Auth/);
   assert.match(identitySource, /密码登录/);

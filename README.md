@@ -8,7 +8,8 @@ ChronoKalamos／ΧΡΟΝΟΚΑΛΑΜΟΣ 是有史料边界的 AI 历史人生�
 - 界面准备中文、英文、法文、希腊文和俄文；史实内容首发只承诺人工审校的中英文。
 - AI 回合工程闭环已接入 DeepSeek Chat API 适配层；缺少服务端密钥时只返回“本回合未提交”，不生成伪叙事。
 - 当前地图是带来源、时间、许可与不确定性字段的证据示意图，不是可测量的 742 年复原地图。
-- 支付、微信、QQ 和手机号登录尚未接入。
+- 阶段 7 只评估手机号登录；供应商、目标地区、反滥用和账号恢复证据不足，公开入口保持关闭。
+- 支付、微信和 QQ 登录尚未接入。
 - 动态效果支持 `prefers-reduced-motion` 和产品内低动态模式。
 
 ## 本地运行
@@ -81,3 +82,5 @@ npm run test:supabase:live
 - `docs/brand-and-ui.md`、`docs/motion-spec.md`、`docs/i18n-copy.md`：视觉、动效和翻译边界。
 - `docs/data-model.md`、`docs/auth.md`、`docs/security-privacy.md`：身份、数据与隐私约束。
 - `docs/game-state.md`、`docs/model-routing.md`、`docs/ai-evals.md`：阶段 5 状态、模型边界和评测门槛。
+- `docs/provider-onboarding.md`：阶段 7 外部能力的供应商、政策与沙箱门禁。
+- `docs/scenario-expansion-template.md`：第二历史场景的来源、许可、规则和 60 回合模板。

@@ -3,6 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { ZodError } from "zod";
+import { phase7PublicIdentityStatus } from "@/lib/capabilities/phase7";
 import { isAnonymousUser, linkGuestToEmail, sendEmailMagicLink, signInAsGuest, signInWithEmailPassword } from "@/lib/supabase/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { listOwnSaves, savePrototypeSession, type SaveSummary } from "@/lib/supabase/saves";
@@ -168,7 +169,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
         <p className="identity-status"><span className="status-dot warning" />Supabase 未配置</p>
         <p className="identity-warning">这是明确标注的开发模拟器。未设置公开项目地址和 publishable key 时，不会创建账户、存档或上传。</p>
         <button className="primary-button" type="button" onClick={startGuest}>打开游客模拟器</button>
-        <p className="identity-prep">微信、QQ、手机号：筹备中，不显示伪登录。</p>
+        <p className="identity-prep">{phase7PublicIdentityStatus}</p>
       </div>
     );
   }
@@ -224,7 +225,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
         </div>
       )}
 
-      <p className="identity-prep">微信、QQ、手机号：筹备中，不显示伪登录。</p>
+      <p className="identity-prep">{phase7PublicIdentityStatus}</p>
     </div>
   );
 }

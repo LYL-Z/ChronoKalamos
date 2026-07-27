@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IdentityPanel } from "@/components/identity-panel";
+import { phase7ActiveTrackLabel, phase7PublicSupportStatus } from "@/lib/capabilities/phase7";
 import { streamGameTurn } from "@/lib/game/client";
 import {
   type HistoricalClassification,
@@ -393,7 +394,7 @@ export default function Home() {
     if (id === "new") setShowSetup(true);
     if (id === "saves") setMessage("存档由 Supabase RLS 按用户隔离；游客凭证丢失后仍无法恢复。 ");
     if (id === "settings") setMessage("低动态模式与语言切换已在右上角开放；语言切换只改变界面骨架。 ");
-    if (id === "support") setMessage("当前为前端原型：没有真实支付、短信、微信或QQ登录。 ");
+    if (id === "support") setMessage(phase7PublicSupportStatus);
   }
 
   if (booting) {
@@ -550,7 +551,7 @@ export default function Home() {
         <aside className="login-sheet" aria-label="游客入口">
           <span className="sheet-tab">IDENTITY BOUNDARY</span><p className="sheet-label">ARCHIVE GATE / 03</p><h2>先留下一个入口。</h2><p className="sheet-copy">游客与邮箱账户使用同一用户 ID 升级路径。数据库和私有文件均由 RLS 限定为本人可见。</p>
           <IdentityPanel originId={selectedOrigin} onGuestStarted={() => setShowSetup(true)} onMessage={setMessage} />
-          <div className="in-prep"><span>阶段 3 / 7</span><span>身份与存档</span></div>
+          <div className="in-prep"><span>阶段 7 / 7</span><span>{phase7ActiveTrackLabel}</span></div>
         </aside>
       </div>
 
