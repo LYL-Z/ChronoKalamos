@@ -23,6 +23,19 @@
 - Turnstile 令牌只在服务端向 Cloudflare `siteverify` 提交，并按 action 和可选 hostname 校验。
 - 每个请求可带 UUID `requestId`；重复 UUID 不会重复调用供应商。
 
+## GitHub 连接状态
+
+`LYL-Z/ChronoKalamos` 私有仓库已在已登录 GitHub 账户中创建，本地工作树已添加
+`github` 远端。当前环境没有 `gh` CLI，且 GitHub 连接器对该私有仓库返回 404，
+因此本阶段不能声称源码已推送到 GitHub。使用拥有该仓库写权限的 GitHub 凭证后，
+执行：
+
+```text
+git push -u github agent/phase7-phone-auth-guardrails
+```
+
+推送成功后再把该命令输出的 commit SHA 与 CI 运行链接填回本清单。
+
 ## 生产开启前的最后命令
 
 ```text

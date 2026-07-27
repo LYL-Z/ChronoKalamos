@@ -20,9 +20,27 @@ describe("China phone preparation configuration", () => {
       TURNSTILE_SECRET: "secret",
       PHONE_AUTH_ENABLED: "true",
       PHONE_AUTH_POLICY_VERIFIED: "false",
+      PHONE_AUTH_PROVIDER: "twilio",
+      PHONE_AUTH_AUDIT_SALT: "0123456789abcdef",
     });
     expect(readiness.enabled).toBe(false);
     expect(readiness.status).toBe("preparation");
     expect(readiness.policyGates.length).toBeGreaterThan(0);
+  });
+
+  it("normalizes provider whitespace and keeps mock as the safe default", () => {
+    const base = {
+      TWILIO_ACCOUNT_SID: "AC-test",
+      TWILIO_AUTH_TOKEN: "secret",
+      TWILIO_VERIFY_SERVICE_SID: "VA-test",
+      TURNSTILE_SITE_KEY: "0x-site",
+      TURNSTILE_SECRET: "secret",
+      PHONE_AUTH_ENABLED: "true",
+      PHONE_AUTH_POLICY_VERIFIED: "true",
+      PHONE_AUTH_AUDIT_SALT: "0123456789abcdef",
+    };
+    expect(getPhoneAuthReadiness(base).providerMode).toBe("mock");
+    expect(getPhoneAuthReadiness({ ...base, PHONE_AUTH_PROVIDER: " twilio\t" }).providerMode).toBe("twilio");
+    expect(getPhoneAuthReadiness({ ...base, PHONE_AUTH_PROVIDER: " twilio\t" }).enabled).toBe(true);
   });
 });
