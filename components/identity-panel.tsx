@@ -8,6 +8,7 @@ import { isAnonymousUser, linkGuestToEmail, sendEmailMagicLink, signInAsGuest, s
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { listOwnSaves, savePrototypeSession, type SaveSummary } from "@/lib/supabase/saves";
 import { uploadPrivateImage } from "@/lib/supabase/uploads";
+import { PhoneAuthPanel } from "@/components/phone-auth-panel";
 
 type IdentityPanelProps = {
   originId: string;
@@ -200,6 +201,8 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
       )}
 
       {!user && <button className="link-button identity-guest-button" type="button" onClick={startGuest} disabled={busy}>以游客身份开始 →</button>}
+
+      <PhoneAuthPanel onMessage={onMessage} />
 
       {user && (
         <div className="identity-actions">

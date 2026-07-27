@@ -48,4 +48,26 @@ describe("Turnstile verification", () => {
       code: "turnstile_rejected",
     } satisfies Partial<TurnstileVerificationError>);
   });
+
+  it("rejects a missing token before making a network request", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(verifyTurnstileToken({
+      token: "",
+      secret: "server-secret",
+      fetcher,
+    })).rejects.toMatchObject({ code: "turnstile_rejected" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("rejects a negative siteverify result", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      success: false,
+      "error-codes": ["invalid-input-response"],
+    }));
+    await expect(verifyTurnstileToken({
+      token: "expired-token",
+      secret: "server-secret",
+      fetcher,
+    })).rejects.toMatchObject({ code: "turnstile_rejected" });
+  });
 });

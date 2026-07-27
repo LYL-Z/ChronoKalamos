@@ -73,9 +73,11 @@ The authorized preparation track is limited to mainland China (`CN-mainland`).
 Hong Kong, Macao, and Taiwan are separate launch scopes. They are not implied
 by the word "China" in this release.
 
-The implementation now contains a server-only Twilio Verify adapter and a
-server-only Cloudflare Turnstile verifier. The public site exposes only the
-preparation status. It does not expose a phone form and it does not send SMS.
+The implementation now contains a server-only Twilio Verify adapter, an
+explicit `mock`/`twilio` provider boundary, a server-only Cloudflare Turnstile
+verifier, a database admission RPC, and a pseudonymous audit table. The public
+site exposes only the preparation status while the gates are closed. It does
+not send SMS in the default configuration.
 
 Twilio Verify provides code generation, expiry, verification attempts, and
 service-level fraud controls. It does not prove that a particular Chinese
@@ -94,20 +96,28 @@ widget is created, but it must never receive `TURNSTILE_SECRET`,
 The preparation environment uses these names:
 
 ```text
+PHONE_AUTH_PROVIDER=mock
+PHONE_AUTH_ENABLED=false
+PHONE_AUTH_POLICY_VERIFIED=false
 TWILIO_ACCOUNT_SID
 TWILIO_AUTH_TOKEN
 TWILIO_VERIFY_SERVICE_SID
 TURNSTILE_SITE_KEY
 TURNSTILE_SECRET
-PHONE_AUTH_ENABLED=false
-PHONE_AUTH_POLICY_VERIFIED=false
+TURNSTILE_EXPECTED_HOSTNAME=chronokalamos.com
+PHONE_AUTH_DAILY_LIMIT=20
+PHONE_AUTH_AUDIT_SALT
 ```
 
 `PHONE_AUTH_ENABLED=true` is insufficient by itself. The application also
-requires `PHONE_AUTH_POLICY_VERIFIED=true`, and the capability registry still
-requires auditable evidence for every gate before the public identity panel can
-show an enabled phone-login entry.
+requires `PHONE_AUTH_PROVIDER=twilio`, `PHONE_AUTH_POLICY_VERIFIED=true`, all
+server credentials, the audit salt, and a successful Supabase migration. The
+capability registry still requires auditable evidence for every gate before the
+public identity panel can show an enabled phone-login entry. Any other provider
+value, including one with trailing whitespace, is normalized to the safe
+`mock` mode.
 
-The current exit condition is "provider preparation published", not "Chinese
-SMS login completed". Cloudflare API authentication was unavailable during this
-run, so no production Turnstile widget or secret was invented.
+The current exit condition is "provider preparation with guardrails
+published", not "Chinese SMS login completed". Cloudflare API authentication
+still needs to be restored before a production Turnstile widget/sitekey can be
+verified. No production secret was invented.

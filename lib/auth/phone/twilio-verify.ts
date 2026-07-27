@@ -1,5 +1,4 @@
 import { normalizeChinaPhone } from "@/lib/auth/phone/config";
-import { verifyTurnstileToken, type TurnstileVerification } from "@/lib/security/turnstile";
 
 type ServerEnv = Record<string, string | undefined>;
 
@@ -16,16 +15,21 @@ export type TwilioVerifyResult = {
   channel: string;
 };
 
+export type TwilioErrorCode =
+  | "phone_number_unverified"
+  | "insufficient_balance"
+  | "rate_limited"
+  | "invalid_parameter"
+  | "provider_unavailable"
+  | "provider_rejected"
+  | "twilio_not_configured";
+
 export class TwilioVerifyError extends Error {
   constructor(
-    public readonly code:
-      | "twilio_not_configured"
-      | "twilio_request_failed"
-      | "twilio_rejected"
-      | "twilio_invalid_response"
-      | "twilio_phone_invalid"
-      | "twilio_turnstile_required",
+    public readonly code: TwilioErrorCode,
     message: string,
+    public readonly providerCode?: number,
+    public readonly retryable = false,
   ) {
     super(message);
     this.name = "TwilioVerifyError";
@@ -46,10 +50,7 @@ function configFromEnvironment(env: ServerEnv = process.env): TwilioVerifyConfig
   const authToken = env.TWILIO_AUTH_TOKEN?.trim();
   const serviceSid = env.TWILIO_VERIFY_SERVICE_SID?.trim();
   if (!accountSid || !authToken || !serviceSid) {
-    throw new TwilioVerifyError(
-      "twilio_not_configured",
-      "Twilio Verify 服务端配置尚未完成。",
-    );
+    throw new TwilioVerifyError("twilio_not_configured", "Twilio Verify 服务端密钥尚未配置。");
   }
   return { accountSid, authToken, serviceSid };
 }
@@ -61,6 +62,32 @@ function statusFrom(value: string | undefined): TwilioVerifyResult["status"] {
 
 function authorizationHeader(config: TwilioVerifyConfig): string {
   return `Basic ${Buffer.from(`${config.accountSid}:${config.authToken}`, "utf8").toString("base64")}`;
+}
+
+function mapProviderError(status: number, payload: TwilioResponse): TwilioVerifyError {
+  const message = payload.message?.trim() ?? "";
+  const lower = message.toLowerCase();
+  const code = payload.code;
+  if (code === 21608 || /unverified|not verified|trial account/.test(lower)) {
+    return new TwilioVerifyError("phone_number_unverified", "试用账号只能向已验证的目的号码发送验证码。", code);
+  }
+  if (code === 60202 || code === 60203 || code === 20429 || status === 429 || /too many|rate limit|maximum.*attempt/.test(lower)) {
+    return new TwilioVerifyError("rate_limited", "验证码请求过于频繁，请稍后再试。", code, true);
+  }
+  if (status === 402 || /insufficient|balance|credit|funds/.test(lower)) {
+    return new TwilioVerifyError("insufficient_balance", "短信供应商余额或额度不足，已停止继续发送。", code);
+  }
+  if (code === 60200 || /invalid parameter|invalid phone|bad request|malformed/.test(lower)) {
+    return new TwilioVerifyError("invalid_parameter", "手机号或验证码参数无效。", code);
+  }
+  if (code === 60212 || code === 60410 || status >= 500) {
+    return new TwilioVerifyError("provider_unavailable", "短信供应商暂时不可用，请稍后再试。", code, true);
+  }
+  return new TwilioVerifyError(
+    "provider_rejected",
+    message || `短信供应商拒绝请求（HTTP ${status}）。`,
+    code,
+  );
 }
 
 async function twilioRequest(
@@ -83,73 +110,40 @@ async function twilioRequest(
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
-    throw new TwilioVerifyError(
-      "twilio_request_failed",
-      "Twilio Verify 暂时不可用。",
-    );
+    throw new TwilioVerifyError("provider_unavailable", "Twilio Verify 暂时不可用，请稍后再试。", undefined, true);
   }
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = typeof payload === "object" && payload !== null && "message" in payload
-      ? String((payload as { message?: unknown }).message ?? "")
-      : "";
-    throw new TwilioVerifyError(
-      "twilio_rejected",
-      message || `Twilio Verify 请求失败（HTTP ${response.status}）。`,
-    );
+    const safePayload = payload && typeof payload === "object" ? payload as TwilioResponse : {};
+    throw mapProviderError(response.status, safePayload);
   }
   if (!payload || typeof payload !== "object") {
-    throw new TwilioVerifyError("twilio_invalid_response", "Twilio Verify 返回格式无效。");
+    throw new TwilioVerifyError("provider_unavailable", "Twilio Verify 返回格式无效。", undefined, true);
   }
   return payload as TwilioResponse;
 }
 
-async function requireTurnstile(
-  token: string,
-  remoteIp: string | undefined,
-  secret: string | undefined,
-  fetcher: typeof fetch,
-): Promise<TurnstileVerification> {
+function normalizedPhoneOrThrow(phone: string): string {
   try {
-    return await verifyTurnstileToken({
-      token,
-      remoteIp,
-      secret,
-      expectedAction: "phone-auth",
-      fetcher,
-    });
-  } catch (error) {
-    throw new TwilioVerifyError(
-      "twilio_turnstile_required",
-      error instanceof Error ? error.message : "Turnstile 验证失败。",
-    );
+    return normalizeChinaPhone(phone);
+  } catch {
+    throw new TwilioVerifyError("invalid_parameter", "当前准备版只接受中国大陆 E.164 手机号。");
   }
 }
 
 export async function sendTwilioVerification({
   phone,
-  turnstileToken,
-  remoteIp,
   env = process.env,
   fetcher = fetch,
   timeoutMs = 8000,
 }: {
   phone: string;
-  turnstileToken: string;
-  remoteIp?: string;
   env?: ServerEnv;
   fetcher?: typeof fetch;
   timeoutMs?: number;
 }): Promise<TwilioVerifyResult> {
   const config = configFromEnvironment(env);
-  const normalizedPhone = (() => {
-    try {
-      return normalizeChinaPhone(phone);
-    } catch {
-      throw new TwilioVerifyError("twilio_phone_invalid", "当前准备版只接受中国大陆 E.164 手机号。");
-    }
-  })();
-  await requireTurnstile(turnstileToken, remoteIp, env.TURNSTILE_SECRET, fetcher);
+  const normalizedPhone = normalizedPhoneOrThrow(phone);
   const payload = await twilioRequest(
     "Verifications",
     new URLSearchParams({ To: normalizedPhone, Channel: "sms" }),
@@ -168,33 +162,22 @@ export async function sendTwilioVerification({
 export async function checkTwilioVerification({
   phone,
   code,
-  turnstileToken,
-  remoteIp,
   env = process.env,
   fetcher = fetch,
   timeoutMs = 8000,
 }: {
   phone: string;
   code: string;
-  turnstileToken: string;
-  remoteIp?: string;
   env?: ServerEnv;
   fetcher?: typeof fetch;
   timeoutMs?: number;
 }): Promise<TwilioVerifyResult> {
   const config = configFromEnvironment(env);
-  const normalizedPhone = (() => {
-    try {
-      return normalizeChinaPhone(phone);
-    } catch {
-      throw new TwilioVerifyError("twilio_phone_invalid", "当前准备版只接受中国大陆 E.164 手机号。");
-    }
-  })();
+  const normalizedPhone = normalizedPhoneOrThrow(phone);
   const normalizedCode = code.trim();
   if (!/^\d{4,10}$/.test(normalizedCode)) {
-    throw new TwilioVerifyError("twilio_rejected", "验证码格式无效。");
+    throw new TwilioVerifyError("invalid_parameter", "验证码格式无效。");
   }
-  await requireTurnstile(turnstileToken, remoteIp, env.TURNSTILE_SECRET, fetcher);
   const payload = await twilioRequest(
     "VerificationCheck",
     new URLSearchParams({ To: normalizedPhone, Code: normalizedCode }),

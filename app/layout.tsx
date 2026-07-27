@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPhoneAuthReadiness } from "@/lib/auth/phone/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 function publicSupabaseConfigScript(): string {
+  const phoneReadiness = getPhoneAuthReadiness();
   const config = JSON.stringify({
     url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "",
     publishableKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -19,6 +21,8 @@ function publicSupabaseConfigScript(): string {
     turnstileSiteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
       ?? process.env.TURNSTILE_SITE_KEY
       ?? "",
+    phoneAuthEnabled: phoneReadiness.enabled,
+    phoneAuthProvider: phoneReadiness.providerMode,
   });
   return config.replace(/</g, "\\u003c");
 }
