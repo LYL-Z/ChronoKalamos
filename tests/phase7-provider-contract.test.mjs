@@ -11,11 +11,12 @@ const startRoute = new URL("../app/api/auth/phone/start/route.ts", import.meta.u
 const provider = new URL("../lib/auth/phone/provider.ts", import.meta.url);
 const guardrails = new URL("../lib/auth/phone/guardrails.ts", import.meta.url);
 const migration = new URL("../supabase/migrations/20260727120000_phase7_phone_auth_guardrails.sql", import.meta.url);
+const circuitBreakerMigration = new URL("../supabase/migrations/20260727130000_phase7_phone_daily_circuit_breaker.sql", import.meta.url);
 const turnstileWidget = new URL("../components/turnstile-widget.tsx", import.meta.url);
 const envExample = new URL("../.env.example", import.meta.url);
 
 test("phase 7 provider preparation keeps secrets server-side", async () => {
-  const [configSource, turnstileSource, twilioSource, layoutSource, cspSource, routeSource, providerSource, guardrailSource, migrationSource, widgetSource, envSource] = await Promise.all([
+  const [configSource, turnstileSource, twilioSource, layoutSource, cspSource, routeSource, providerSource, guardrailSource, migrationSource, circuitBreakerSource, widgetSource, envSource] = await Promise.all([
     readFile(config, "utf8"),
     readFile(turnstile, "utf8"),
     readFile(twilio, "utf8"),
@@ -25,6 +26,7 @@ test("phase 7 provider preparation keeps secrets server-side", async () => {
     readFile(provider, "utf8"),
     readFile(guardrails, "utf8"),
     readFile(migration, "utf8"),
+    readFile(circuitBreakerMigration, "utf8"),
     readFile(turnstileWidget, "utf8"),
     readFile(envExample, "utf8"),
   ]);
@@ -53,6 +55,7 @@ test("phase 7 provider preparation keeps secrets server-side", async () => {
   assert.match(migrationSource, /phone_auth_audit/);
   assert.match(migrationSource, /pg_advisory_xact_lock/);
   assert.match(migrationSource, /revoke all on public\.phone_auth_audit/);
+  assert.match(circuitBreakerSource, /result_code not in \('phone_cooldown', 'ip_daily_limit', 'daily_limit'\)/);
   assert.match(widgetSource, /turnstile\/v0\/api\.js\?render=explicit/);
   assert.match(envSource, /PHONE_AUTH_PROVIDER=mock/);
   assert.match(envSource, /TWILIO_ACCOUNT_SID=/);

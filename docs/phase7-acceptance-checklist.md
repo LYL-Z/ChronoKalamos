@@ -22,6 +22,7 @@
 - `phone_auth_audit` 启用 RLS，匿名和普通认证角色没有表或函数权限。
 - Turnstile 令牌只在服务端向 Cloudflare `siteverify` 提交，并按 action 和可选 hostname 校验。
 - 每个请求可带 UUID `requestId`；重复 UUID 不会重复调用供应商。
+- 日额度只统计已获得供应商调用资格的请求；手机号/IP/日额度拒绝不会消耗 Twilio 预算。
 - Cloudflare 已创建 Managed widget `ChronoKalamos Phone Auth`，绑定 `chronokalamos.com`；
   site key 只通过 Sites 公开环境变量注入，secret 只通过 Sites secret 环境变量注入。
 
