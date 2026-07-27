@@ -11,7 +11,7 @@
 | 6. 上线硬化 | 安全、无障碍、性能、监控和部署检查全部通过 | 进行中；公开部署与生产 smoke 已验证，Auth 设置和持续观测待完成 |
 | 7. 后续集成 | 每次只启用一个通过安全与恢复验收的能力 | 免费 TOTP 已启用并完成用户确认；短信与 Passkey 暂缓 |
 | 8. 升级基线 | 能力、原型、筹备中与无法核验状态有统一台账 | 已完成；GitHub连接器权限与Supabase遗留告警保留为外部阻塞 |
-| 9. 十分钟上手 | 三种出身都有有限角色设定、个人化开场、首回合选择和回顾边界 | 进行中；代码与角色资料RPC已实现，公开移动端真实浏览器验收待部署后完成 |
+| 9. 十分钟上手 | 三种出身都有有限角色设定、个人化开场、首回合选择和回顾边界 | 已完成；Sites v30、390px视口和三种出身各三回合生产验收通过 |
 
 ## 阶段 5 当前实现
 
@@ -68,3 +68,14 @@ restrictive RLS 策略，并为三个 owner-scoped `SECURITY DEFINER` RPC 增加
 自动化双用户隔离测试也已通过。该结论是用户验收报告，不是 Codex 对身份验证器屏幕的独立观察。具体边界见
 [`docs/totp-mfa.md`](./totp-mfa.md)。新历史场景必须复用
 [`docs/scenario-expansion-template.md`](./scenario-expansion-template.md)。
+
+## 阶段 9 当前实现
+
+阶段9已在 Sites v30 公开发布。姓名、性别、性格和三种出身通过受限RPC写入本人
+`character_profile`。历史存档、个人设置和支持说明已有真实面板。图片输入只显示
+筹备中，不再暗示 DeepSeek 支持图像。
+
+生产验收用三个一次性匿名身份分别完成三回合。九次提交的状态版本均只推进一次，
+每回合返回3—5个选择和来源编号；测试存档已删除。可重复验收脚本为
+[`scripts/eval-phase9-production.mjs`](../scripts/eval-phase9-production.mjs)，详细结果见
+[`docs/phase9-acceptance-report.md`](./phase9-acceptance-report.md)。

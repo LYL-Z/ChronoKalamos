@@ -13,6 +13,7 @@
     "test:unit": "vitest run",
     "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs tests/phase5-rendered-contract.test.mjs tests/phase6-hardening.test.mjs tests/phase7-readiness.test.mjs tests/phase7-provider-contract.test.mjs tests/phase9-onboarding.test.mjs",
     "test:supabase:live": "node --env-file-if-exists=.env.test --test tests/supabase-live.test.mjs",
+    "test:phase9:production": "node --env-file-if-exists=.env.test scripts/eval-phase9-production.mjs",
     "test:deepseek:production": "node --env-file-if-exists=.env.test scripts/eval-deepseek-production.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext --ignore-pattern .sites",
     "typecheck": "tsc --noEmit",
