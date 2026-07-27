@@ -9,7 +9,7 @@
 | 4. 长安内容包 | 发布条目带来源或重建标签，地图特征带时间、许可和不确定性 | 已完成技术基线；外部史学复核仍需完成 |
 | 5. 游戏与 AI | 规则引擎、结构化回合提交和 60 个评测案例通过 | 已完成；生产 DeepSeek 60/60 回合验收通过 |
 | 6. 上线硬化 | 安全、无障碍、性能、监控和部署检查全部通过 | 进行中；公开部署与生产 smoke 已验证，Auth 设置和持续观测待完成 |
-| 7. 后续集成 | 每次只启用一个通过安全与恢复验收的能力 | 正在验收免费 TOTP；短信与 Passkey 暂缓 |
+| 7. 后续集成 | 每次只启用一个通过安全与恢复验收的能力 | 免费 TOTP 已启用并完成用户确认；短信与 Passkey 暂缓 |
 
 ## 阶段 5 当前实现
 
@@ -55,13 +55,14 @@ Auth 的 leaked-password protection 仍属于运营级遗留项。
 ## 阶段 7 当前实现
 
 阶段 7 的机器可检查门禁位于 [`lib/capabilities/phase7.ts`](../lib/capabilities/phase7.ts)。
-当前只有邮箱账户 TOTP 处于 `evaluating`。短信、手机号登录、Passkey、微信、QQ、
+当前只有邮箱账户 TOTP 处于 `enabled`。短信、手机号登录、Passkey、微信、QQ、
 真实打赏和第二历史场景均为
 `not_started`。门禁拒绝同时推进两个外部能力，也拒绝缺少证据的能力进入 `ready` 或
 `enabled`。
 
 TOTP 注册、挑战、备用因子和数据库 AAL2 限制已经实现。Supabase 项目已应用 7 条
 restrictive RLS 策略，并为三个 owner-scoped `SECURITY DEFINER` RPC 增加同等门禁。
-真实身份验证器的注册、退出和再次登录仍需一次人工交互验收。具体边界见
+用户已于 2026-07-27 报告真实身份验证器的注册、退出、再次登录与 AAL2 访问恢复通过；
+自动化双用户隔离测试也已通过。该结论是用户验收报告，不是 Codex 对身份验证器屏幕的独立观察。具体边界见
 [`docs/totp-mfa.md`](./totp-mfa.md)。新历史场景必须复用
 [`docs/scenario-expansion-template.md`](./scenario-expansion-template.md)。

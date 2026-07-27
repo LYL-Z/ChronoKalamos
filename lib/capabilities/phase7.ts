@@ -32,7 +32,7 @@ export const phase7Capabilities = [
   {
     id: "totp-mfa",
     label: "邮箱账户 TOTP 二次验证",
-    status: "evaluating",
+    status: "enabled",
     gates: [
       {
         id: "email-boundary",
@@ -61,8 +61,8 @@ export const phase7Capabilities = [
       {
         id: "live-e2e",
         label: "真实身份验证器注册、退出、再登录与 AAL2 隔离验收",
-        status: "missing",
-        decision: "需要受控邮箱账户和用户手中的 TOTP 应用完成一次交互式验收。",
+        status: "verified",
+        evidence: "2026-07-27 用户报告公开站 TOTP 注册、退出、再登录与 AAL2 访问恢复通过；自动化双用户隔离测试通过。",
       },
     ],
   },
@@ -120,10 +120,10 @@ export function assertPhase7Policy(
 
 assertPhase7Policy();
 
-export const phase7ActiveTrackLabel = "邮箱 + TOTP 免费身份防护 · AAL2 准备版";
+export const phase7ActiveTrackLabel = "邮箱 + TOTP 免费身份防护 · AAL2 已启用";
 
 export const phase7PublicIdentityStatus =
-  "免费身份方案：邮箱登录继续开放；正式账户可配置 TOTP 身份验证器。短信、手机号登录和 Passkey 暂不接入。已启用 TOTP 的账户必须完成二次验证，才能访问存档与私有上传。";
+  "免费身份方案已启用：邮箱登录继续开放；正式账户可配置 TOTP 身份验证器。短信、手机号登录和 Passkey 暂不接入。已启用 TOTP 的账户必须完成二次验证，才能访问存档与私有上传。";
 
 export const phase7PublicSupportStatus =
-  "阶段 7 当前只推进免费 TOTP。数据库 AAL2 门禁已应用，真实身份验证器端到端验收仍待完成；短信、手机号登录、Passkey、微信、QQ 和支付均保持关闭。";
+  "阶段 7 当前只启用免费 TOTP。数据库 AAL2 门禁、真实身份验证器人工验收和双用户自动化隔离均已通过；短信、手机号登录、Passkey、微信、QQ 和支付均保持关闭。";

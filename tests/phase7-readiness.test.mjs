@@ -22,7 +22,7 @@ test("phase 7 advances TOTP while keeping SMS and Passkey disabled", async () =>
   ]);
 
   assert.match(policySource, /id: "totp-mfa"/);
-  assert.match(policySource, /status: "evaluating"/);
+  assert.match(policySource, /status: "enabled"/);
   assert.match(policySource, /id: "phone-auth"[\s\S]*status: "not_started"/);
   assert.match(policySource, /id: "passkey-auth"[\s\S]*status: "not_started"/);
   assert.match(policySource, /live-e2e/);
