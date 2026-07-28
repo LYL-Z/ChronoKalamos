@@ -1,0 +1,544 @@
+[
+  {
+    "eventId": "merchant-ledger-mark",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 1,
+    "phase": "opening",
+    "title": "账纸上的陌生印记",
+    "premise": "一笔待交割的记录留下无法立即解释的印记。玩家必须先决定核对证据、询问家人，还是抢时间去市场。",
+    "classification": "合理重建",
+    "locationId": "western-market",
+    "npcIds": ["kang-muyan"],
+    "claimIds": ["C-MER-002", "C-ITEM-M01"],
+    "evidenceRefs": ["S-004", "S-013", "S-018"],
+    "choices": [
+      {"id": "choice-1", "label": "逐项核对账纸与货样", "intent": "先确认可见证据", "risk": "low", "result": "疑点被保留，管事更愿意继续协作。", "stateEffects": ["skill", "relationship"], "nextEventId": "merchant-seal-trace"},
+      {"id": "choice-2", "label": "带着账纸直接赶往西市", "intent": "用时间换现场信息", "risk": "medium", "result": "获得市场线索，但交割压力继续上升。", "stateEffects": ["risk", "reputation"], "nextEventId": "merchant-seal-trace"},
+      {"id": "choice-3", "label": "把印记先认作经手人凭证", "intent": "快速形成解释", "risk": "high", "result": "行动更快，却把未经证明的身份写入判断。", "stateEffects": ["risk", "relationship"], "nextEventId": "merchant-seal-trace"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-seal-trace",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 2,
+    "phase": "core",
+    "title": "印记只能证明到哪一步",
+    "premise": "印记与旧记录相似，却不足以单独确认经手人。玩家必须决定如何记录这项不确定性。",
+    "classification": "合理重建",
+    "locationId": "western-market",
+    "npcIds": ["kang-muyan", "nasi-ban"],
+    "claimIds": ["C-MER-002", "C-ITEM-M01"],
+    "evidenceRefs": ["S-004", "S-013"],
+    "choices": [
+      {"id": "choice-1", "label": "把相似与相同分开记录", "intent": "保留证据强度差异", "risk": "low", "result": "账目变慢，但后续核验仍有清晰入口。", "stateEffects": ["skill", "reputation"], "nextEventId": "merchant-gate-window"},
+      {"id": "choice-2", "label": "请家族长辈判断旧例", "intent": "借助关系经验", "risk": "medium", "result": "获得经验判断，也形成对长辈意见的依赖。", "stateEffects": ["relationship", "risk"], "nextEventId": "merchant-gate-window"},
+      {"id": "choice-3", "label": "抹去疑点只留确定说法", "intent": "让账面更易交割", "risk": "high", "result": "短期文件更干净，追溯链却被削弱。", "stateEffects": ["risk", "reputation"], "nextEventId": "merchant-gate-window"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-gate-window",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 3,
+    "phase": "core",
+    "title": "可用的时间正在缩短",
+    "premise": "递信人带回含混消息。市场与城门制度构成时间边界，但本事件不虚构具体门禁执法记录。",
+    "classification": "合理重建",
+    "locationId": "jin-guang-gate",
+    "npcIds": ["kang-ata", "kang-muyan"],
+    "claimIds": ["C-742-003", "C-RISK-M01"],
+    "evidenceRefs": ["S-003", "S-007"],
+    "choices": [
+      {"id": "choice-1", "label": "先核对消息来自谁", "intent": "确认信息链", "risk": "low", "result": "时间减少，但误传来源被识别。", "stateEffects": ["skill", "risk"], "nextEventId": "merchant-interpreter-dispute"},
+      {"id": "choice-2", "label": "请管事同行处理交割", "intent": "分担判断责任", "risk": "medium", "result": "家庭协作增强，行动成本也提高。", "stateEffects": ["relationship", "money"], "nextEventId": "merchant-interpreter-dispute"},
+      {"id": "choice-3", "label": "依据含混消息立即行动", "intent": "争取速度", "risk": "high", "result": "赶上更早窗口，却放大误传造成的后果。", "stateEffects": ["risk", "reputation"], "nextEventId": "merchant-interpreter-dispute"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-interpreter-dispute",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 4,
+    "phase": "core",
+    "title": "同一句话有两种解释",
+    "premise": "市场中介对货样说明提出另一种理解。语言与身份差异只能作为冲突背景，不能被写成粟特群体的固定特征。",
+    "classification": "叙事虚构",
+    "locationId": "western-market",
+    "npcIds": ["du-liuniang", "kang-muyan"],
+    "claimIds": ["C-MER-001", "C-NPC-M03"],
+    "evidenceRefs": ["S-005", "S-013", "S-018"],
+    "choices": [
+      {"id": "choice-1", "label": "逐句确认双方实际同意什么", "intent": "缩小可证共识", "risk": "low", "result": "争议范围缩小，中介记住你的谨慎。", "stateEffects": ["relationship", "skill"], "nextEventId": "merchant-price-shift"},
+      {"id": "choice-2", "label": "暂按较保守的解释报价", "intent": "用让步换取确定性", "risk": "medium", "result": "利润减少，交易仍可继续。", "stateEffects": ["money", "reputation"], "nextEventId": "merchant-price-shift"},
+      {"id": "choice-3", "label": "把分歧归因于对方身份", "intent": "迅速结束争论", "risk": "high", "result": "冲突暂时终止，关系与可信度受损。", "stateEffects": ["relationship", "reputation"], "nextEventId": "merchant-price-shift"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-price-shift",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 5,
+    "phase": "core",
+    "title": "报价已经改变",
+    "premise": "新的报价迫使家庭在损失、延期与信用之间取舍。金额只是游戏记账单位，不是历史价格复原。",
+    "classification": "叙事虚构",
+    "locationId": "western-market",
+    "npcIds": ["nasi-ban", "du-liuniang"],
+    "claimIds": ["C-MER-002", "C-RISK-M01"],
+    "evidenceRefs": ["S-004", "S-013"],
+    "choices": [
+      {"id": "choice-1", "label": "要求把新报价写入记录", "intent": "让变更可追溯", "risk": "low", "result": "谈判变慢，责任边界更清楚。", "stateEffects": ["skill", "reputation"], "nextEventId": "merchant-witness-choice"},
+      {"id": "choice-2", "label": "接受小额损失维持交割", "intent": "保护市场信用", "risk": "medium", "result": "现金减少，市场关系趋稳。", "stateEffects": ["money", "reputation"], "nextEventId": "merchant-witness-choice"},
+      {"id": "choice-3", "label": "否认此前所有口头承诺", "intent": "避免眼前损失", "risk": "high", "result": "保住现金，却把信用风险推向后续事件。", "stateEffects": ["relationship", "risk"], "nextEventId": "merchant-witness-choice"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-witness-choice",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 6,
+    "phase": "core",
+    "title": "谁来见证这次改动",
+    "premise": "玩家要选择由家庭成员、市场中介或自己承担记录责任。所有见证关系均属编辑构造。",
+    "classification": "叙事虚构",
+    "locationId": "western-market",
+    "npcIds": ["kang-muyan", "du-liuniang", "nasi-ban"],
+    "claimIds": ["C-MER-002", "C-NPC-M01", "C-NPC-M03"],
+    "evidenceRefs": ["S-004", "S-013"],
+    "choices": [
+      {"id": "choice-1", "label": "请管事与中介共同确认", "intent": "形成双重见证", "risk": "low", "result": "关系成本增加，但单方改写更难发生。", "stateEffects": ["relationship", "reputation"], "nextEventId": "merchant-credit-call"},
+      {"id": "choice-2", "label": "只请家族长辈确认", "intent": "把责任留在家庭内部", "risk": "medium", "result": "家庭立场一致，市场一方仍保留疑问。", "stateEffects": ["relationship", "risk"], "nextEventId": "merchant-credit-call"},
+      {"id": "choice-3", "label": "不留见证自行改账", "intent": "最快完成记录", "risk": "high", "result": "文件立即完成，后续争议只能由你独自承担。", "stateEffects": ["risk", "reputation"], "nextEventId": "merchant-credit-call"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-credit-call",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 7,
+    "phase": "consequence",
+    "title": "旧信用正在被调用",
+    "premise": "此前的查证、推责与见证选择改变了家族长辈的态度。事件读取关系记忆，不把家庭声誉当作历史量表。",
+    "classification": "叙事虚构",
+    "locationId": "western-market",
+    "npcIds": ["nasi-ban", "kang-muyan"],
+    "claimIds": ["C-RISK-M01", "C-NPC-M02"],
+    "evidenceRefs": ["S-004", "S-018"],
+    "choices": [
+      {"id": "choice-1", "label": "展示完整疑点与处理链", "intent": "用可追溯性换取支持", "risk": "low", "result": "长辈看到不确定性，也看到你如何处理它。", "stateEffects": ["relationship", "reputation"], "nextEventId": "merchant-inspection-delay"},
+      {"id": "choice-2", "label": "只报告已经解决的部分", "intent": "控制家庭焦虑", "risk": "medium", "result": "支持暂时保留，未报告的问题继续累积。", "stateEffects": ["risk", "relationship"], "nextEventId": "merchant-inspection-delay"},
+      {"id": "choice-3", "label": "把损失归给递信人", "intent": "转移解释责任", "risk": "high", "result": "眼前压力下降，家庭内部信任进一步受损。", "stateEffects": ["relationship", "reputation"], "nextEventId": "merchant-inspection-delay"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-inspection-delay",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 8,
+    "phase": "consequence",
+    "title": "一次复核造成的延误",
+    "premise": "此前是否保留记录决定了复核能否快速完成。所谓检查只是游戏事件，不冒充742年的具体市场执法。",
+    "classification": "叙事虚构",
+    "locationId": "western-market",
+    "npcIds": ["du-liuniang", "kang-ata"],
+    "claimIds": ["C-742-005", "C-MER-002"],
+    "evidenceRefs": ["S-003", "S-004"],
+    "choices": [
+      {"id": "choice-1", "label": "按记录逐项说明", "intent": "接受延误并保护证据链", "risk": "low", "result": "交割延后，但疑点没有被改写。", "stateEffects": ["risk", "reputation"], "nextEventId": "merchant-settlement"},
+      {"id": "choice-2", "label": "支付有限成本换取延期", "intent": "用资源缓解期限", "risk": "medium", "result": "时间压力下降，现金进一步减少。", "stateEffects": ["money", "risk"], "nextEventId": "merchant-settlement"},
+      {"id": "choice-3", "label": "删去无法解释的记录", "intent": "立即通过复核", "risk": "high", "result": "文件更简单，家庭与市场记忆却无法复原。", "stateEffects": ["relationship", "reputation"], "nextEventId": "merchant-settlement"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "merchant-settlement",
+    "chapterId": "merchant-ledger-day",
+    "originId": "merchant",
+    "sequence": 9,
+    "phase": "ending",
+    "title": "这笔责任如何落账",
+    "premise": "章节结局汇总金钱、家庭关系、市场信用与未解决疑点，不把一次虚构交易外推为唐代商人群像。",
+    "classification": "叙事虚构",
+    "locationId": "western-market",
+    "npcIds": ["kang-muyan", "nasi-ban", "du-liuniang"],
+    "claimIds": ["C-O01-002", "C-MER-002", "C-RISK-M01"],
+    "evidenceRefs": ["S-004", "S-013", "S-018"],
+    "choices": [
+      {"id": "choice-1", "label": "把不确定性写进最终账记", "intent": "保留证据边界", "risk": "low", "result": "形成可复核但不完美的结局。", "stateEffects": ["reputation", "skill"], "nextEventId": null},
+      {"id": "choice-2", "label": "承担损失保护市场信用", "intent": "用资源换取关系延续", "risk": "medium", "result": "家庭承受损失，市场关系得以保留。", "stateEffects": ["money", "reputation"], "nextEventId": null},
+      {"id": "choice-3", "label": "把责任推给无法核验的人", "intent": "保住眼前账面", "risk": "high", "result": "账面暂时平衡，家庭关系留下裂痕。", "stateEffects": ["relationship", "reputation"], "nextEventId": null}
+    ],
+    "publicationStatus": "provisional"
+  },
+
+  {
+    "eventId": "craft-material-shortfall",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 1,
+    "phase": "opening",
+    "title": "材料数目与工期对不上",
+    "premise": "材料短缺迫使学徒决定先清点、先报告或直接替代。具体材料与订单均为编辑构造。",
+    "classification": "合理重建",
+    "locationId": "craft-ward",
+    "npcIds": ["he-jiucheng", "zhao-xiaoqi"],
+    "claimIds": ["C-CRAFT-002", "C-ITEM-C01"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "重新清点材料与工序", "intent": "先确认短缺位置", "risk": "low", "result": "问题变得可复核，交期仍在缩短。", "stateEffects": ["skill", "risk"], "nextEventId": "craft-tool-check"},
+      {"id": "choice-2", "label": "立即向师长报告短缺", "intent": "尽早共享责任", "risk": "medium", "result": "师长介入，关系改善但自主空间缩小。", "stateEffects": ["relationship", "risk"], "nextEventId": "craft-tool-check"},
+      {"id": "choice-3", "label": "先用替代材料试做", "intent": "抢回工期", "risk": "high", "result": "进度加快，返工与损耗风险上升。", "stateEffects": ["risk", "health"], "nextEventId": "craft-tool-check"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-tool-check",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 2,
+    "phase": "core",
+    "title": "量具给出不同答案",
+    "premise": "经验判断与量具结果不一致。玩家必须决定复测、求助熟手或按最省时的读数继续。",
+    "classification": "合理重建",
+    "locationId": "craft-ward",
+    "npcIds": ["a-huai", "zhao-xiaoqi"],
+    "claimIds": ["C-CRAFT-002", "C-ITEM-C01"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "更换位置再次测量", "intent": "排除操作误差", "risk": "low", "result": "消耗时间，差异来源更清楚。", "stateEffects": ["skill", "risk"], "nextEventId": "craft-mentor-pressure"},
+      {"id": "choice-2", "label": "请熟手复核量具", "intent": "引入第二判断", "risk": "medium", "result": "合作增强，也让同辈知道你的疑点。", "stateEffects": ["relationship", "skill"], "nextEventId": "craft-mentor-pressure"},
+      {"id": "choice-3", "label": "选择最有利于工期的读数", "intent": "维持进度", "risk": "high", "result": "工期暂时稳定，质量风险被推后。", "stateEffects": ["risk", "reputation"], "nextEventId": "craft-mentor-pressure"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-mentor-pressure",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 3,
+    "phase": "core",
+    "title": "师长要求给出处理方案",
+    "premise": "师长不替玩家作答。玩家要在分段交付、追加采购和加快工序之间选择。",
+    "classification": "叙事虚构",
+    "locationId": "craft-ward",
+    "npcIds": ["he-jiucheng"],
+    "claimIds": ["C-CRAFT-002", "C-NPC-C01"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "提出分段交付方案", "intent": "降低一次失败风险", "risk": "low", "result": "压力被拆解，师长要求继续记录工序。", "stateEffects": ["relationship", "reputation"], "nextEventId": "craft-supplier-terms"},
+      {"id": "choice-2", "label": "追加购买合适材料", "intent": "用成本换稳定", "risk": "medium", "result": "材料更稳，现金减少。", "stateEffects": ["money", "risk"], "nextEventId": "craft-supplier-terms"},
+      {"id": "choice-3", "label": "承诺独自加快工序", "intent": "用体力承担压力", "risk": "high", "result": "交期看似可控，身体负担上升。", "stateEffects": ["health", "risk"], "nextEventId": "craft-supplier-terms"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-supplier-terms",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 4,
+    "phase": "core",
+    "title": "材料供应附带条件",
+    "premise": "供应者可以更快补足材料，但要求改变价格、数量或取货方式。条款均为叙事参数。",
+    "classification": "叙事虚构",
+    "locationId": "eastern-market",
+    "npcIds": ["liu-erniang", "he-jiucheng"],
+    "claimIds": ["C-NPC-C03", "C-CRAFT-002"],
+    "evidenceRefs": ["S-003", "S-008"],
+    "choices": [
+      {"id": "choice-1", "label": "逐项写明材料与条件", "intent": "避免口头分歧", "risk": "low", "result": "交易变慢，后续责任更清楚。", "stateEffects": ["skill", "reputation"], "nextEventId": "craft-peer-rework"},
+      {"id": "choice-2", "label": "接受较高价格换取现货", "intent": "保护工期", "risk": "medium", "result": "时间风险下降，现金压力上升。", "stateEffects": ["money", "risk"], "nextEventId": "craft-peer-rework"},
+      {"id": "choice-3", "label": "压低价格但不复核材料", "intent": "同时节省成本与时间", "risk": "high", "result": "短期得利，质量与关系风险累积。", "stateEffects": ["relationship", "risk"], "nextEventId": "craft-peer-rework"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-peer-rework",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 5,
+    "phase": "core",
+    "title": "返工由谁承担",
+    "premise": "同辈学徒指出一处偏差。玩家要决定共同返工、向师长报告或隐藏问题。",
+    "classification": "叙事虚构",
+    "locationId": "craft-ward",
+    "npcIds": ["zhao-xiaoqi", "a-huai"],
+    "claimIds": ["C-NPC-C04", "C-CRAFT-002"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "共同返工并记录原因", "intent": "保护质量与协作", "risk": "low", "result": "材料和时间受损，关系记忆改善。", "stateEffects": ["relationship", "risk"], "nextEventId": "craft-quality-test"},
+      {"id": "choice-2", "label": "请熟手判断是否必须返工", "intent": "把标准交给第三方复核", "risk": "medium", "result": "判断更稳，也延迟了交付。", "stateEffects": ["relationship", "skill"], "nextEventId": "craft-quality-test"},
+      {"id": "choice-3", "label": "把偏差藏进下一道工序", "intent": "避免立即返工", "risk": "high", "result": "进度保住，材料损耗风险加速。", "stateEffects": ["risk", "reputation"], "nextEventId": "craft-quality-test"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-quality-test",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 6,
+    "phase": "core",
+    "title": "质量判断没有唯一答案",
+    "premise": "不同人对半成品的可接受程度判断不同。游戏不声称存在一套统一的742年作坊评分表。",
+    "classification": "合理重建",
+    "locationId": "craft-ward",
+    "npcIds": ["he-jiucheng", "a-huai", "zhao-xiaoqi"],
+    "claimIds": ["C-CRAFT-002", "C-RISK-C01"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "保留三种判断与依据", "intent": "让分歧可复核", "risk": "low", "result": "质量争议没有消失，但责任链清晰。", "stateEffects": ["skill", "reputation"], "nextEventId": "craft-material-loss"},
+      {"id": "choice-2", "label": "接受师长的最低可交付标准", "intent": "用权威结束争议", "risk": "medium", "result": "工期稳定，个人判断空间缩小。", "stateEffects": ["relationship", "risk"], "nextEventId": "craft-material-loss"},
+      {"id": "choice-3", "label": "只保留最有利的测试结果", "intent": "快速通过检查", "risk": "high", "result": "交付继续，后续质疑更难解释。", "stateEffects": ["risk", "reputation"], "nextEventId": "craft-material-loss"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-material-loss",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 7,
+    "phase": "consequence",
+    "title": "材料损耗已经显现",
+    "premise": "此前的替代、返工和采购选择决定剩余材料。风险时钟是游戏抽象，不是历史账簿。",
+    "classification": "叙事虚构",
+    "locationId": "craft-ward",
+    "npcIds": ["liu-erniang", "he-jiucheng"],
+    "claimIds": ["C-RISK-C01", "C-ITEM-C01"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "停下工序重新核算余量", "intent": "阻止损耗继续扩大", "risk": "low", "result": "交期压力上升，材料风险被控制。", "stateEffects": ["skill", "risk"], "nextEventId": "craft-credit-dispute"},
+      {"id": "choice-2", "label": "购买少量材料完成关键部分", "intent": "集中资源", "risk": "medium", "result": "现金减少，最关键工序得到保障。", "stateEffects": ["money", "risk"], "nextEventId": "craft-credit-dispute"},
+      {"id": "choice-3", "label": "继续消耗现有材料赶工", "intent": "把所有资源压在交期上", "risk": "high", "result": "进度领先，失败时将没有补救余量。", "stateEffects": ["risk", "health"], "nextEventId": "craft-credit-dispute"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-credit-dispute",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 8,
+    "phase": "consequence",
+    "title": "功劳应该写给谁",
+    "premise": "此前的协作与返工决定谁能主张完成关键工序。署名争议为叙事设计，不外推为通行制度。",
+    "classification": "叙事虚构",
+    "locationId": "craft-ward",
+    "npcIds": ["he-jiucheng", "a-huai", "zhao-xiaoqi"],
+    "claimIds": ["C-CRAFT-002", "C-NPC-C01", "C-NPC-C04"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "列出每个人参与的工序", "intent": "让劳动与责任对应", "risk": "low", "result": "个人名声较少，作坊关系更稳。", "stateEffects": ["relationship", "reputation"], "nextEventId": "craft-delivery"},
+      {"id": "choice-2", "label": "接受师长代表作坊署名", "intent": "用层级换取稳定", "risk": "medium", "result": "交付顺利，个人劳动只留在关系记忆中。", "stateEffects": ["relationship", "reputation"], "nextEventId": "craft-delivery"},
+      {"id": "choice-3", "label": "把共同试做说成个人独创", "intent": "争取个人名声", "risk": "high", "result": "短期获得注意，长期可信度下降。", "stateEffects": ["relationship", "reputation"], "nextEventId": "craft-delivery"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "craft-delivery",
+    "chapterId": "craft-first-commission",
+    "originId": "craft",
+    "sequence": 9,
+    "phase": "ending",
+    "title": "第一件交付物如何留下记录",
+    "premise": "章节结局汇总材料、健康、师徒关系与劳动署名。具体作坊与器物仍是叙事参数。",
+    "classification": "叙事虚构",
+    "locationId": "craft-ward",
+    "npcIds": ["he-jiucheng", "a-huai", "zhao-xiaoqi"],
+    "claimIds": ["C-O02-002", "C-CRAFT-002", "C-RISK-C01"],
+    "evidenceRefs": ["S-008", "S-016"],
+    "choices": [
+      {"id": "choice-1", "label": "如实记录参与工序的人", "intent": "让责任与劳动对应", "risk": "low", "result": "形成共同完成且可回顾的结局。", "stateEffects": ["relationship", "reputation"], "nextEventId": null},
+      {"id": "choice-2", "label": "接受师长代为署名", "intent": "保护稳定交付", "risk": "medium", "result": "交付完成，个人劳动保持不可见。", "stateEffects": ["relationship", "reputation"], "nextEventId": null},
+      {"id": "choice-3", "label": "把试做说成个人独创", "intent": "争取名声", "risk": "high", "result": "得到短暂名声，也留下关系裂痕。", "stateEffects": ["relationship", "reputation"], "nextEventId": null}
+    ],
+    "publicationStatus": "provisional"
+  },
+
+  {
+    "eventId": "clerk-ambiguous-place",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 1,
+    "phase": "opening",
+    "title": "文书中的地名含混不清",
+    "premise": "一处含混字形可能改变递送去向。玩家必须决定对照旧件、询问书手或按猜测誊写。",
+    "classification": "合理重建",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["han-yansheng", "guo-wulang"],
+    "claimIds": ["C-CLERK-002", "C-ITEM-L01"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "对照旧件核验地名", "intent": "先排除抄写差异", "risk": "low", "result": "时间减少，误递风险得到控制。", "stateEffects": ["skill", "risk"], "nextEventId": "clerk-draft-comparison"},
+      {"id": "choice-2", "label": "询问资深书手", "intent": "用关系经验复核", "risk": "medium", "result": "获得协助，也让疑点进入共同记忆。", "stateEffects": ["relationship", "skill"], "nextEventId": "clerk-draft-comparison"},
+      {"id": "choice-3", "label": "按最可能读法直接誊写", "intent": "节省时间", "risk": "high", "result": "誊写更快，误递风险显著上升。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-draft-comparison"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-draft-comparison",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 2,
+    "phase": "core",
+    "title": "草案与誊清件并不一致",
+    "premise": "两个版本在数字和去向上存在差异。玩家必须保留差异、选择一个版本或重写为单一说法。",
+    "classification": "合理重建",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["han-yansheng"],
+    "claimIds": ["C-CLERK-002", "C-ITEM-L01"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "并列记录两处差异", "intent": "保留复核入口", "risk": "low", "result": "文书更复杂，但差异没有被抹去。", "stateEffects": ["skill", "reputation"], "nextEventId": "clerk-delivery-range"},
+      {"id": "choice-2", "label": "请资深书手选定版本", "intent": "把判断交给经验", "risk": "medium", "result": "流程继续，责任向书手集中。", "stateEffects": ["relationship", "risk"], "nextEventId": "clerk-delivery-range"},
+      {"id": "choice-3", "label": "只保留看起来更整洁的版本", "intent": "快速消除差异", "risk": "high", "result": "文面统一，修改理由无法追溯。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-delivery-range"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-delivery-range",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 3,
+    "phase": "core",
+    "title": "递送范围仍需确认",
+    "premise": "递送人等待明确去向。玩家要决定补写范围、标出疑点或依靠口头说明。",
+    "classification": "合理重建",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["guo-wulang", "han-yansheng"],
+    "claimIds": ["C-CLERK-002", "C-RISK-L01"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "请经手人补写递送范围", "intent": "让责任信息回到文书", "risk": "low", "result": "流程延迟，可追溯性提高。", "stateEffects": ["reputation", "risk"], "nextEventId": "clerk-seal-gap"},
+      {"id": "choice-2", "label": "与书手共同标出疑点", "intent": "保留疑点并继续流转", "risk": "medium", "result": "文书可以继续，疑点仍需后续处理。", "stateEffects": ["relationship", "risk"], "nextEventId": "clerk-seal-gap"},
+      {"id": "choice-3", "label": "先递送再作口头解释", "intent": "优先速度", "risk": "high", "result": "窗口没有错过，书面责任链被削弱。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-seal-gap"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-seal-gap",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 4,
+    "phase": "core",
+    "title": "递送记号缺了一处",
+    "premise": "递送记号无法完整连接草案与誊清件。具体记号不模仿任何出土文书。",
+    "classification": "合理重建",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["han-yansheng", "lu-shengyan"],
+    "claimIds": ["C-ITEM-L01", "C-CLERK-002"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "暂停流转查找前件", "intent": "恢复文件链", "risk": "low", "result": "催办压力上升，版本关系更清楚。", "stateEffects": ["skill", "risk"], "nextEventId": "clerk-urgent-request"},
+      {"id": "choice-2", "label": "请属官确认是否可补记", "intent": "获得层级授权", "risk": "medium", "result": "责任上移，个人判断空间缩小。", "stateEffects": ["relationship", "reputation"], "nextEventId": "clerk-urgent-request"},
+      {"id": "choice-3", "label": "自行补上缺失记号", "intent": "维持流转速度", "risk": "high", "result": "文件继续流转，补记依据无法被证明。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-urgent-request"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-urgent-request",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 5,
+    "phase": "core",
+    "title": "催办要求先于复核到达",
+    "premise": "属官要求尽快递出文书。玩家必须在说明疑点、接受临时决定和隐瞒问题之间选择。",
+    "classification": "叙事虚构",
+    "locationId": "imperial-city",
+    "npcIds": ["lu-shengyan", "han-yansheng"],
+    "claimIds": ["C-NPC-L02", "C-CLERK-002"],
+    "evidenceRefs": ["S-002", "S-008"],
+    "choices": [
+      {"id": "choice-1", "label": "提交疑点清单请求决定", "intent": "让催办者看到证据缺口", "risk": "low", "result": "属官承担决定，催办仍未解除。", "stateEffects": ["relationship", "reputation"], "nextEventId": "clerk-copy-conflict"},
+      {"id": "choice-2", "label": "按临时决定递出并留注", "intent": "兼顾速度与留痕", "risk": "medium", "result": "文书继续流转，注记成为后续复核入口。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-copy-conflict"},
+      {"id": "choice-3", "label": "隐去疑点只报已完成", "intent": "满足催办", "risk": "high", "result": "催办结束，责任追索风险快速上升。", "stateEffects": ["risk", "relationship"], "nextEventId": "clerk-copy-conflict"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-copy-conflict",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 6,
+    "phase": "core",
+    "title": "家庭记忆与官署记录冲突",
+    "premise": "家庭成员记得另一种地名写法，但家庭记忆不能自动成为官署证据。",
+    "classification": "叙事虚构",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["du-suniang", "han-yansheng"],
+    "claimIds": ["C-NPC-L04", "C-CLERK-002"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "把家庭线索标为待核", "intent": "区分线索与证据", "risk": "low", "result": "线索被保留，没有越过证据边界。", "stateEffects": ["skill", "relationship"], "nextEventId": "clerk-missed-window"},
+      {"id": "choice-2", "label": "请书手寻找对应旧件", "intent": "用官署记录核验线索", "risk": "medium", "result": "复核更慢，关系协作增强。", "stateEffects": ["relationship", "risk"], "nextEventId": "clerk-missed-window"},
+      {"id": "choice-3", "label": "直接按家庭记忆改写", "intent": "快速消除冲突", "risk": "high", "result": "文本一致，证据来源却被混同。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-missed-window"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-missed-window",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 7,
+    "phase": "consequence",
+    "title": "递送窗口已经错过",
+    "premise": "此前复核耗时与口头修正共同决定是否错过递送。窗口为游戏化后果，不声称是京兆府固定时刻。",
+    "classification": "叙事虚构",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["guo-wulang", "lu-shengyan"],
+    "claimIds": ["C-RISK-L01", "C-NPC-L03"],
+    "evidenceRefs": ["S-002", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "登记延误原因并等待下一次", "intent": "保留完整责任链", "risk": "low", "result": "延误可被追溯，属官会看到你的选择。", "stateEffects": ["reputation", "risk"], "nextEventId": "clerk-accountability"},
+      {"id": "choice-2", "label": "请递送人承担加急成本", "intent": "用关系换回时间", "risk": "medium", "result": "递送继续，关系负担加重。", "stateEffects": ["relationship", "money"], "nextEventId": "clerk-accountability"},
+      {"id": "choice-3", "label": "改写时间使文件看似未延误", "intent": "消除表面问题", "risk": "high", "result": "记录更整齐，责任追索风险达到高位。", "stateEffects": ["risk", "reputation"], "nextEventId": "clerk-accountability"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-accountability",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 8,
+    "phase": "consequence",
+    "title": "谁来说明这份文书",
+    "premise": "属官要求说明版本差异与延误。此前是否保留疑点决定玩家能否给出可复核解释。",
+    "classification": "叙事虚构",
+    "locationId": "imperial-city",
+    "npcIds": ["lu-shengyan", "han-yansheng", "guo-wulang"],
+    "claimIds": ["C-RISK-L01", "C-NPC-L02"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "提交版本与处理过程", "intent": "接受完整复核", "risk": "low", "result": "疑点仍在，个人处理过程可以说明。", "stateEffects": ["reputation", "skill"], "nextEventId": "clerk-register"},
+      {"id": "choice-2", "label": "请资深书手共同说明", "intent": "共享解释责任", "risk": "medium", "result": "个人压力下降，关系责任加深。", "stateEffects": ["relationship", "reputation"], "nextEventId": "clerk-register"},
+      {"id": "choice-3", "label": "把全部责任交给递送人", "intent": "切断个人责任", "risk": "high", "result": "短期自保，关系与可信度同时受损。", "stateEffects": ["relationship", "reputation"], "nextEventId": "clerk-register"}
+    ],
+    "publicationStatus": "provisional"
+  },
+  {
+    "eventId": "clerk-register",
+    "chapterId": "clerk-first-dispatch",
+    "originId": "clerk",
+    "sequence": 9,
+    "phase": "ending",
+    "title": "疑点是否进入最终登记",
+    "premise": "章节结局汇总误递、责任、书手关系和留痕。登记形式是叙事抽象，不冒充出土文书。",
+    "classification": "叙事虚构",
+    "locationId": "jingzhao-fu",
+    "npcIds": ["han-yansheng", "lu-shengyan", "guo-wulang"],
+    "claimIds": ["C-O03-003", "C-CLERK-002", "C-RISK-L01"],
+    "evidenceRefs": ["S-002", "S-008", "S-015"],
+    "choices": [
+      {"id": "choice-1", "label": "把疑点与处理过程一并登记", "intent": "保留责任链", "risk": "low", "result": "不确定性没有消失，但变得可追溯。", "stateEffects": ["reputation", "skill"], "nextEventId": null},
+      {"id": "choice-2", "label": "只改正结果不保留争议过程", "intent": "保持文书简洁", "risk": "medium", "result": "结果被修正，解释链变短。", "stateEffects": ["reputation", "risk"], "nextEventId": null},
+      {"id": "choice-3", "label": "让资深书手承担最终说明", "intent": "转移个人责任", "risk": "high", "result": "事件结束，关系留下责任转移的记忆。", "stateEffects": ["relationship", "reputation"], "nextEventId": null}
+    ],
+    "publicationStatus": "provisional"
+  }
+]

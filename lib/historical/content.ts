@@ -5,6 +5,7 @@ import originsJson from "@/content/tang-changan-742/origins.json";
 import mapFeaturesJson from "@/content/tang-changan-742/map-features.json";
 
 export const classificationSchema = z.enum(["史料记载", "合理重建", "叙事虚构"]);
+export const publicationStatusSchema = z.enum(["draft", "provisional", "reviewed", "published"]);
 
 export const historicalSourceSchema = z.object({
   id: z.string().regex(/^S-\d{3}$/),
@@ -24,7 +25,7 @@ export const historicalSourceSchema = z.object({
 export const historicalClaimSchema = z.object({
   id: z.string().regex(/^C-[A-Z0-9-]+$/),
   classification: classificationSchema,
-  subjectKind: z.enum(["scenario", "institution", "place", "origin"]),
+  subjectKind: z.enum(["scenario", "institution", "place", "origin", "chapter", "npc", "item", "risk"]),
   subjectId: z.string().min(1),
   textZh: z.string().min(1),
   textEn: z.string().min(1),
@@ -32,6 +33,7 @@ export const historicalClaimSchema = z.object({
   sourceNote: z.string().min(1),
   validFrom: z.number().int(),
   validTo: z.number().int(),
+  publicationStatus: publicationStatusSchema.optional(),
   published: z.boolean(),
 });
 
@@ -56,6 +58,7 @@ export const mapFeatureSchema = z.object({
   sourceIds: z.array(z.string().regex(/^S-\d{3}$/)).min(1),
   licenseCode: z.string().min(1),
   attribution: z.string().min(1),
+  publicationStatus: publicationStatusSchema.optional(),
   published: z.boolean(),
 });
 

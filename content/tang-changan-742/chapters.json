@@ -1,0 +1,65 @@
+[
+  {
+    "id": "merchant-ledger-day",
+    "originId": "merchant",
+    "title": "一日账期",
+    "summary": "从一处陌生印记开始，处理货样、见证、递信和家庭信用之间的冲突。",
+    "eventIds": [
+      "merchant-ledger-mark",
+      "merchant-seal-trace",
+      "merchant-gate-window",
+      "merchant-interpreter-dispute",
+      "merchant-price-shift",
+      "merchant-witness-choice",
+      "merchant-credit-call",
+      "merchant-inspection-delay",
+      "merchant-settlement"
+    ],
+    "npcIds": ["kang-muyan", "nasi-ban", "du-liuniang", "kang-ata"],
+    "locationIds": ["western-market", "jin-guang-gate"],
+    "claimIds": ["C-O01-001", "C-O01-002", "C-MER-001", "C-MER-002", "C-RISK-M01"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "craft-first-commission",
+    "originId": "craft",
+    "title": "第一件交付",
+    "summary": "在材料、工序、协作和署名之间完成一件只能被谨慎重建的委托。",
+    "eventIds": [
+      "craft-material-shortfall",
+      "craft-tool-check",
+      "craft-mentor-pressure",
+      "craft-supplier-terms",
+      "craft-peer-rework",
+      "craft-quality-test",
+      "craft-material-loss",
+      "craft-credit-dispute",
+      "craft-delivery"
+    ],
+    "npcIds": ["he-jiucheng", "a-huai", "liu-erniang", "zhao-xiaoqi"],
+    "locationIds": ["craft-ward", "eastern-market"],
+    "claimIds": ["C-O02-001", "C-O02-002", "C-CRAFT-001", "C-CRAFT-002", "C-RISK-C01"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "clerk-first-dispatch",
+    "originId": "clerk",
+    "title": "一纸去向",
+    "summary": "从含混地名到责任登记，处理复核、递送、催办与留痕之间的取舍。",
+    "eventIds": [
+      "clerk-ambiguous-place",
+      "clerk-draft-comparison",
+      "clerk-delivery-range",
+      "clerk-seal-gap",
+      "clerk-urgent-request",
+      "clerk-copy-conflict",
+      "clerk-missed-window",
+      "clerk-accountability",
+      "clerk-register"
+    ],
+    "npcIds": ["han-yansheng", "lu-shengyan", "guo-wulang", "du-suniang"],
+    "locationIds": ["jingzhao-fu", "imperial-city"],
+    "claimIds": ["C-O03-001", "C-O03-002", "C-O03-003", "C-CLERK-001", "C-CLERK-002", "C-RISK-L01"],
+    "publicationStatus": "provisional"
+  }
+]

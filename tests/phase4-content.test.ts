@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { changanContent, validateChanganContent } from "@/lib/historical/content";
 
 describe("742 Chang'an content boundary", () => {
-  it("loads the bounded package with three published origins and five evidence map features", () => {
+  it("loads the bounded package with three published origins and eight evidence map features", () => {
     expect(changanContent.scenarioId).toBe("tang-changan-742");
     expect(changanContent.year).toBe(742);
     expect(changanContent.origins).toHaveLength(3);
-    expect(changanContent.mapFeatures).toHaveLength(5);
-    expect(changanContent.claims.every((claim) => claim.published)).toBe(true);
+    expect(changanContent.mapFeatures).toHaveLength(8);
+    expect(changanContent.claims).toHaveLength(40);
+    expect(changanContent.claims.filter((claim) => claim.published)).toHaveLength(13);
+    expect(changanContent.claims.filter((claim) => claim.publicationStatus === "provisional")).toHaveLength(27);
+    expect(changanContent.mapFeatures.filter((feature) => feature.published)).toHaveLength(5);
+    expect(changanContent.mapFeatures.filter((feature) => feature.publicationStatus === "provisional")).toHaveLength(3);
   });
 
   it("rejects a published factual claim without a source", () => {

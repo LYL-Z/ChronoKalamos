@@ -1,0 +1,11 @@
+{
+  "scenarioId": "tang-changan-742",
+  "candidateContentVersion": "11.0.0",
+  "runtimeFallbackVersion": "10.0.0",
+  "externalReviewRequired": true,
+  "reviewStatus": "pending",
+  "reviewers": [],
+  "publicRuntimeEnabled": false,
+  "minimumReviewerCount": 1,
+  "releaseRule": "Only a signed external historical review may promote provisional chapters, events, NPCs, items, risks, claims, or map features to published."
+}

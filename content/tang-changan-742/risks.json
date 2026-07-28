@@ -1,0 +1,68 @@
+[
+  {
+    "id": "market-deadline",
+    "originId": "merchant",
+    "labelZh": "交割期限",
+    "descriptionZh": "时间越少，玩家越容易用未经核验的信息完成交割。",
+    "threshold": 6,
+    "classification": "合理重建",
+    "claimIds": ["C-RISK-M01"],
+    "sourceIds": ["S-004", "S-013"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "household-credit",
+    "originId": "merchant",
+    "labelZh": "家庭信用",
+    "descriptionZh": "隐瞒、推责或无证据承诺会积累家庭内部与市场关系后果。",
+    "threshold": 6,
+    "classification": "合理重建",
+    "claimIds": ["C-RISK-M01"],
+    "sourceIds": ["S-004", "S-018"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "workshop-deadline",
+    "originId": "craft",
+    "labelZh": "交付期限",
+    "descriptionZh": "赶工可换取时间，也会提高返工或身体负担。",
+    "threshold": 6,
+    "classification": "合理重建",
+    "claimIds": ["C-RISK-C01"],
+    "sourceIds": ["S-008", "S-016"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "material-loss",
+    "originId": "craft",
+    "labelZh": "材料损耗",
+    "descriptionZh": "未经复核的替代与返工会消耗有限材料。",
+    "threshold": 6,
+    "classification": "合理重建",
+    "claimIds": ["C-RISK-C01"],
+    "sourceIds": ["S-008"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "dispatch-error",
+    "originId": "clerk",
+    "labelZh": "文书误递",
+    "descriptionZh": "未核对地名、范围或版本会提高误递后果。",
+    "threshold": 6,
+    "classification": "合理重建",
+    "claimIds": ["C-RISK-L01"],
+    "sourceIds": ["S-002", "S-015"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "official-accountability",
+    "originId": "clerk",
+    "labelZh": "责任追索",
+    "descriptionZh": "口头修正、删除疑点或转移说明责任会削弱可追溯性。",
+    "threshold": 6,
+    "classification": "合理重建",
+    "claimIds": ["C-RISK-L01"],
+    "sourceIds": ["S-008", "S-015"],
+    "publicationStatus": "provisional"
+  }
+]

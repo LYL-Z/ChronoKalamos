@@ -32,3 +32,9 @@
 ## 审校状态
 
 这是可运行的内容包基线，不是历史学同行评审结论。发布前需逐条复核古籍卷次、研究页码、中文—英文边界译文和示意几何。 
+
+## 阶段11候选层
+
+阶段11新增 `chapters.json`、`events.json`、`npcs.json`、`items.json`、`risks.json` 和 `publication-gate.json`。候选版本为 `11.0.0`，公开运行时回退版本为 `10.0.0`。
+
+新增条目全部保持 `provisional`。`publication-gate.json` 当前为 `pending`，审阅者列表为空，`publicRuntimeEnabled` 为 `false`。没有真实外部历史学者的审阅证据时，不得改变这三个事实。

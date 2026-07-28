@@ -22,6 +22,51 @@ async function deleteSessionWithTransientRetry(client, sessionId) {
 }
 
 describe("Supabase live integration", { concurrency: 3 }, () => {
+test("phase 11 candidate is service-only while phase 10 remains public runtime", {
+  skip: !url || !publishableKey || !secretKey
+    ? "SUPABASE_TEST_URL, SUPABASE_TEST_PUBLISHABLE_KEY and SUPABASE_TEST_SECRET_KEY are required"
+    : false,
+  timeout: 90_000,
+}, async () => {
+  const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
+  const publicClient = createClient(url, publishableKey, options);
+  const serverClient = createClient(url, secretKey, options);
+
+  const { data: publicCandidates, error: publicCandidateError } = await publicClient
+    .from("content_candidate_entries")
+    .select("entry_id")
+    .limit(1);
+  assert.ok(publicCandidateError, "anonymous clients must not access phase 11 candidates");
+  assert.equal(publicCandidates, null);
+
+  const { data: version, error: versionError } = await serverClient
+    .from("content_candidate_versions")
+    .select("review_status,public_runtime_enabled,expected_counts")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("content_version", "11.0.0")
+    .single();
+  assert.ifError(versionError);
+  assert.equal(version?.review_status, "pending");
+  assert.equal(version?.public_runtime_enabled, false);
+  assert.equal(version?.expected_counts?.events, 27);
+
+  const { count, error: countError } = await serverClient
+    .from("content_candidate_entries")
+    .select("entry_id", { count: "exact", head: true })
+    .eq("scenario_id", "tang-changan-742")
+    .eq("content_version", "11.0.0");
+  assert.ifError(countError);
+  assert.equal(count, 105);
+
+  const { data: publishedManifest, error: manifestError } = await publicClient
+    .from("scenario_manifests")
+    .select("content_version")
+    .eq("scenario_id", "tang-changan-742")
+    .single();
+  assert.ifError(manifestError);
+  assert.equal(publishedManifest?.content_version, "10.0.0");
+});
+
 test("phase 10 manifest and event registry are published-read and client-write denied", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
   timeout: 90_000,
