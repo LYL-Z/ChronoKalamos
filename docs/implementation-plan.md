@@ -10,7 +10,7 @@
 | 5. 游戏与 AI | 规则引擎、结构化回合提交和 60 个评测案例通过 | 已完成；生产 DeepSeek 60/60 回合验收通过 |
 | 6. 上线硬化 | 安全、无障碍、性能、监控和部署检查全部通过 | 进行中；公开部署与生产 smoke 已验证，Auth 设置和持续观测待完成 |
 | 7. 后续集成 | 每次只启用一个通过安全与恢复验收的能力 | 免费 TOTP 已启用并完成用户确认；短信与 Passkey 暂缓 |
-| 8. 升级基线 | 能力、原型、筹备中与无法核验状态有统一台账 | 已完成；GitHub连接器权限与Supabase遗留告警保留为外部阻塞 |
+| 8. 升级基线 | 能力、原型、筹备中与无法核验状态有统一台账 | 已完成；Supabase数据库告警已处置，泄露密码保护按Free计划限制记录 |
 | 9. 十分钟上手 | 三种出身都有有限角色设定、个人化开场、首回合选择和回顾边界 | 已完成；Sites v30、390px视口和三种出身各三回合生产验收通过 |
 
 ## 阶段 5 当前实现
@@ -37,9 +37,11 @@ DeepSeek 回合，60/60 提交成功，来源、状态版本、重复请求和 p
 - `20260725131032_phase5_server_only_commit`
 - `20260725131336_phase5_request_fk_index`
 - `20260725213000_phase5_deepseek_provider`
+- `20260728110224_phase9_security_invoker_and_audit_policy`
 
-最后一个迁移把历史的旧 provider 值归一为 `deepseek-chat`，并限制新回合只能使用
-该值。旧事务函数的兼容写入在表级触发器处被安全转换，不恢复任何客户端写权限。
+阶段 5 的 provider 迁移把历史旧值归一为 `deepseek-chat`，并限制新回合只能使用该值。
+阶段 9 的安全迁移把公开 RPC 改为 `SECURITY INVOKER`，将特权检查留在 `private`
+schema，并为 `phone_auth_audit` 增加明确的客户端全拒绝策略。
 
 ## 已知边界
 
@@ -51,8 +53,10 @@ DeepSeek 版本，真实匿名身份可建立权威会话。缺失服务端密�
 
 阶段 6 的代码与数据库硬化记录见 [`docs/phase6-hardening.md`](./phase6-hardening.md)。
 依赖审计、请求体上限、数据库回合限流、响应安全头、健康检查、输入归一化、真实
-Supabase live 验证和公开生产 smoke 已完成。生产错误率、真实移动设备性能和 Supabase
-Auth 的 leaked-password protection 仍属于运营级遗留项。
+Supabase live 验证和公开生产 smoke 已完成。生产错误率与真实移动设备性能仍属于运营级
+遗留项。Supabase Auth 的 leaked-password protection 在当前 Free 计划不可用；若不升级
+Pro，必须保留为平台限制，不得宣称已开启。见
+[`docs/security-advisor-closure.md`](./security-advisor-closure.md)。
 
 ## 阶段 7 当前实现
 
@@ -62,8 +66,9 @@ Auth 的 leaked-password protection 仍属于运营级遗留项。
 `not_started`。门禁拒绝同时推进两个外部能力，也拒绝缺少证据的能力进入 `ready` 或
 `enabled`。
 
-TOTP 注册、挑战、备用因子和数据库 AAL2 限制已经实现。Supabase 项目已应用 7 条
-restrictive RLS 策略，并为三个 owner-scoped `SECURITY DEFINER` RPC 增加同等门禁。
+TOTP 注册、挑战、备用因子和数据库 AAL2 限制已经实现。Supabase 项目已应用 restrictive
+RLS 策略。公开 owner-scoped RPC 已改为 `SECURITY INVOKER`；AAL2 与所有者门禁保留在
+不公开的 `private` schema 内。
 用户已于 2026-07-27 报告真实身份验证器的注册、退出、再次登录与 AAL2 访问恢复通过；
 自动化双用户隔离测试也已通过。该结论是用户验收报告，不是 Codex 对身份验证器屏幕的独立观察。具体边界见
 [`docs/totp-mfa.md`](./totp-mfa.md)。新历史场景必须复用

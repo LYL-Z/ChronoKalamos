@@ -66,3 +66,14 @@ npm run test:phase9:production -- --origin=merchant
 - 三名自动化身份不能替代真实用户可用性测试。
 - 14—20秒的单回合延迟仍需阶段14按 P50、P95 和失败率持续观测。
 - 时间轴的规则联动、关系记忆和章节结局属于阶段10—12，不属于阶段9退出条件。
+
+## 安全审查闭环
+
+2026-07-28 已应用 `20260728110224_phase9_security_invoker_and_audit_policy`。四个公开
+业务 RPC 均为 `SECURITY INVOKER`。受保护实现位于 `private` schema。
+`phone_auth_audit` 已增加 restrictive 客户端全拒绝策略。Supabase Advisor 不再报告这
+两类问题，真实双用户隔离回归仍为 3/3 通过。
+
+泄露密码保护没有启用。当前项目属于 Supabase Free 计划，而该能力只向 Pro 及以上开放。
+这不属于阶段9的退出条件，但必须作为平台限制保留，不能写成零告警。详见
+[`docs/security-advisor-closure.md`](./security-advisor-closure.md)。
