@@ -69,7 +69,7 @@ npm run test:phase9:production -- --origin=merchant
 
 ## 安全审查闭环
 
-2026-07-28 已应用 `20260728110224_phase9_security_invoker_and_audit_policy`。四个公开
+2026-07-28 已应用 `20260728110532_phase9_security_invoker_and_audit_policy`。四个公开
 业务 RPC 均为 `SECURITY INVOKER`。受保护实现位于 `private` schema。
 `phone_auth_audit` 已增加 restrictive 客户端全拒绝策略。Supabase Advisor 不再报告这
 两类问题，真实双用户隔离回归仍为 3/3 通过。

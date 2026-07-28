@@ -1,5 +1,10 @@
 import { AIProviderError, type AIProvider } from "@/lib/game/ai-provider";
-import { assessActionBoundary, normalizeWorldState, validateGeneratedTurn } from "@/lib/game/rules";
+import {
+  assessActionBoundary,
+  normalizeWorldState,
+  resolveEventAction,
+  validateNarrativeExpression,
+} from "@/lib/game/rules";
 import {
   type CommittedTurn,
   type TurnRequest,
@@ -131,7 +136,14 @@ export async function runTurnWorkflow(options: {
       throw new TurnFailure(boundary.code, `${boundary.explanation} 本回合未提交。`, false);
     }
 
-    const evidence = await repository.retrieveEvidence(session);
+    const [evidence, catalog] = await Promise.all([
+      repository.retrieveEvidence(session),
+      repository.loadNarrativeCatalog(session),
+    ]);
+    if (catalog.manifest.scenarioId !== session.scenario_id) {
+      throw new TurnFailure("scenario_manifest_mismatch", "场景版本与存档不一致，本回合未提交。", false);
+    }
+    const resolution = resolveEventAction(state, request.action, catalog.events);
     const imageUrl = request.action.kind === "image"
       ? await repository.createSignedUploadUrl(request.action.uploadId)
       : undefined;
@@ -157,11 +169,20 @@ export async function runTurnWorkflow(options: {
           boundary,
           claims: evidence.claims,
           sources: evidence.sources,
+          event: resolution.event,
+          selectedChoice: resolution.choice,
+          nextEvent: resolution.nextEvent,
+          interpretedFreeText: resolution.interpretedFreeText,
           imageUrl,
           attempt,
           retryFeedback: attempt === 2 ? lastValidationError : undefined,
         });
-        const validated = validateGeneratedTurn(generated.output, state, evidence.claims);
+        const validated = validateNarrativeExpression(
+          generated.output,
+          state,
+          evidence.claims,
+          resolution,
+        );
 
         let sequence = 0;
         for (const delta of narrativeChunks(validated.generation.narrative.text)) {

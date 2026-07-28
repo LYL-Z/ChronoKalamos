@@ -13,13 +13,15 @@ SUPABASE_SECRET_KEY=
 ```
 
 DeepSeek 请求使用 `response_format: { type: "json_object" }`。模型输出先解析为
-JSON，再由 `turnGenerationSchema` 和历史规则引擎校验。JSON 模式不是数据库契约；
+JSON，再由 `narrativeExpressionSchema`、来源集合和允许选项集合校验。JSON 模式不是数据库契约；
 Zod 校验失败时最多重试一次，第二次仍失败则只写入失败状态。
 
 `AIProvider` 保持两个动作：
 
 1. `moderate` 在本地执行确定性的提示注入筛查。
-2. `generate` 返回叙事、3—5 个选项、候选状态变化和来源编号。
+2. `generate` 只返回 `title`、`text`、`choiceVariants` 和 `sourceIds`。
+
+`choiceVariants` 只能改写下一事件已经发布的选择。它必须保持选择 ID 与数量不变。模型不能返回状态、关系、风险、地点、人物、物品、章节或结局字段。所有状态变化都来自 `EventTemplate.choices[].consequence`。
 
 DeepSeek 当前适配器只接受文字回合。图片回合返回 `image_not_supported`，不会把图片
 URL 转发给模型。启用视觉模型前必须单独完成供应商能力、隐私和安全评估。

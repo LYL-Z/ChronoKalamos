@@ -1,4 +1,4 @@
--- Phase 9 security closure:
+-- Phase 9 security closure and remote migration-history reconciliation:
 -- 1. Public RPCs remain callable through PostgREST, but are SECURITY INVOKER.
 -- 2. Privileged implementations live in the unexposed private schema.
 -- 3. The phone audit table keeps an explicit client deny policy.

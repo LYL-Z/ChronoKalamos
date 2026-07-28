@@ -1,18 +1,26 @@
 import {
+  narrativeExpressionSchema,
   originIdSchema,
+  replaySummarySchema,
   turnGenerationSchema,
   worldStateSchema,
+  type Consequence,
   type EvidenceClaim,
+  type EventTemplate,
+  type NarrativeExpression,
   type OriginId,
+  type ReplaySummary,
+  type RuleExpression,
   type StateDelta,
   type TurnAction,
   type TurnGeneration,
   type WorldState,
 } from "@/lib/game/schemas";
+import { getEventTemplate, getFirstEventId } from "@/lib/game/event-catalog";
 
 export type ActionBoundary = {
   allowed: boolean;
-  code: "allowed" | "prompt_injection" | "anachronism" | "character_dead";
+  code: "allowed" | "prompt_injection" | "anachronism" | "character_dead" | "chapter_ended";
   explanation: string;
   limits: {
     minutes: [number, number];
@@ -22,7 +30,7 @@ export type ActionBoundary = {
 };
 
 const promptInjectionPattern =
-  /(ignore (all|previous)|system prompt|developer message|reveal (the )?prompt|database credentials|service[_ -]?role|忽略.{0,8}(指令|规则)|系统提示词|开发者消息|数据库密钥|服务密钥)/i;
+  /((ignore|disregard) (all|previous)|system prompt|developer message|reveal (the )?prompt|database credentials|service[_ -]?role|忽略.{0,8}(指令|规则)|系统提示词|开发者消息|数据库密钥|服务密钥)/i;
 
 const anachronismPattern =
   /(手机|互联网|电脑|比特币|蒸汽机|火车|照相机|电报|机关枪|telephone|internet|computer|bitcoin|steam engine|railway|camera|telegraph|machine gun)/i;
@@ -86,12 +94,38 @@ export function createInitialWorldState(originInput: string): WorldState {
     quests: [],
     risks: [],
     death: null,
+    story: {
+      chapterId: getEventTemplate(getFirstEventId(origin)).chapterId,
+      currentEventId: getFirstEventId(origin),
+      completedEventIds: [],
+      decisions: [],
+      relationshipMemories: [],
+      riskClocks: [],
+      chapterEnding: null,
+    },
   });
 }
 
 export function normalizeWorldState(input: unknown, originInput: string): WorldState {
   const parsed = worldStateSchema.safeParse(input);
   if (parsed.success) return parsed.data;
+  if (input && typeof input === "object" && !Array.isArray(input) && !("story" in input)) {
+    const origin = originIdSchema.parse(originInput);
+    const firstEventId = getFirstEventId(origin);
+    const upgraded = worldStateSchema.safeParse({
+      ...input,
+      story: {
+        chapterId: getEventTemplate(firstEventId).chapterId,
+        currentEventId: firstEventId,
+        completedEventIds: [],
+        decisions: [],
+        relationshipMemories: [],
+        riskClocks: [],
+        chapterEnding: null,
+      },
+    });
+    if (upgraded.success) return upgraded.data;
+  }
   return createInitialWorldState(originInput);
 }
 
@@ -108,6 +142,14 @@ export function assessActionBoundary(action: TurnAction, state: WorldState): Act
       allowed: false,
       code: "character_dead",
       explanation: "角色已经死亡，不能再提交行动。",
+      limits,
+    };
+  }
+  if (state.story.chapterEnding) {
+    return {
+      allowed: false,
+      code: "chapter_ended",
+      explanation: "本章已经结束，请先查看回顾或从新存档重玩。",
       limits,
     };
   }
@@ -241,6 +283,210 @@ export function applyStateDelta(state: WorldState, delta: StateDelta): WorldStat
     quests: quests.slice(0, 20),
     risks: risks.slice(0, 20),
     death,
+    story: state.story,
+  });
+}
+
+function ruleMatches(rule: RuleExpression, state: WorldState): boolean {
+  if (rule.kind === "origin_is") return state.socialIdentity === rule.originId;
+  if (rule.kind === "turn_between") return state.time.turn >= rule.min && state.time.turn <= rule.max;
+  if (rule.kind === "location_is") return state.location.id === rule.locationId;
+  if (rule.kind === "money_at_least") return state.money.cash >= rule.amount;
+  if (rule.kind === "relationship_at_least") {
+    return (state.relationships.find((relationship) => relationship.id === rule.relationshipId)?.affinity ?? 0)
+      >= rule.affinity;
+  }
+  if (rule.kind === "risk_clock_at_least") {
+    return (state.story.riskClocks.find((risk) => risk.id === rule.riskId)?.progress ?? 0)
+      >= rule.progress;
+  }
+  const quest = state.quests.find((candidate) => candidate.id === rule.questId);
+  return rule.status === "missing" ? !quest : quest?.status === rule.status;
+}
+
+export type ResolvedEventAction = {
+  event: EventTemplate;
+  choice: EventTemplate["choices"][number];
+  nextEvent: EventTemplate | null;
+  interpretedFreeText: boolean;
+};
+
+export function resolveEventAction(
+  state: WorldState,
+  action: TurnAction,
+  events: EventTemplate[],
+): ResolvedEventAction {
+  const event = events.find((candidate) => candidate.eventId === state.story.currentEventId);
+  if (!event || event.publicationStatus !== "published") {
+    throw new Error(`event_unavailable:${state.story.currentEventId}`);
+  }
+  if (!event.originIds.includes(state.socialIdentity)) throw new Error("event_origin_violation");
+  if (event.chapterId !== state.story.chapterId) throw new Error("event_chapter_violation");
+  if (!event.prerequisites.every((rule) => ruleMatches(rule, state))) {
+    throw new Error("event_prerequisite_failed");
+  }
+
+  const choiceId = action.kind === "choice" ? action.choiceId : event.freeTextChoiceId;
+  const choice = event.choices.find((candidate) => candidate.id === choiceId);
+  if (!choice) throw new Error(`choice_not_allowed:${choiceId}`);
+  const nextEvent = choice.consequence.nextEventId
+    ? events.find((candidate) => candidate.eventId === choice.consequence.nextEventId) ?? null
+    : null;
+  if (choice.consequence.nextEventId && !nextEvent) {
+    throw new Error(`next_event_missing:${choice.consequence.nextEventId}`);
+  }
+  if (nextEvent && (!nextEvent.originIds.includes(state.socialIdentity) || nextEvent.chapterId !== event.chapterId)) {
+    throw new Error("next_event_boundary_violation");
+  }
+  if (!nextEvent && !choice.consequence.ending) throw new Error("event_dead_end_without_ending");
+
+  return {
+    event,
+    choice,
+    nextEvent,
+    interpretedFreeText: action.kind === "free_text",
+  };
+}
+
+function applyConsequenceStory(
+  state: WorldState,
+  event: EventTemplate,
+  consequence: Consequence,
+): WorldState["story"] {
+  const nextTurn = state.time.turn + 1;
+  const clocks = new Map(state.story.riskClocks.map((clock) => [clock.id, { ...clock }]));
+  for (const change of consequence.riskClockDeltas) {
+    const existing = clocks.get(change.id);
+    const progress = clamp((existing?.progress ?? 0) + change.delta, 0, change.threshold);
+    clocks.set(change.id, {
+      id: change.id,
+      label: existing?.label ?? change.label,
+      progress,
+      threshold: change.threshold,
+      status: change.resolve
+        ? "resolved"
+        : progress >= change.threshold
+          ? "triggered"
+          : progress > 0
+            ? "active"
+            : "inactive",
+    });
+  }
+
+  return {
+    chapterId: event.chapterId,
+    currentEventId: consequence.nextEventId ?? event.eventId,
+    completedEventIds: [...new Set([...state.story.completedEventIds, event.eventId])].slice(-40),
+    decisions: [...state.story.decisions, {
+      eventId: event.eventId,
+      choiceId: event.choices.find((choice) => choice.consequence.key === consequence.key)?.id ?? "choice-1",
+      consequenceKey: consequence.key,
+      summary: consequence.summary,
+      turn: nextTurn,
+    }].slice(-40),
+    relationshipMemories: [...state.story.relationshipMemories, ...consequence.relationshipMemories.map((memory) => ({
+      ...memory,
+      eventId: event.eventId,
+      turn: nextTurn,
+    }))].slice(-80),
+    riskClocks: [...clocks.values()].slice(0, 20),
+    chapterEnding: consequence.ending,
+  };
+}
+
+export function applyEventConsequence(
+  state: WorldState,
+  resolution: ResolvedEventAction,
+): WorldState {
+  const nextState = applyStateDelta(state, resolution.choice.consequence.stateDelta);
+  return worldStateSchema.parse({
+    ...nextState,
+    story: applyConsequenceStory(state, resolution.event, resolution.choice.consequence),
+  });
+}
+
+function validateExpressionSources(
+  expression: NarrativeExpression,
+  event: EventTemplate,
+  evidenceClaims: EvidenceClaim[],
+): void {
+  const availableSources = new Set(evidenceClaims.flatMap((claim) => claim.sourceIds));
+  const allowedSources = new Set(event.evidenceRefs);
+  for (const sourceId of expression.sourceIds) {
+    if (!availableSources.has(sourceId)) throw new Error(`source_outside_retrieval:${sourceId}`);
+    if (!allowedSources.has(sourceId)) throw new Error(`source_outside_event:${sourceId}`);
+  }
+}
+
+export function validateNarrativeExpression(
+  input: unknown,
+  state: WorldState,
+  evidenceClaims: EvidenceClaim[],
+  resolution: ResolvedEventAction,
+): { generation: TurnGeneration; nextState: WorldState } {
+  const expression = narrativeExpressionSchema.parse(input);
+  validateExpressionSources(expression, resolution.event, evidenceClaims);
+
+  const expectedChoices = resolution.nextEvent?.choices ?? [];
+  const expectedIds = expectedChoices.map((choice) => choice.id);
+  const variantIds = expression.choiceVariants.map((choice) => choice.id);
+  if (new Set(variantIds).size !== variantIds.length) throw new Error("duplicate_choice_id");
+  if (expectedIds.length !== variantIds.length || expectedIds.some((id) => !variantIds.includes(id))) {
+    throw new Error("choice_set_outside_template");
+  }
+  if (/(肢解|开膛|喷溅|gore|dismember)/i.test(expression.text)) {
+    throw new Error("graphic_violence_detail");
+  }
+
+  const variants = new Map(expression.choiceVariants.map((choice) => [choice.id, choice]));
+  const generation = turnGenerationSchema.parse({
+    eventId: resolution.event.eventId,
+    resolvedChoiceId: resolution.choice.id,
+    consequenceKey: resolution.choice.consequence.key,
+    narrative: {
+      title: expression.title,
+      text: expression.text,
+      classification: resolution.event.classification,
+    },
+    choices: expectedChoices.map((choice) => ({
+      id: choice.id,
+      label: variants.get(choice.id)?.label ?? choice.label,
+      intent: variants.get(choice.id)?.intent ?? choice.intent,
+      risk: choice.risk,
+    })),
+    stateDelta: resolution.choice.consequence.stateDelta,
+    sourceIds: expression.sourceIds,
+  });
+
+  return {
+    generation,
+    nextState: applyEventConsequence(state, resolution),
+  };
+}
+
+export function createReplaySummary(
+  sessionId: string,
+  state: WorldState,
+): ReplaySummary {
+  return replaySummarySchema.parse({
+    sessionId,
+    chapterId: state.story.chapterId,
+    decisions: state.story.decisions,
+    changedRelations: state.relationships.map((relationship) => ({
+      relationshipId: relationship.id,
+      label: relationship.label,
+      affinity: relationship.affinity,
+      memoryCount: state.story.relationshipMemories.filter(
+        (memory) => memory.relationshipId === relationship.id,
+      ).length,
+    })),
+    unresolvedRisks: state.story.riskClocks.filter(
+      (risk) => risk.status !== "resolved",
+    ),
+    ending: state.story.chapterEnding,
+    nextEntryPoint: state.story.chapterEnding
+      ? "从同一出身创建新存档，比较另一条责任路径。"
+      : `继续事件：${state.story.currentEventId}`,
   });
 }
 

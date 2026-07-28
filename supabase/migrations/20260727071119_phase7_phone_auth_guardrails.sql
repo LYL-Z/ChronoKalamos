@@ -1,4 +1,4 @@
--- Phase 7: server-only phone-auth admission, cost circuit breaker and audit.
+-- Phase 7: server-only phone-auth admission, cost circuit breaker, and audit.
 -- Phone numbers and IP addresses are represented by application-side hashes plus
 -- a display mask. The database never stores the raw identifiers.
 

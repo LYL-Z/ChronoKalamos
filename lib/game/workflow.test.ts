@@ -1,43 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { AIProvider, GenerationContext, ModerationInput, ModerationResult, ProviderGeneration } from "./ai-provider";
+import { phase10EventTemplates, phase10ScenarioManifest } from "./event-catalog";
 import { createInitialWorldState } from "./rules";
 import type { GameSessionRecord, GameTurnRepository, HistoricalEvidence, ReserveResult } from "./supabase-repository";
-import type { CommittedTurn, TurnGeneration, TurnRequest } from "./schemas";
+import type { CommittedTurn, NarrativeExpression, TurnGeneration, TurnRequest } from "./schemas";
 import { runTurnWorkflow } from "./workflow";
 
 const sessionId = "018f2614-326b-7e67-b42d-0f19cde35dc1";
 const clientTurnId = "018f2614-326b-7e67-b42d-0f19cde35dc2";
 
-function generation(sourceId = "S-004"): TurnGeneration {
+function expression(sourceId = "S-004"): NarrativeExpression {
   return {
-    narrative: {
-      title: "验证中的场景",
-      text: "你把一件普通物品放回原处。它没有自动揭示一段完整历史，只让今天的行动获得了一个可核验的方向。你仍需要在有限的时间、地点和关系中决定下一步，也不能把模型的连接性文字误认成档案中的直接记录。",
-      classification: "合理重建",
-    },
-    choices: [
-      { id: "choice-1", label: "观察一眼", intent: "收集线索", risk: "low" },
-      { id: "choice-2", label: "询问一人", intent: "联系他人", risk: "medium" },
-      { id: "choice-3", label: "暂且等待", intent: "保留判断", risk: "low" },
+    title: "验证中的场景",
+    text: "你把账纸放回案边。它没有自动揭示一段完整历史，只让今天的行动获得了一个可核验的方向。你仍需要在有限的时间、地点和关系中决定下一步，也不能把模型的连接性文字误认成档案中的直接记录。",
+    choiceVariants: [
+      { id: "choice-1", label: "请家庭管事共同复核", intent: "用关系信用降低误判风险" },
+      { id: "choice-2", label: "接受一笔小额损失换取延期", intent: "用有限金钱降低期限压力" },
+      { id: "choice-3", label: "独自承担并立即交割", intent: "以个人判断换取速度" },
     ],
-    stateDelta: {
-      minutesElapsed: 10,
-      location: null,
-      occupation: null,
-      moneyDelta: 0,
-      healthDelta: 0,
-      healthCondition: null,
-      addItems: [],
-      removeItemIds: [],
-      relationshipDeltas: [],
-      reputationDeltas: { household: 0, market: 0, administration: 0 },
-      skillDeltas: { memory: 0, reasoning: 0, socialJudgment: 0, professionalPotential: 0, physical: 0, luck: 0 },
-      addQuests: [],
-      completeQuestIds: [],
-      addRisks: [],
-      resolveRiskIds: [],
-      death: null,
-    },
     sourceIds: [sourceId],
   };
 }
@@ -55,7 +35,7 @@ class FakeProvider implements AIProvider {
     this.generateCalls += 1;
     return {
       responseId: `resp-${this.generateCalls}`,
-      output: generation(this.invalidFirst && this.generateCalls === 1 ? "S-999" : "S-004"),
+      output: expression(this.invalidFirst && this.generateCalls === 1 ? "S-999" : "S-004"),
     };
   }
 }
@@ -92,6 +72,9 @@ class FakeRepository implements GameTurnRepository {
       claims: [{ id: "C-O-001", classification: "合理重建", text: "商业背景", sourceIds: ["S-004"] }],
       sources: [{ id: "S-004", title: "source", creator: "author", locator: "locator", licenseCode: "citation-only" }],
     };
+  }
+  async loadNarrativeCatalog() {
+    return { manifest: phase10ScenarioManifest, events: phase10EventTemplates };
   }
   async createSignedUploadUrl(): Promise<string> {
     return "https://example.invalid/signed-image";

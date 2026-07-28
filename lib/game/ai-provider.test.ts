@@ -4,14 +4,28 @@ import {
   DeepSeekChatProvider,
   type GenerationContext,
 } from "./ai-provider";
+import { phase10EventTemplates } from "./event-catalog";
+import { createInitialWorldState } from "./rules";
 
+const event = phase10EventTemplates[0];
 const context = {
   userId: "user-1",
   action: { kind: "free_text", text: "观察西市的货包" },
-  worldState: {},
-  boundary: {},
+  worldState: createInitialWorldState("merchant"),
+  boundary: {
+    allowed: true,
+    code: "allowed",
+    explanation: "行动在边界内。",
+    limits: { minutes: [5, 180], moneyDelta: [-100, 100], healthDelta: [-2, 1] },
+  },
   claims: [],
   sources: [],
+  event,
+  selectedChoice: event.choices[0],
+  nextEvent: phase10EventTemplates.find(
+    (candidate) => candidate.eventId === event.choices[0].consequence.nextEventId,
+  ) ?? null,
+  interpretedFreeText: true,
   attempt: 1,
 } as unknown as GenerationContext;
 

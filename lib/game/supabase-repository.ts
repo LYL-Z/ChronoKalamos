@@ -5,13 +5,17 @@ import {
   evidenceClaimSchema,
   evidenceSourceSchema,
   originIdSchema,
+  scenarioManifestSchema,
   type CommittedTurn,
   type EvidenceClaim,
   type EvidenceSource,
+  type EventTemplate,
+  type ScenarioManifest,
   type TurnGeneration,
   type TurnRequest,
   type WorldState,
 } from "@/lib/game/schemas";
+import { phase10EventTemplates, phase10ScenarioManifest } from "@/lib/game/event-catalog";
 
 const sessionSchema = z.object({
   id: z.string().uuid(),
@@ -70,6 +74,29 @@ const uploadRowSchema = z.object({
   status: z.literal("ready"),
 });
 
+const manifestRowSchema = z.object({
+  scenario_id: z.literal("tang-changan-742"),
+  content_version: z.string(),
+  era_start: z.literal(742),
+  era_end: z.literal(742),
+  locations: z.array(z.string()),
+  origins: z.array(originIdSchema),
+  evidence_policy: z.literal("source_required"),
+  first_event_by_origin: z.record(originIdSchema, z.string()),
+});
+
+const eventRegistryRowSchema = z.object({
+  event_id: z.string(),
+  chapter_id: z.string(),
+  origin_ids: z.array(originIdSchema),
+  choice_ids: z.array(z.string()),
+  consequence_keys: z.array(z.string()),
+  next_event_ids: z.array(z.string().nullable()),
+  evidence_refs: z.array(z.string()),
+  publication_status: z.literal("published"),
+  content_version: z.string(),
+});
+
 export type GameSessionRecord = z.infer<typeof sessionSchema>;
 export type ReserveResult = z.infer<typeof reserveResultSchema>;
 
@@ -78,10 +105,16 @@ export type HistoricalEvidence = {
   sources: EvidenceSource[];
 };
 
+export type NarrativeCatalog = {
+  manifest: ScenarioManifest;
+  events: EventTemplate[];
+};
+
 export interface GameTurnRepository {
   readonly userId: string;
   loadSession(sessionId: string): Promise<GameSessionRecord>;
   reserveTurn(sessionId: string, request: TurnRequest): Promise<ReserveResult>;
+  loadNarrativeCatalog(session: GameSessionRecord): Promise<NarrativeCatalog>;
   retrieveEvidence(session: GameSessionRecord): Promise<HistoricalEvidence>;
   createSignedUploadUrl(uploadId: string): Promise<string>;
   commitTurn(
@@ -206,6 +239,61 @@ export class SupabaseGameRepository implements GameTurnRepository {
 
     if (claims.length === 0 || sources.length === 0) throw new Error("evidence_empty");
     return { claims, sources };
+  }
+
+  async loadNarrativeCatalog(session: GameSessionRecord): Promise<NarrativeCatalog> {
+    const [manifestResult, registryResult] = await Promise.all([
+      this.client
+        .from("scenario_manifests")
+        .select("scenario_id,content_version,era_start,era_end,locations,origins,evidence_policy,first_event_by_origin")
+        .eq("scenario_id", session.scenario_id)
+        .eq("published", true)
+        .single(),
+      this.client
+        .from("event_template_registry")
+        .select("event_id,chapter_id,origin_ids,choice_ids,consequence_keys,next_event_ids,evidence_refs,publication_status,content_version")
+        .eq("scenario_id", session.scenario_id)
+        .eq("publication_status", "published")
+        .order("event_id"),
+    ]);
+    if (manifestResult.error) throw new Error(`scenario_manifest_failed:${manifestResult.error.message}`);
+    if (registryResult.error) throw new Error(`event_registry_failed:${registryResult.error.message}`);
+
+    const row = manifestRowSchema.parse(manifestResult.data);
+    const manifest = scenarioManifestSchema.parse({
+      scenarioId: row.scenario_id,
+      contentVersion: row.content_version,
+      era: { start: row.era_start, end: row.era_end },
+      locations: row.locations,
+      origins: row.origins,
+      evidencePolicy: row.evidence_policy,
+      firstEventByOrigin: row.first_event_by_origin,
+    });
+    if (JSON.stringify(manifest) !== JSON.stringify(phase10ScenarioManifest)) {
+      throw new Error("scenario_manifest_drift");
+    }
+
+    const registry = z.array(eventRegistryRowSchema).parse(registryResult.data ?? []);
+    if (registry.length !== phase10EventTemplates.length) throw new Error("event_registry_incomplete");
+    for (const event of phase10EventTemplates) {
+      const registered = registry.find((candidate) => candidate.event_id === event.eventId);
+      if (!registered) throw new Error(`event_registry_missing:${event.eventId}`);
+      const expected = {
+        chapter_id: event.chapterId,
+        origin_ids: event.originIds,
+        choice_ids: event.choices.map((choice) => choice.id),
+        consequence_keys: event.choices.map((choice) => choice.consequence.key),
+        next_event_ids: event.choices.map((choice) => choice.consequence.nextEventId),
+        evidence_refs: event.evidenceRefs,
+        content_version: manifest.contentVersion,
+      };
+      for (const [key, value] of Object.entries(expected)) {
+        if (JSON.stringify(registered[key as keyof typeof registered]) !== JSON.stringify(value)) {
+          throw new Error(`event_registry_drift:${event.eventId}:${key}`);
+        }
+      }
+    }
+    return { manifest, events: phase10EventTemplates };
   }
 
   async createSignedUploadUrl(uploadId: string): Promise<string> {

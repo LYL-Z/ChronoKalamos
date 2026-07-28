@@ -46,6 +46,13 @@ export function getOrCreateClientSessionId(originId: string): string {
   return next;
 }
 
+export function rotateClientSessionId(originId: string): string {
+  const key = prototypeSaveStorageKey(originId);
+  const next = window.crypto.randomUUID();
+  window.localStorage.setItem(key, next);
+  return next;
+}
+
 export function createPrototypeSavePayload(
   ownerId: string,
   originId: string,

@@ -1,4 +1,4 @@
--- Phase 7 free authentication track: optional TOTP with database-enforced AAL2.
+-- Phase 7 free authentication track: optional TOTP with database-enforced AAL2
 --
 -- Users without a verified factor, including anonymous users, keep their
 -- existing AAL1 access. Once a user verifies any MFA factor, every sensitive

@@ -22,6 +22,55 @@ async function deleteSessionWithTransientRetry(client, sessionId) {
 }
 
 describe("Supabase live integration", { concurrency: 3 }, () => {
+test("phase 10 manifest and event registry are published-read and client-write denied", {
+  skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
+  timeout: 90_000,
+}, async () => {
+  const publicClient = createClient(url, publishableKey, {
+    auth: { persistSession: false, detectSessionInUrl: false },
+  });
+  const { data: manifests, error: manifestError } = await publicClient
+    .from("scenario_manifests")
+    .select("scenario_id,content_version,origins,evidence_policy,published")
+    .eq("scenario_id", "tang-changan-742");
+  assert.ifError(manifestError);
+  assert.equal(manifests?.length, 1);
+  assert.equal(manifests?.[0]?.content_version, "10.0.0");
+  assert.deepEqual(manifests?.[0]?.origins, ["merchant", "craft", "clerk"]);
+  assert.equal(manifests?.[0]?.evidence_policy, "source_required");
+
+  const { data: events, error: eventError } = await publicClient
+    .from("event_template_registry")
+    .select("event_id,origin_ids,choice_ids,consequence_keys,evidence_refs,publication_status")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("publication_status", "published");
+  assert.ifError(eventError);
+  assert.equal(events?.length, 9);
+  assert.equal(events?.reduce((total, event) => total + event.choice_ids.length, 0), 27);
+  assert.ok(events?.every((event) =>
+    event.choice_ids.length === event.consequence_keys.length
+    && event.origin_ids.length === 1
+    && event.evidence_refs.length > 0
+  ));
+
+  const { error: writeError } = await publicClient
+    .from("event_template_registry")
+    .insert({
+      event_id: "client-injected-event",
+      scenario_id: "tang-changan-742",
+      chapter_id: "invalid",
+      origin_ids: ["merchant"],
+      choice_ids: ["choice-1", "choice-2", "choice-3"],
+      consequence_keys: ["a", "b", "c"],
+      next_event_ids: [null, null, null],
+      evidence_refs: ["S-001"],
+      classification: "叙事虚构",
+      publication_status: "published",
+      content_version: "10.0.0",
+    });
+  assert.ok(writeError, "public clients must not write the event registry");
+});
+
 test("phase 4 historical content is public-read and draft-hidden", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
   timeout: 90_000,
@@ -143,6 +192,8 @@ test("two users are isolated and an optional controlled email can exercise guest
     assert.equal(saveA.state_version, 0);
     assert.equal(saveA.world_state?.time?.year, 742);
     assert.equal(saveA.world_state?.socialIdentity, "merchant");
+    assert.equal(saveA.world_state?.story?.currentEventId, "merchant-ledger-mark");
+    assert.equal(saveA.world_state?.story?.chapterId, "merchant-first-ledger");
 
     const { data: retryResult, error: retryError } = await userA.rpc("create_or_get_game_session", {
       p_client_session_id: clientSessionId,
@@ -177,8 +228,9 @@ test("two users are isolated and an optional controlled email can exercise guest
 
     const turnInput = {
       action: {
-        kind: "free_text",
-        text: "观察西市今日货物，并向家人询问来往商旅。",
+        kind: "choice",
+        choiceId: "choice-1",
+        text: "逐项核对账纸与货签",
       },
     };
     const clientTurnId = crypto.randomUUID();
@@ -194,22 +246,56 @@ test("two users are isolated and an optional controlled email can exercise guest
     const stateAfter = structuredClone(saveA.world_state);
     stateAfter.time = {
       ...stateAfter.time,
-      minuteOfDay: 370,
-      totalMinutes: 10,
+      minuteOfDay: stateAfter.time.minuteOfDay + 25,
+      totalMinutes: stateAfter.time.totalMinutes + 25,
       turn: 1,
     };
+    stateAfter.relationships = [
+      ...stateAfter.relationships,
+      { id: "household-steward", label: "家庭管事", affinity: 1 },
+    ];
+    stateAfter.skills = {
+      ...stateAfter.skills,
+      memory: stateAfter.skills.memory + 1,
+    };
+    stateAfter.story = {
+      chapterId: "merchant-first-ledger",
+      currentEventId: "merchant-gate-window",
+      completedEventIds: ["merchant-ledger-mark"],
+      decisions: [{
+        eventId: "merchant-ledger-mark",
+        choiceId: "choice-1",
+        consequenceKey: "merchant-ledger-audit",
+        summary: "你先核对账纸，避免把陌生印记直接解释成欠账。",
+        turn: 1,
+      }],
+      relationshipMemories: [{
+        relationshipId: "household-steward",
+        eventId: "merchant-ledger-mark",
+        summary: "家庭管事记得你先查证再开口。",
+        valence: "positive",
+        turn: 1,
+      }],
+      riskClocks: [{
+        id: "market-deadline",
+        label: "西市交割期限",
+        progress: 1,
+        threshold: 5,
+        status: "active",
+      }],
+      chapterEnding: null,
+    };
     const narrative = {
-      text: "你在西市的门槛旁停下，先辨认货包上的封记，再向家人确认今日该接待哪一批商旅。这个决定没有改变你的身份，却让你开始把记忆和谨慎当作谋生的本钱。",
-      choices: [
-        { id: "ask-family", label: "继续询问家人", consequenceHint: "获得更完整的来客信息" },
-        { id: "inspect-goods", label: "检查货包封记", consequenceHint: "尝试判断货物来源" },
-        { id: "wait", label: "先在门旁观察", consequenceHint: "等待新的线索出现" },
-      ],
-      classification: "合理重建",
-      sourceIds: ["S-004"],
-      evidence: [
-        { sourceId: "S-004", classification: "合理重建", claim: "西市作为长安商业活动的重要场所，为叙事行动提供空间背景。" },
-      ],
+      eventId: "merchant-ledger-mark",
+      resolvedChoiceId: "choice-1",
+      consequenceKey: "merchant-ledger-audit",
+      narrative: {
+        title: "账纸上的陌生印记",
+        text: "你逐项核对账纸与货签，并把无法确认的印记留作待查。这个后果来自已经发布的事件模板；叙事只解释行动，不改变数据库规则。",
+        classification: "合理重建",
+      },
+      choices: [],
+      sourceIds: ["S-003"],
     };
     const commitArguments = {
       p_session_id: saveId,
@@ -218,7 +304,7 @@ test("two users are isolated and an optional controlled email can exercise guest
       p_input: turnInput,
       p_narrative: narrative,
       p_state_after: stateAfter,
-      p_source_ids: ["S-004"],
+      p_source_ids: ["S-003"],
       p_provider_response_id: "supabase-live-contract",
     };
     const { data: forbiddenCommit, error: forbiddenCommitError } = await userA.rpc("commit_game_turn", {

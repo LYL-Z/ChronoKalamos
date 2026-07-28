@@ -1,4 +1,4 @@
--- Repair the first TOTP policies: authenticated users cannot query
+-- Repair the first TOTP policies: authenticated users cannot query rows
 -- auth.mfa_factors directly. The SECURITY DEFINER helper exposes only the
 -- current user's boolean admission result.
 
