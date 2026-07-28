@@ -14,9 +14,13 @@ const migration = new URL("../supabase/migrations/20260727120000_phase7_phone_au
 const circuitBreakerMigration = new URL("../supabase/migrations/20260727130000_phase7_phone_daily_circuit_breaker.sql", import.meta.url);
 const turnstileWidget = new URL("../components/turnstile-widget.tsx", import.meta.url);
 const envExample = new URL("../.env.example", import.meta.url);
+const identityBinding = new URL("../lib/auth/phone/identity-binding.ts", import.meta.url);
+const identityBindingMigration = new URL("../supabase/migrations/20260727140000_phase7_phone_identity_binding.sql", import.meta.url);
+const checkRoute = new URL("../app/api/auth/phone/check/route.ts", import.meta.url);
+const phonePanel = new URL("../components/phone-auth-panel.tsx", import.meta.url);
 
 test("phase 7 provider preparation keeps secrets server-side", async () => {
-  const [configSource, turnstileSource, twilioSource, layoutSource, cspSource, routeSource, providerSource, guardrailSource, migrationSource, circuitBreakerSource, widgetSource, envSource] = await Promise.all([
+  const [configSource, turnstileSource, twilioSource, layoutSource, cspSource, routeSource, providerSource, guardrailSource, migrationSource, circuitBreakerSource, widgetSource, envSource, identitySource, identityMigrationSource, checkSource, panelSource] = await Promise.all([
     readFile(config, "utf8"),
     readFile(turnstile, "utf8"),
     readFile(twilio, "utf8"),
@@ -29,6 +33,10 @@ test("phase 7 provider preparation keeps secrets server-side", async () => {
     readFile(circuitBreakerMigration, "utf8"),
     readFile(turnstileWidget, "utf8"),
     readFile(envExample, "utf8"),
+    readFile(identityBinding, "utf8"),
+    readFile(identityBindingMigration, "utf8"),
+    readFile(checkRoute, "utf8"),
+    readFile(phonePanel, "utf8"),
   ]);
 
   assert.match(configSource, /CN-mainland/);
@@ -48,6 +56,8 @@ test("phase 7 provider preparation keeps secrets server-side", async () => {
   assert.match(routeSource, /verifyTurnstileToken/);
   assert.match(routeSource, /reservePhoneSend/);
   assert.match(routeSource, /completePhoneSend/);
+  assert.match(routeSource, /preflightPhoneIdentityBinding/);
+  assert.match(routeSource, /bearerAccessToken/);
   assert.match(providerSource, /class MockPhoneAuthProvider/);
   assert.match(providerSource, /class TwilioPhoneAuthProvider/);
   assert.match(guardrailSource, /reserve_phone_auth_send/);
@@ -57,6 +67,18 @@ test("phase 7 provider preparation keeps secrets server-side", async () => {
   assert.match(migrationSource, /revoke all on public\.phone_auth_audit/);
   assert.match(circuitBreakerSource, /result_code not in \('phone_cooldown', 'ip_daily_limit', 'daily_limit'\)/);
   assert.match(widgetSource, /turnstile\/v0\/api\.js\?render=explicit/);
+  assert.match(widgetSource, /turnstile\.reset/);
+  assert.match(identitySource, /auth\.admin\.updateUserById/);
+  assert.match(identitySource, /phone_replacement_requires_reauth/);
+  assert.match(identitySource, /phone_authentication_required/);
+  assert.match(identityMigrationSource, /prepare_verified_phone_binding/);
+  assert.match(identityMigrationSource, /pg_advisory_xact_lock/);
+  assert.match(identityMigrationSource, /phone_change_sent_at/);
+  assert.match(identityMigrationSource, /revoke all on function public\.prepare_verified_phone_binding/);
+  assert.match(checkSource, /bindVerifiedPhoneIdentity/);
+  assert.match(checkSource, /approved_and_bound/);
+  assert.match(panelSource, /authorization/);
+  assert.match(panelSource, /邮箱仍是主要恢复凭证/);
   assert.match(envSource, /PHONE_AUTH_PROVIDER=mock/);
   assert.match(envSource, /TWILIO_ACCOUNT_SID=/);
   assert.match(envSource, /TWILIO_AUTH_TOKEN=/);

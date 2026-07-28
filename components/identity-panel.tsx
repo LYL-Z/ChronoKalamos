@@ -7,8 +7,9 @@ import { phase7PublicIdentityStatus } from "@/lib/capabilities/phase7";
 import { isAnonymousUser, linkGuestToEmail, sendEmailMagicLink, signInAsGuest, signInWithEmailPassword } from "@/lib/supabase/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { listOwnSaves, savePrototypeSession, type SaveSummary } from "@/lib/supabase/saves";
+import { getTotpMfaSnapshot } from "@/lib/supabase/totp";
 import { uploadPrivateImage } from "@/lib/supabase/uploads";
-import { PhoneAuthPanel } from "@/components/phone-auth-panel";
+import { TotpMfaPanel } from "@/components/totp-mfa-panel";
 
 type IdentityPanelProps = {
   originId: string;
@@ -34,8 +35,12 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
   const [emailMode, setEmailMode] = useState<"magic" | "password">("magic");
   const [busy, setBusy] = useState(false);
   const [loadingSession, setLoadingSession] = useState(Boolean(client));
+  const [mfaGate, setMfaGate] = useState<"loading" | "clear" | "required">("loading");
+  const [mfaRevision, setMfaRevision] = useState(0);
   const [saves, setSaves] = useState<SaveSummary[]>([]);
   const userId = user?.id;
+  const formalUser = Boolean(user && !isAnonymousUser(user) && user.email_confirmed_at);
+  const effectiveMfaGate = formalUser ? mfaGate : "clear";
 
   useEffect(() => {
     if (!client) return;
@@ -51,7 +56,11 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
     const { data: subscription } = client.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) setSaves([]);
-      if (event === "SIGNED_IN") onMessage("邮箱确认或密码登录已完成。当前身份已恢复，可以读取本人的存档。 ");
+      if (session?.user && !isAnonymousUser(session.user)) {
+        setMfaGate("loading");
+        setMfaRevision((current) => current + 1);
+      }
+      if (event === "SIGNED_IN") onMessage("邮箱确认或密码登录已完成。正在核验账户的 TOTP 数据门禁。");
       if (event === "USER_UPDATED" && session?.user.email_confirmed_at) onMessage("邮箱已确认。当前游客身份与已有存档保持不变。 ");
     });
 
@@ -62,7 +71,25 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
   }, [client, onMessage]);
 
   useEffect(() => {
-    if (!client || !userId) return;
+    if (!client || !userId || !formalUser) return;
+
+    let active = true;
+    void getTotpMfaSnapshot(client)
+      .then((snapshot) => {
+        if (active) setMfaGate(snapshot.requiresChallenge ? "required" : "clear");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setMfaGate("required");
+        onMessage(`TOTP 状态读取失败：${describeError(error)}`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, formalUser, mfaRevision, onMessage, userId]);
+
+  useEffect(() => {
+    if (!client || !userId || effectiveMfaGate !== "clear") return;
     let active = true;
     void listOwnSaves(client)
       .then((nextSaves) => {
@@ -74,7 +101,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
     return () => {
       active = false;
     };
-  }, [client, onMessage, userId]);
+  }, [client, effectiveMfaGate, onMessage, userId]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -136,6 +163,10 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
       onMessage("请先创建游客身份或登录邮箱账户。 ");
       return;
     }
+    if (effectiveMfaGate !== "clear") {
+      onMessage("请先完成 TOTP 验证，再写入存档。");
+      return;
+    }
 
     await run(async () => {
       const saved = await savePrototypeSession(client, originId);
@@ -148,6 +179,10 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !client || !user) return;
+    if (effectiveMfaGate !== "clear") {
+      onMessage("请先完成 TOTP 验证，再上传私有图片。");
+      return;
+    }
 
     await run(async () => {
       await uploadPrivateImage(client, file);
@@ -202,21 +237,33 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
 
       {!user && <button className="link-button identity-guest-button" type="button" onClick={startGuest} disabled={busy}>以游客身份开始 →</button>}
 
-      <PhoneAuthPanel onMessage={onMessage} />
+      {formalUser && effectiveMfaGate === "loading" && (
+        <p className="identity-loading" role="status">正在核验 TOTP 数据门禁…</p>
+      )}
+
+      {formalUser && effectiveMfaGate !== "loading" && (
+        <TotpMfaPanel
+          client={client}
+          challengeRequired={effectiveMfaGate === "required"}
+          onVerified={() => setMfaRevision((current) => current + 1)}
+          onMessage={onMessage}
+        />
+      )}
 
       {user && (
         <div className="identity-actions">
           {isAnonymousUser(user) && <p className="identity-warning">游客凭证只在当前浏览器保留。清除数据、退出登录或换设备后无法恢复。</p>}
-          <button className="primary-button" type="button" onClick={persistPrototypeSave} disabled={busy}>保存当前出身</button>
+          {effectiveMfaGate === "required" && <p className="identity-warning">该账户已启用 TOTP。二次验证前，数据库会拒绝存档与私有文件访问。</p>}
+          <button className="primary-button" type="button" onClick={persistPrototypeSave} disabled={busy || effectiveMfaGate !== "clear"}>保存当前出身</button>
           <label className="upload-control">
             <span>上传私有图片</span>
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadImage} disabled={busy} />
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadImage} disabled={busy || effectiveMfaGate !== "clear"} />
           </label>
           <button className="text-button" type="button" onClick={signOut} disabled={busy}>退出当前身份</button>
         </div>
       )}
 
-      {saves.length > 0 && (
+      {effectiveMfaGate === "clear" && saves.length > 0 && (
         <div className="save-list" aria-label="当前用户存档">
           <span>OWN ARCHIVES / {saves.length}</span>
           {saves.slice(0, 3).map((save) => (

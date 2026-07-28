@@ -1,123 +1,61 @@
-# 阶段 7：外部能力接入门禁
+# 阶段 7：身份能力接入门禁
 
 ## 当前唯一轨道
 
-本轮只评估手机号登录。微信、QQ、真实打赏和第二历史场景均保持 `not_started`。
-手机号登录当前为 `evaluating`，不是 `ready`，更不是 `enabled`。公开站不得出现可提交
-手机号或验证码的入口。
-
-## 为什么不能直接开启
-
-Supabase 托管项目的手机号 OTP 需要单独启用 Phone Auth，并配置短信供应商。官方原生
-列表包括 MessageBird、Twilio 和 Vonage；TextLocal 属于社区支持。官方同时要求控制
-短信费用、设置速率限制与 CAPTCHA，并核对实际运营国家的短信法规。
-
-游客升级还存在独立风险。匿名用户可以通过 `updateUser({ phone })` 绑定电话身份，但
-2026 年 7 月的 Supabase 故障说明指出，多个未完成验证记录可能留下相同的
-`phone_change`。验证过程若按该字段查找，可能把号码更新到错误用户。未建立过期记录
-清理、唯一性冲突检测和失败恢复前，不得把手机号升级路径投入生产。
-
-## 启用证据
-
-以下八项必须全部完成，并为每项保存可复核证据：
-
-1. 锁定首发国家或地区。不得用“全球”代替可执行的合规范围。
-2. 选定短信供应商，取得正式账号、沙箱和发送配额。
-3. 完成发送主体、短信模板、签名和当地资质审核。
-4. 设定单用户、单 IP、单设备和全项目预算上限；达到阈值后自动停发。
-5. 在发送 OTP 前启用 CAPTCHA，并验证服务端速率限制。
-6. 写明换号、号码回收、SIM swap 和账号恢复规则。
-7. 实现过期 `phone_change` 清理、冲突拒绝和审计记录。
-8. 在隔离项目完成真实短信端到端测试。
+当前只启用“邮箱 + TOTP”。该方案使用 Supabase Auth 内置 MFA，不依赖短信供应商，
+不增加按次发送成本。能力状态为 `enabled`。短信与手机号登录、Passkey、微信、
+QQ、真实打赏和第二历史场景均为 `not_started`。
 
 代码中的 [`lib/capabilities/phase7.ts`](../lib/capabilities/phase7.ts) 是机器可检查的门禁。
-任何能力只有在全部 gate 标为 `verified` 且附带证据后，才允许进入 `ready` 或
-`enabled`。同时处于评估或启用状态的能力不得超过一个。
+任何能力只有在全部 gate 标为 `verified` 且附带证据后，才可进入 `ready` 或
+`enabled`。同时推进的能力不得超过一个。
 
-## 身份与存档验收
+## TOTP 启用证据
 
-手机号轨道至少覆盖以下用例：
+以下证据缺一不可：
 
-- 游客先建立存档，再绑定手机号；验证前后 `auth.users.id` 保持不变。
-- 退出后以手机号重新登录，原存档和私有图片仍可读取。
-- 第二个手机号用户不能读取第一个用户的存档、回合、检查点或上传。
-- 已属于其他用户的手机号必须拒绝绑定，不自动合并账号。
-- 重复发送、错误验证码、过期验证码、并发验证和超出预算均有明确失败结果。
-- 废弃的 `phone_change` 在宽限期后被清理，并留下不含完整手机号的审计记录。
-- 手机号不能作为未经风险评估的唯一恢复凭证。
+1. TOTP 只向已确认邮箱的正式账户开放。
+2. 注册返回的二维码和密钥不写入日志、数据库或分析事件。
+3. 登录挑战成功后会话达到 `aal2`。
+4. 敏感表和私有桶存在 restrictive MFA 策略。
+5. owner-scoped `SECURITY DEFINER` RPC 不能绕过 MFA。
+6. 用户可配置第二个备用因子。
+7. 丢失全部因子时，邮箱登录不能绕过 AAL2；管理员重置有审计边界。
+8. 真实身份验证器完成注册、退出、再次登录与双用户隔离验收。
 
-## 其他能力的后续入口
+前七项已有代码或远端数据库证据。第八项由用户于 2026-07-27 报告真实身份验证器注册、
+退出、再登录与 AAL2 访问恢复通过；自动化双用户隔离测试也已通过。该记录属于用户验收
+声明，不包含二维码、密钥或 6 位验证码，也不替代今后的回归测试。
 
-- 微信与 QQ：先取得开放平台审批、回调域名和正式应用标识，再评估自定义 OAuth/OIDC
-  或服务端交换方案。Supabase 当前原生社交供应商列表不包含微信或 QQ。
-- 真实打赏：先完成商户资质、目标地区、退款、税务、未成年人和隐私文本。测试支付不得
-  冒充真实付款。
-- 第二历史场景：必须复用
-  [`docs/scenario-expansion-template.md`](./scenario-expansion-template.md)，并单独通过史料
-  与许可门禁。
+## 暂缓的短信路线
 
-## 研究依据（MLA）
-
-- “Anonymous Sign-Ins.” *Supabase Docs*, Supabase,
-  [supabase.com/docs/guides/auth/auth-anonymous](https://supabase.com/docs/guides/auth/auth-anonymous).
-  Accessed 27 July 2026.
-- “Phone Login.” *Supabase Docs*, Supabase,
-  [supabase.com/docs/guides/auth/phone-login](https://supabase.com/docs/guides/auth/phone-login).
-  Accessed 27 July 2026.
-- “Unexpected Behavior with `auth.updateUser({ phone })`.” *Supabase Docs*, Supabase,
-  [supabase.com/docs/guides/troubleshooting/unexpected-behavior-with-authupdateuser-phone-phone-linked-to-incorrect-user-id-45368f](https://supabase.com/docs/guides/troubleshooting/unexpected-behavior-with-authupdateuser-phone-phone-linked-to-incorrect-user-id-45368f).
-  Accessed 27 July 2026.
-## Phase 7 preparation decision: China mainland + Twilio Verify + Turnstile
-
-The authorized preparation track is limited to mainland China (`CN-mainland`).
-Hong Kong, Macao, and Taiwan are separate launch scopes. They are not implied
-by the word "China" in this release.
-
-The implementation now contains a server-only Twilio Verify adapter, an
-explicit `mock`/`twilio` provider boundary, a server-only Cloudflare Turnstile
-verifier, a database admission RPC, and a pseudonymous audit table. The public
-site exposes only the preparation status while the gates are closed. It does
-not send SMS in the default configuration.
-
-Twilio Verify provides code generation, expiry, verification attempts, and
-service-level fraud controls. It does not prove that a particular Chinese
-number can receive traffic. Production requires an account with the correct
-geographic permissions, an approved Verify Service, a documented sender and
-consent policy, cost limits, and a real sandbox run.
-Twilio Verify is not an A2P 10DLC sender-registration shortcut for Chinese
-traffic; local delivery and regulatory checks remain separate.
-
-Turnstile must be validated at
-`https://challenges.cloudflare.com/turnstile/v0/siteverify`. The secret is
-server-only. The browser may receive `NEXT_PUBLIC_TURNSTILE_SITE_KEY` after a
-widget is created, but it must never receive `TURNSTILE_SECRET`,
-`TWILIO_AUTH_TOKEN`, or `SUPABASE_SECRET_KEY`.
-
-The preparation environment uses these names:
+原有 Twilio Verify、Cloudflare Turnstile、限流和审计代码继续保留，但不进入公开
+身份面板。环境默认值固定为：
 
 ```text
 PHONE_AUTH_PROVIDER=mock
 PHONE_AUTH_ENABLED=false
 PHONE_AUTH_POLICY_VERIFIED=false
-TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN
-TWILIO_VERIFY_SERVICE_SID
-TURNSTILE_SITE_KEY
-TURNSTILE_SECRET
-TURNSTILE_EXPECTED_HOSTNAME=chronokalamos.com
-PHONE_AUTH_DAILY_LIMIT=20
-PHONE_AUTH_AUDIT_SALT
 ```
 
-`PHONE_AUTH_ENABLED=true` is insufficient by itself. The application also
-requires `PHONE_AUTH_PROVIDER=twilio`, `PHONE_AUTH_POLICY_VERIFIED=true`, all
-server credentials, the audit salt, and a successful Supabase migration. The
-capability registry still requires auditable evidence for every gate before the
-public identity panel can show an enabled phone-login entry. Any other provider
-value, including one with trailing whitespace, is normalized to the safe
-`mock` mode.
+该准备层不构成中国大陆短信资质、模板审批或真实送达证据。若未来恢复短信工作，必须
+重新核对发送资质、费用、号码回收、SIM swap、CAPTCHA 和隔离项目投递。历史风险记录见
+[`docs/phone-recovery-policy.md`](./phone-recovery-policy.md)。
 
-The current exit condition is "provider preparation with guardrails
-published", not "Chinese SMS login completed". Cloudflare API authentication
-still needs to be restored before a production Turnstile widget/sitekey can be
-verified. No production secret was invented.
+## Passkey 与其他能力
+
+- Passkey：暂不实现。不能把平台支持推断为已完成跨浏览器、跨设备和恢复测试。
+- 微信与 QQ：先取得开放平台审批、回调域名和正式应用标识。
+- 真实打赏：先完成商户资质、退款、税务、未成年人和隐私文本。
+- 第二历史场景：必须复用
+  [`docs/scenario-expansion-template.md`](./scenario-expansion-template.md)。
+
+## 研究依据（MLA）
+
+- “Multi-Factor Authentication.” *Supabase Docs*, Supabase,
+  [supabase.com/docs/guides/auth/auth-mfa](https://supabase.com/docs/guides/auth/auth-mfa).
+  Accessed 27 July 2026.
+- “Time-based One-Time Password (TOTP) Multi-Factor Authentication.” *Supabase Docs*,
+  Supabase,
+  [supabase.com/docs/guides/auth/auth-mfa/totp](https://supabase.com/docs/guides/auth/auth-mfa/totp).
+  Accessed 27 July 2026.

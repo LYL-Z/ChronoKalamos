@@ -1,5 +1,7 @@
 export type Phase7CapabilityId =
+  | "totp-mfa"
   | "phone-auth"
+  | "passkey-auth"
   | "wechat-auth"
   | "qq-auth"
   | "payments"
@@ -28,59 +30,53 @@ export type Phase7Capability = {
 
 export const phase7Capabilities = [
   {
-    id: "phone-auth",
-    label: "中国大陆手机号登录",
-    status: "evaluating",
+    id: "totp-mfa",
+    label: "邮箱账户 TOTP 二次验证",
+    status: "enabled",
     gates: [
       {
-        id: "target-markets",
-        label: "首发国家或地区清单",
-        status: "missing",
-        decision: "已选中国大陆；香港、澳门和台湾不在本次授权范围内。",
+        id: "email-boundary",
+        label: "仅向已确认邮箱的正式账户开放",
+        status: "verified",
+        evidence: "components/identity-panel.tsx",
       },
       {
-        id: "provider-account",
-        label: "Twilio Verify 正式账号、Verify Service 与沙箱",
-        status: "missing",
-        decision: "已选 Twilio Verify；当前仅建立服务端适配，未证明中国短信送达。",
+        id: "enrollment-challenge",
+        label: "注册、挑战、验证和因子清理闭环",
+        status: "verified",
+        evidence: "lib/supabase/totp.ts; components/totp-mfa-panel.tsx",
       },
       {
-        id: "sender-registration",
-        label: "中国短信送达、发送主体和本地资质",
-        status: "missing",
-        decision: "Twilio Verify 不等于中国本地送达许可；必须取得账号地理权限与合规结论。",
+        id: "aal2-database",
+        label: "存档、回合与私有上传的 AAL2 数据库门禁",
+        status: "verified",
+        evidence: "Supabase migration phase7_totp_aal2; 7 restrictive policies",
       },
       {
-        id: "cost-controls",
-        label: "发送预算、速率限制和异常停发阈值",
-        status: "missing",
-        decision: "采用 Verify 的服务级限制，并在应用层增加账号、IP 和预算闸门。",
+        id: "recovery-boundary",
+        label: "备用因子与管理员重置边界",
+        status: "verified",
+        evidence: "docs/totp-mfa.md",
       },
       {
-        id: "captcha",
-        label: "Cloudflare Turnstile 与自动化滥用防护",
-        status: "missing",
-        decision: "已选 Cloudflare Turnstile；站点密钥与服务端密钥尚未写入生产环境。",
-      },
-      {
-        id: "recovery-policy",
-        label: "换号、回收号码和账号恢复策略",
-        status: "missing",
-        decision: "手机号不作为唯一恢复凭证；恢复政策和客服路径仍需审定。",
-      },
-      {
-        id: "phone-change-cleanup",
-        label: "过期 phone_change 清理与冲突处理",
-        status: "missing",
-        decision: "必须在 Supabase Auth 真实沙箱完成冲突、过期和回滚验证。",
-      },
-      {
-        id: "sandbox-e2e",
-        label: "同一 UUID 的游客升级与双用户隔离验收",
-        status: "missing",
-        decision: "仍未执行真实 Twilio Verify + Turnstile + Supabase Auth 端到端验收。",
+        id: "live-e2e",
+        label: "真实身份验证器注册、退出、再登录与 AAL2 隔离验收",
+        status: "verified",
+        evidence: "2026-07-27 用户报告公开站 TOTP 注册、退出、再登录与 AAL2 访问恢复通过；自动化双用户隔离测试通过。",
       },
     ],
+  },
+  {
+    id: "phone-auth",
+    label: "短信与手机号登录（暂缓）",
+    status: "not_started",
+    gates: [],
+  },
+  {
+    id: "passkey-auth",
+    label: "Passkey（暂缓）",
+    status: "not_started",
+    gates: [],
   },
   { id: "wechat-auth", label: "微信登录", status: "not_started", gates: [] },
   { id: "qq-auth", label: "QQ 登录", status: "not_started", gates: [] },
@@ -124,10 +120,10 @@ export function assertPhase7Policy(
 
 assertPhase7Policy();
 
-export const phase7ActiveTrackLabel = "中国大陆手机号 · Twilio Verify + Turnstile 准备版";
+export const phase7ActiveTrackLabel = "邮箱 + TOTP 免费身份防护 · AAL2 已启用";
 
 export const phase7PublicIdentityStatus =
-  "中国大陆手机号：Twilio Verify 与 Cloudflare Turnstile 已锁定为接入方案，当前为公开准备版；真实短信入口尚未启用。";
+  "免费身份方案已启用：邮箱登录继续开放；正式账户可配置 TOTP 身份验证器。短信、手机号登录和 Passkey 暂不接入。已启用 TOTP 的账户必须完成二次验证，才能访问存档与私有上传。";
 
 export const phase7PublicSupportStatus =
-  "第 7 阶段当前只发布中国大陆手机号的供应商准备层。Twilio Verify、Cloudflare Turnstile、送达权限、恢复政策和 Supabase 沙箱验收未全部完成；真实短信、微信、QQ 和支付仍保持关闭。";
+  "阶段 7 当前只启用免费 TOTP。数据库 AAL2 门禁、真实身份验证器人工验收和双用户自动化隔离均已通过；短信、手机号登录、Passkey、微信、QQ 和支付均保持关闭。";

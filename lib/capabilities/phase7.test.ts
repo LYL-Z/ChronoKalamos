@@ -6,19 +6,19 @@ import {
 } from "./phase7";
 
 describe("phase 7 capability policy", () => {
-  it("keeps exactly one capability under evaluation", () => {
+  it("keeps exactly one capability enabled", () => {
     const active = phase7Capabilities.filter((capability) => capability.status !== "not_started");
 
     expect(active).toHaveLength(1);
-    expect(active[0]?.id).toBe("phone-auth");
-    expect(active[0]?.status).toBe("evaluating");
+    expect(active[0]?.id).toBe("totp-mfa");
+    expect(active[0]?.status).toBe("enabled");
   });
 
-  it("does not allow phone auth before every gate has evidence", () => {
-    const phoneAuth = phase7Capabilities.find((capability) => capability.id === "phone-auth");
+  it("allows TOTP after every gate has evidence", () => {
+    const totp = phase7Capabilities.find((capability) => capability.id === "totp-mfa");
 
-    expect(phoneAuth).toBeDefined();
-    expect(canEnablePhase7Capability(phoneAuth!)).toBe(false);
+    expect(totp).toBeDefined();
+    expect(canEnablePhase7Capability(totp!)).toBe(true);
   });
 
   it("rejects simultaneous external capability work", () => {

@@ -41,6 +41,7 @@ next-env.d.ts
 /dist/
 /.artifacts/
 /.sites-stage-*/
+/.sites/
 /.wrangler/
 /outputs/
 /work/

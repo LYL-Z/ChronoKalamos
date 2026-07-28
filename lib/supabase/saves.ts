@@ -4,6 +4,14 @@ import { createInitialWorldState } from "@/lib/game/rules";
 import { worldStateSchema } from "@/lib/game/schemas";
 
 const originSchema = z.enum(["merchant", "craft", "clerk"]);
+export const characterProfileSchema = z.object({
+  origin: originSchema,
+  name: z.string().min(1).max(40).optional(),
+  gender: z.enum(["unspecified", "female", "male", "nonbinary"]).optional(),
+  temperament: z.enum(["谨慎", "好奇", "克制", "外向"]).optional(),
+}).strict();
+
+export type CharacterProfile = z.infer<typeof characterProfileSchema>;
 
 export const saveSummarySchema = z.object({
   id: z.string().uuid(),
@@ -19,6 +27,7 @@ export type SaveSummary = z.infer<typeof saveSummarySchema>;
 
 export const gameSessionSchema = saveSummarySchema.extend({
   world_state: worldStateSchema,
+  character_profile: characterProfileSchema.optional(),
 });
 
 export type GameSession = z.infer<typeof gameSessionSchema>;
@@ -85,6 +94,20 @@ export async function getOrCreateGameSession(
   });
   if (error) throw error;
   return gameSessionSchema.parse(data);
+}
+
+export async function updateGameCharacterProfile(
+  client: SupabaseClient,
+  sessionId: string,
+  profile: CharacterProfile,
+): Promise<void> {
+  const session = z.string().uuid().parse(sessionId);
+  const validated = characterProfileSchema.parse(profile);
+  const { error } = await client.rpc("update_game_character_profile", {
+    p_session_id: session,
+    p_profile: validated,
+  });
+  if (error) throw error;
 }
 
 export async function listOwnSaves(client: SupabaseClient): Promise<SaveSummary[]> {

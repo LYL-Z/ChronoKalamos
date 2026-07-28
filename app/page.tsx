@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IdentityPanel } from "@/components/identity-panel";
-import { phase7ActiveTrackLabel, phase7PublicSupportStatus } from "@/lib/capabilities/phase7";
+import { phase7ActiveTrackLabel } from "@/lib/capabilities/phase7";
 import { streamGameTurn } from "@/lib/game/client";
 import {
   type HistoricalClassification,
@@ -15,11 +15,16 @@ import { changanContent, sourceLabel, sourceSummary, type HistoricalOrigin, type
 import { signInAsGuest } from "@/lib/supabase/auth";
 import { loadPublishedChanganContent } from "@/lib/supabase/historical";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { getOrCreateGameSession, type GameSession } from "@/lib/supabase/saves";
-import { uploadPrivateImage } from "@/lib/supabase/uploads";
+import { getOrCreateGameSession, updateGameCharacterProfile, type CharacterProfile, type GameSession } from "@/lib/supabase/saves";
 import type { HistoricalContent } from "@/lib/historical/content";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
+type CharacterProfileDraft = {
+  origin: NonNullable<CharacterProfile["origin"]>;
+  name: string;
+  gender: NonNullable<CharacterProfile["gender"]>;
+  temperament: NonNullable<CharacterProfile["temperament"]>;
+};
 
 const localeOptions: Array<{ value: Locale; label: string }> = [
   { value: "zh", label: "中文" },
@@ -104,6 +109,13 @@ const timeline = [
   { year: "746", note: "尚未写下的四年" },
 ];
 
+const profileTemperaments: Array<{ value: NonNullable<CharacterProfile["temperament"]>; label: string; detail: string }> = [
+  { value: "谨慎", label: "谨慎", detail: "先核验，再行动" },
+  { value: "好奇", label: "好奇", detail: "主动寻找线索" },
+  { value: "克制", label: "克制", detail: "守住边界与风险" },
+  { value: "外向", label: "外向", detail: "更快建立关系" },
+];
+
 const openingChoices: Record<string, TurnChoice[]> = {
   merchant: [
     { id: "choice-1", label: "先核对账纸上的印记", intent: "从家庭账簿寻找第一条线索", risk: "low" },
@@ -156,6 +168,12 @@ export default function Home() {
   const [showSetup, setShowSetup] = useState(false);
   const [showGame, setShowGame] = useState(false);
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
+  const [characterProfile, setCharacterProfile] = useState<CharacterProfileDraft>({
+    origin: changanContent.origins[0].id as CharacterProfile["origin"],
+    name: "",
+    gender: "unspecified",
+    temperament: "谨慎",
+  });
   const [gameNarrative, setGameNarrative] = useState("");
   const [gameChoices, setGameChoices] = useState<TurnChoice[]>(openingChoices.merchant);
   const [gameClassification, setGameClassification] = useState<HistoricalClassification>("叙事虚构");
@@ -165,6 +183,8 @@ export default function Home() {
   const [customAction, setCustomAction] = useState("");
   const [sessionBusy, setSessionBusy] = useState(false);
   const [lastStateBefore, setLastStateBefore] = useState<WorldState | null>(null);
+  const [lastCommitSummary, setLastCommitSummary] = useState("");
+  const [activeTimelineYear, setActiveTimelineYear] = useState("742");
   const [language, setLanguage] = useState<Locale>(() => {
     if (typeof window === "undefined") return "zh";
     try {
@@ -278,10 +298,26 @@ export default function Home() {
     }
   }
 
+  function updateCharacterProfile(next: Partial<CharacterProfileDraft>) {
+    setCharacterProfile((current) => ({ ...current, ...next, origin: selectedOrigin as CharacterProfileDraft["origin"] }));
+  }
+
+  function openSetup() {
+    setActiveNav("new");
+    setCharacterProfile((current) => ({ ...current, origin: selectedOrigin as CharacterProfileDraft["origin"] }));
+    setShowSetup(true);
+  }
+
   async function startGame() {
     const client = getSupabaseBrowserClient();
     if (!client) {
       setMessage("Supabase 未配置，阶段5不能建立权威存档或提交回合。");
+      return;
+    }
+
+    const name = characterProfile.name?.trim();
+    if (!name) {
+      setMessage("请先给这个人一个名字。姓名是有限自定义的一部分，不会改变时代或社会边界。");
       return;
     }
 
@@ -295,17 +331,25 @@ export default function Home() {
       }
 
       const session = await getOrCreateGameSession(client, selectedOrigin);
-      setGameSession(session);
-      setGameNarrative("档案已经打开。请选择第一项行动；只有通过审核、史料检索、规则校验和事务提交后，世界状态才会推进。");
+      const profile = {
+        ...characterProfile,
+        origin: selectedOrigin as CharacterProfile["origin"],
+        name,
+      } satisfies CharacterProfile;
+      await updateGameCharacterProfile(client, session.id, profile);
+      setCharacterProfile(profile);
+      setGameSession({ ...session, character_profile: profile });
+      setGameNarrative(`${name}，你的第一天从${selected.title}开始。先观察眼前的边界，再决定哪一种行动值得留下记录。`);
       setGameChoices(openingChoices[selectedOrigin] ?? openingChoices.merchant);
       setGameClassification("叙事虚构");
       setGameSourceIds([]);
       setTurnStatus("ready");
       setTurnFailure("");
       setLastStateBefore(null);
+      setLastCommitSummary("");
       setShowSetup(false);
       setShowGame(true);
-      setMessage(copy.loaded(selected.title));
+      setMessage(`${name} 的档案已经打开。第一回合尚未提交。`);
     } catch (error) {
       setMessage(`无法建立权威存档：${error instanceof Error ? error.message : "未知错误"}`);
     } finally {
@@ -339,6 +383,7 @@ export default function Home() {
         updated_at: new Date().toISOString(),
       } : current);
       setTurnStatus("committed");
+      setLastCommitSummary(`已记录第${event.data.stateVersion}个回合：时间推进、状态变化和来源引用已写入存档。`);
       setMessage(event.data.duplicate
         ? "检测到重复回合编号：已回放原提交，没有再次调用模型或推进状态。"
         : `回合 ${event.data.stateVersion} 已原子提交，并建立存档点。`);
@@ -372,29 +417,10 @@ export default function Home() {
     }
   }
 
-  async function submitImageAction(file: File) {
-    const client = getSupabaseBrowserClient();
-    if (!client || !gameSession || turnStatus === "streaming") return;
-    setTurnFailure("");
-    try {
-      const upload = await uploadPrivateImage(client, file);
-      await submitGameAction({
-        kind: "image",
-        uploadId: upload.id,
-        text: customAction.trim(),
-      });
-    } catch (error) {
-      setTurnStatus("failed");
-      setTurnFailure(`${error instanceof Error ? error.message : "图片上传失败"} 本回合未提交。`);
-    }
-  }
-
   function selectNav(id: (typeof navItems)[number]["id"]) {
     setActiveNav(id);
-    if (id === "new") setShowSetup(true);
-    if (id === "saves") setMessage("存档由 Supabase RLS 按用户隔离；游客凭证丢失后仍无法恢复。 ");
-    if (id === "settings") setMessage("低动态模式与语言切换已在右上角开放；语言切换只改变界面骨架。 ");
-    if (id === "support") setMessage(phase7PublicSupportStatus);
+    if (id === "new") openSetup();
+    if (id !== "new") setShowSetup(false);
   }
 
   if (booting) {
@@ -455,13 +481,15 @@ export default function Home() {
             <div className="turn-pipeline" aria-label="回合处理管线">
               {pipeline.map(([label, status]) => <span key={label} className={status === "已提交" ? "done" : status === "进行中" ? "active" : ""}><i />{label}<small>{status}</small></span>)}
             </div>
-            <p className="game-boundary-note"><strong>提交边界</strong><br />每个 clientTurnId 只允许一次事务。重复请求只回放原结果。</p>
+            <p className="game-boundary-note"><strong>十分钟切片 · 提交边界</strong><br />每个 clientTurnId 只允许一次事务。重复请求只回放原结果。</p>
           </aside>
           <article className="narrative-panel">
             <div className="panel-heading"><span className="eyebrow">SCENE {String(state.time.turn).padStart(2, "0")} · {state.location.label}</span><span className="source-chip">{sourceLabel(gameClassification)}{gameSourceIds.length ? ` · ${sourceSummary(gameSourceIds)}` : " · 待首回合引用"}</span></div>
+            <p className="narrative-kicker">FIRST RECORDED LIFE · {String(state.time.turn).padStart(2, "0")} / 05</p>
             <p className="narrative-lede" aria-live="polite">{gameNarrative}</p>
             <p className="evidence-disclosure">叙事文本在提交前只属于候选输出；提交后才写入本人的回合与存档点。</p>
             {turnFailure && <div className="turn-failure" role="alert"><strong>本回合未提交</strong><span>{turnFailure}</span></div>}
+            {lastCommitSummary && turnStatus === "committed" && <div className="recap-card" role="status"><span className="eyebrow">RECORD REVIEW</span><strong>{lastCommitSummary}</strong><small>下一次选择会读取本次回合留下的时间、关系和风险。</small></div>}
             <div className="choice-list" aria-label="可提交行动">
               {gameChoices.map((choice) => <button key={choice.id} type="button" disabled={turnStatus === "streaming"} onClick={() => void submitGameAction({ kind: "choice", choiceId: choice.id as `choice-${1 | 2 | 3 | 4 | 5}`, text: choice.label })}><span>{choice.label}</span><small>{choice.intent} · 风险 {choice.risk}</small></button>)}
             </div>
@@ -470,15 +498,16 @@ export default function Home() {
               <textarea id="custom-action" value={customAction} onChange={(event) => setCustomAction(event.target.value)} placeholder="描述一个不超过1000字、属于当前身份与时代边界的行动。" maxLength={1000} disabled={turnStatus === "streaming"} />
               <div className="free-action-footer"><span>{customAction.length}/1000 · 输入会经过审核与时代错置检查</span><button className="primary-button" type="submit" disabled={turnStatus === "streaming" || !customAction.trim()}>提交行动</button></div>
             </form>
-            <label className="image-action-control">
-              <span>或附上一张私有图片作为行动线索</span>
-              <input type="file" accept="image/png,image/jpeg,image/webp" disabled={turnStatus === "streaming"} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void submitImageAction(file); }} />
-            </label>
+            <div className="image-action-control image-action-prep" role="note">
+              <span>图片行动输入 · 筹备中</span>
+              <small>当前DeepSeek回合只接受文字。私有图片不会伪装成已经接入叙事流程。</small>
+            </div>
           </article>
           <aside className="turn-state-panel" aria-label="当前世界状态">
             <div className="panel-heading"><span className="eyebrow">WORLD STATE</span><span className="source-chip">v{gameSession.state_version}</span></div>
             <div className="state-meter"><div><span>健康</span><strong>{state.health.vitality}/10 <small>{signedDelta(vitalityDelta)}</small></strong></div><span className="meter-track"><i style={{ width: `${state.health.vitality * 10}%` }} /></span></div>
             <dl className="compact-state">
+              <div><dt>角色</dt><dd>{characterProfile.name || "未命名"} · {characterProfile.temperament}</dd></div>
               <div><dt>职业</dt><dd>{state.occupation ?? "未定"}</dd></div>
               <div><dt>记账单位</dt><dd>{state.money.cash} 文 <small>{signedDelta(cashDelta)}</small></dd></div>
               <div><dt>物品</dt><dd>{state.items.length} 件</dd></div>
@@ -543,7 +572,7 @@ export default function Home() {
           </div>
           <div className="timeline-rail" aria-label="历史时间轴">
             <span className="rail-kicker">TANG · CHANG’AN · ANNO</span><div className="timeline-line" aria-hidden="true" />
-            {timeline.map((item) => <button className={`timeline-item ${item.year === "742" ? "current" : ""}`} key={item.year} type="button" onClick={() => setMessage(item.year === "742" ? "当前起点：天宝元年。" : "时间轴仅用于原型浏览，尚未改变世界状态。")}><span className="timeline-dot" /><strong>{item.year}</strong><small>{item.note}</small></button>)}
+            {timeline.map((item) => <button className={`timeline-item ${item.year === activeTimelineYear ? "current" : ""}`} key={item.year} type="button" aria-pressed={item.year === activeTimelineYear} onClick={() => { setActiveTimelineYear(item.year); setMessage(item.year === "742" ? "当前起点：天宝元年。第一章从这里开始。" : `${item.year} 已标记为证据时间点；当前章节不会跳过未审校的中间状态。`); }}><span className="timeline-dot" /><strong>{item.year}</strong><small>{item.note}</small></button>)}
             <span className="rail-foot">THE MAP REMEMBERS WHAT WE CANNOT</span>
           </div>
         </section>
@@ -555,14 +584,24 @@ export default function Home() {
         </aside>
       </div>
 
-       <section className="origin-deck" aria-labelledby="origins-title">
+      {activeNav !== "new" && <section className="utility-panel" aria-labelledby={`${activeNav}-panel-title`}>
+        <div>
+          <p className="eyebrow">ARCHIVE / {activeNav === "saves" ? "02" : activeNav === "settings" ? "03" : "04"}</p>
+          <h2 id={`${activeNav}-panel-title`}>{activeNav === "saves" ? "历史存档" : activeNav === "settings" ? "个人设置" : "支持说明"}</h2>
+        </div>
+        {activeNav === "saves" && <div className="utility-copy"><p>正式账户的存档由Supabase按用户隔离。游客存档只保留在当前浏览器身份，清除数据、退出登录或换设备后无法恢复。</p><p className="utility-status"><span className="status-dot ready" />当前入口已连接真实身份与存档边界</p><button className="primary-button" type="button" onClick={openSetup}>继续新开始</button></div>}
+        {activeNav === "settings" && <div className="utility-copy"><p>语言和低动态模式不会改变史料内容。法语、希腊语和俄语当前只覆盖界面骨架。</p><div className="settings-actions"><label>界面语言<select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="secondary-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? "恢复动态" : "启用低动态"}</button></div></div>}
+        {activeNav === "support" && <div className="utility-copy"><p>ChronoKalamos 只把已发布内容作为证据镜像。模型输出必须经过审核、检索、规则校验和事务提交。</p><p className="utility-status"><span className="status-dot warning" />短信、微信、QQ、支付和Passkey仍保持关闭</p><p>若回合失败，世界状态不会推进。请保留错误码，以便后续复核。</p></div>}
+      </section>}
+
+      <section className="origin-deck" aria-labelledby="origins-title">
         <div className="origin-intro"><p className="eyebrow">FIRST RECORDED LIFE</p><h2 id="origins-title">三种出身，三个证据入口。</h2><p>先选择社会位置，再让故事获得边界。</p></div>
         {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
       </section>
 
       <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · 待核验 0 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "内容来自 Supabase 已发布镜像" : "内容来自本地校验包"} · 16+ · No real payments</span></footer>
 
-      {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => setSelectedOrigin(origin.id)}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
+      {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => { setSelectedOrigin(origin.id); updateCharacterProfile({ origin: origin.id as CharacterProfile["origin"] }); }}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="profile-fields"><label htmlFor="character-name">姓名<input id="character-name" name="character-name" type="text" maxLength={40} placeholder="例如：阿史那·..." value={characterProfile.name} onChange={(event) => updateCharacterProfile({ name: event.target.value })} /></label><label htmlFor="character-gender">性别<select id="character-gender" value={characterProfile.gender} onChange={(event) => updateCharacterProfile({ gender: event.target.value as CharacterProfile["gender"] })}><option value="unspecified">不预设</option><option value="female">女性</option><option value="male">男性</option><option value="nonbinary">不二元</option></select></label><div className="temperament-field"><span>性格倾向</span><div>{profileTemperaments.map((item) => <button key={item.value} className={characterProfile.temperament === item.value ? "temperament-choice selected" : "temperament-choice"} type="button" aria-pressed={characterProfile.temperament === item.value} onClick={() => updateCharacterProfile({ temperament: item.value })}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div></div></div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy || !characterProfile.name.trim()}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
       {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}
     </main>
   );
