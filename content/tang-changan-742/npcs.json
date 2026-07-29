@@ -1,0 +1,134 @@
+[
+  {
+    "id": "kang-muyan",
+    "originId": "merchant",
+    "nameZh": "康穆延",
+    "roleZh": "家庭管事",
+    "function": "复核账目并记住玩家是否先查证后归责",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-M01"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "nasi-ban",
+    "originId": "merchant",
+    "nameZh": "纳思班",
+    "roleZh": "家族长辈",
+    "function": "把短期损失与家庭信用放在同一决策中",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-M02"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "du-liuniang",
+    "originId": "merchant",
+    "nameZh": "杜六娘",
+    "roleZh": "市场中介",
+    "function": "提供见证、价格和交易对手信息，但信息并不总是完整",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-M03"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "kang-ata",
+    "originId": "merchant",
+    "nameZh": "康阿塔",
+    "roleZh": "递信人",
+    "function": "承载时间压力、消息延迟和误传后果",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-M04"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "he-jiucheng",
+    "originId": "craft",
+    "nameZh": "何九成",
+    "roleZh": "作坊师长",
+    "function": "评估工序、交期和劳动署名",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-C01"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "a-huai",
+    "originId": "craft",
+    "nameZh": "阿槐",
+    "roleZh": "熟手",
+    "function": "提供技术复核，也可能质疑玩家的返工决定",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-C02"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "liu-erniang",
+    "originId": "craft",
+    "nameZh": "柳二娘",
+    "roleZh": "材料供应者",
+    "function": "把材料质量、价格与供货时间联结起来",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-C03"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "zhao-xiaoqi",
+    "originId": "craft",
+    "nameZh": "赵小七",
+    "roleZh": "同辈学徒",
+    "function": "记录合作、竞争与功劳分配",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-C04"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "han-yansheng",
+    "originId": "clerk",
+    "nameZh": "韩砚生",
+    "roleZh": "资深书手",
+    "function": "复核文书并追问疑点是否被保留",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-L01"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "lu-shengyan",
+    "originId": "clerk",
+    "nameZh": "卢省言",
+    "roleZh": "属官",
+    "function": "施加催办压力并决定责任是否上移",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-L02"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "guo-wulang",
+    "originId": "clerk",
+    "nameZh": "郭五郎",
+    "roleZh": "递送人",
+    "function": "把递送范围、时间窗口和口头说明变成后果",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-L03"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "du-suniang",
+    "originId": "clerk",
+    "nameZh": "杜素娘",
+    "roleZh": "家庭成员",
+    "function": "从家庭立场质疑官署责任对生活的挤压",
+    "classification": "叙事虚构",
+    "claimIds": ["C-NPC-L04"],
+    "sourceIds": [],
+    "publicationStatus": "provisional"
+  }
+]

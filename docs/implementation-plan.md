@@ -12,6 +12,7 @@
 | 7. 后续集成 | 每次只启用一个通过安全与恢复验收的能力 | 免费 TOTP 已启用并完成用户确认；短信与 Passkey 暂缓 |
 | 8. 升级基线 | 能力、原型、筹备中与无法核验状态有统一台账 | 已完成；Supabase数据库告警已处置，泄露密码保护按Free计划限制记录 |
 | 9. 十分钟上手 | 三种出身都有有限角色设定、个人化开场、首回合选择和回顾边界 | 已完成；Sites v30、390px视口和三种出身各三回合生产验收通过 |
+| 10. 叙事与后果系统 | 编辑事件决定所有状态变化；关系记忆、风险时钟、章节结局、回顾与重玩可验证；至少90项评测通过 | 工程基线完成；生产迁移、RLS、公开目录读取和自动化回归通过；服务密钥真实回合仍需独立复测 |
 
 ## 阶段 5 当前实现
 
@@ -37,7 +38,8 @@ DeepSeek 回合，60/60 提交成功，来源、状态版本、重复请求和 p
 - `20260725131032_phase5_server_only_commit`
 - `20260725131336_phase5_request_fk_index`
 - `20260725213000_phase5_deepseek_provider`
-- `20260728110224_phase9_security_invoker_and_audit_policy`
+- `20260728110532_phase9_security_invoker_and_audit_policy`
+- `20260728113545_phase10_event_consequence_system`
 
 阶段 5 的 provider 迁移把历史旧值归一为 `deepseek-chat`，并限制新回合只能使用该值。
 阶段 9 的安全迁移把公开 RPC 改为 `SECURITY INVOKER`，将特权检查留在 `private`

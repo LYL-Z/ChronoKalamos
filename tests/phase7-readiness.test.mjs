@@ -6,7 +6,7 @@ const capabilityPolicy = new URL("../lib/capabilities/phase7.ts", import.meta.ur
 const identityPanel = new URL("../components/identity-panel.tsx", import.meta.url);
 const totpPanel = new URL("../components/totp-mfa-panel.tsx", import.meta.url);
 const totpClient = new URL("../lib/supabase/totp.ts", import.meta.url);
-const totpMigration = new URL("../supabase/migrations/20260727131336_phase7_totp_aal2.sql", import.meta.url);
+const totpMigration = new URL("../supabase/migrations/20260727131612_phase7_totp_aal2.sql", import.meta.url);
 const providerOnboarding = new URL("../docs/provider-onboarding.md", import.meta.url);
 const scenarioTemplate = new URL("../docs/scenario-expansion-template.md", import.meta.url);
 

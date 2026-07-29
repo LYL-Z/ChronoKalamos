@@ -10,12 +10,12 @@ const csp = new URL("../lib/security/http.ts", import.meta.url);
 const startRoute = new URL("../app/api/auth/phone/start/route.ts", import.meta.url);
 const provider = new URL("../lib/auth/phone/provider.ts", import.meta.url);
 const guardrails = new URL("../lib/auth/phone/guardrails.ts", import.meta.url);
-const migration = new URL("../supabase/migrations/20260727120000_phase7_phone_auth_guardrails.sql", import.meta.url);
-const circuitBreakerMigration = new URL("../supabase/migrations/20260727130000_phase7_phone_daily_circuit_breaker.sql", import.meta.url);
+const migration = new URL("../supabase/migrations/20260727071119_phase7_phone_auth_guardrails.sql", import.meta.url);
+const circuitBreakerMigration = new URL("../supabase/migrations/20260727075708_phase7_phone_daily_circuit_breaker.sql", import.meta.url);
 const turnstileWidget = new URL("../components/turnstile-widget.tsx", import.meta.url);
 const envExample = new URL("../.env.example", import.meta.url);
 const identityBinding = new URL("../lib/auth/phone/identity-binding.ts", import.meta.url);
-const identityBindingMigration = new URL("../supabase/migrations/20260727140000_phase7_phone_identity_binding.sql", import.meta.url);
+const identityBindingMigration = new URL("../supabase/migrations/20260727121702_phase7_phone_identity_binding.sql", import.meta.url);
 const checkRoute = new URL("../app/api/auth/phone/check/route.ts", import.meta.url);
 const phonePanel = new URL("../components/phone-auth-panel.tsx", import.meta.url);
 

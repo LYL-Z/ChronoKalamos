@@ -17,6 +17,7 @@ export const saveSummarySchema = z.object({
   id: z.string().uuid(),
   client_session_id: z.string().uuid(),
   scenario_id: z.string(),
+  content_version: z.enum(["10.0.0", "11.0.0"]),
   title: z.string(),
   status: z.enum(["draft", "active", "ended", "archived"]),
   state_version: z.number().int().nonnegative(),
@@ -46,6 +47,13 @@ export function getOrCreateClientSessionId(originId: string): string {
   return next;
 }
 
+export function rotateClientSessionId(originId: string): string {
+  const key = prototypeSaveStorageKey(originId);
+  const next = window.crypto.randomUUID();
+  window.localStorage.setItem(key, next);
+  return next;
+}
+
 export function createPrototypeSavePayload(
   ownerId: string,
   originId: string,
@@ -62,6 +70,7 @@ export function createPrototypeSavePayload(
     owner_id: z.string().uuid().parse(ownerId),
     client_session_id: z.string().uuid().parse(clientSessionId),
     scenario_id: "tang-changan-742",
+    content_version: "11.0.0",
     title: titles[origin],
     character_profile: { origin },
     world_state: createInitialWorldState(origin),
@@ -113,7 +122,7 @@ export async function updateGameCharacterProfile(
 export async function listOwnSaves(client: SupabaseClient): Promise<SaveSummary[]> {
   const { data, error } = await client
     .from("game_sessions")
-    .select("id,client_session_id,scenario_id,title,status,state_version,updated_at")
+    .select("id,client_session_id,scenario_id,content_version,title,status,state_version,updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) throw error;

@@ -1,0 +1,15 @@
+{
+  "scenarioId": "tang-changan-742",
+  "candidateContentVersion": "11.0.0",
+  "runtimeFallbackVersion": "10.0.0",
+  "externalReviewRequired": true,
+  "reviewStatus": "pending",
+  "reviewers": [],
+  "releaseMode": "public-beta-unreviewed",
+  "historicalCertificationClaimed": false,
+  "publicRuntimeEnabled": true,
+  "publicDisclaimerZh": "Phase 11 公开测试版；尚未经外部历史学家认证。所有新增史实内容仍为 provisional，并保留来源、分类与不确定性说明。",
+  "publicDisclaimerEn": "Phase 11 public beta; external historian certification is pending. All new historical content remains provisional with sources, classifications, and uncertainty notes.",
+  "minimumReviewerCount": 1,
+  "releaseRule": "Public-beta playability does not promote historical content. Only a signed, independently verifiable external review may change provisional chapters, events, NPCs, items, risks, claims, or map features to reviewed or published."
+}

@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CinematicNarrative } from "@/components/cinematic-narrative";
 import { IdentityPanel } from "@/components/identity-panel";
 import { phase7ActiveTrackLabel } from "@/lib/capabilities/phase7";
 import { streamGameTurn } from "@/lib/game/client";
+import { getPublishedCinematicScene } from "@/lib/game/cinematic";
+import { getEventTemplate, getFirstEventId } from "@/lib/game/event-catalog";
 import {
   type HistoricalClassification,
   type TurnAction,
@@ -15,7 +18,13 @@ import { changanContent, sourceLabel, sourceSummary, type HistoricalOrigin, type
 import { signInAsGuest } from "@/lib/supabase/auth";
 import { loadPublishedChanganContent } from "@/lib/supabase/historical";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { getOrCreateGameSession, updateGameCharacterProfile, type CharacterProfile, type GameSession } from "@/lib/supabase/saves";
+import {
+  getOrCreateGameSession,
+  rotateClientSessionId,
+  updateGameCharacterProfile,
+  type CharacterProfile,
+  type GameSession,
+} from "@/lib/supabase/saves";
 import type { HistoricalContent } from "@/lib/historical/content";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
@@ -51,7 +60,7 @@ const uiCopy: Record<Locale, {
     method: "每段内容都标明：史料记载、合理重建或叙事虚构。",
     mapLayer: "HISTORICAL MAP LAYER",
     mapNote: "图层来自已审计的阶段4内容包。几何是手绘证据示意，不能当作742年的测量边界；点击节点查看来源、时间和许可。",
-    languageNote: "中文史实内容已审校；其他语言仅翻译界面骨架。",
+    languageNote: "中文内容已完成内部校验；Phase 11 外部历史学家认证待定。其他语言仅翻译界面骨架。",
     loaded: (title) => `已载入 ${title}。第一回合尚未提交。`,
   },
   en: {
@@ -61,7 +70,7 @@ const uiCopy: Record<Locale, {
     method: "Each passage is marked as record, reconstruction, or fiction.",
     mapLayer: "HISTORICAL MAP LAYER",
     mapNote: "This audited phase-4 layer is schematic evidence, not a surveyed 742 CE boundary. Select a node to inspect sources, dates, and licensing.",
-    languageNote: "Chinese historical content is reviewed; other languages currently translate interface chrome only.",
+    languageNote: "Chinese content has passed internal checks; external historian certification for Phase 11 is pending. Other languages translate interface chrome only.",
     loaded: (title) => `${title} loaded. Turn one has not been submitted.`,
   },
   fr: {
@@ -71,7 +80,7 @@ const uiCopy: Record<Locale, {
     method: "Chaque passage indique : source, reconstruction ou fiction.",
     mapLayer: "COUCHE CARTOGRAPHIQUE HISTORIQUE",
     mapNote: "Cette couche auditée reste une esquisse de preuve, pas une limite mesurée en 742. Sélectionnez un nœud pour voir les sources et les licences.",
-    languageNote: "Le contenu historique chinois est révisé ; les autres langues ne traduisent pour l'instant que l'interface.",
+    languageNote: "Le contenu chinois a passé les contrôles internes ; la certification historique externe de la phase 11 reste en attente. Les autres langues ne traduisent que l’interface.",
     loaded: (title) => `${title} chargé. Le premier tour n'est pas soumis.`,
   },
   el: {
@@ -81,7 +90,7 @@ const uiCopy: Record<Locale, {
     method: "Κάθε απόσπασμα σημειώνεται ως πηγή, ανακατασκευή ή μυθοπλασία.",
     mapLayer: "ΙΣΤΟΡΙΚΟ ΕΠΙΠΕΔΟ ΧΑΡΤΗ",
     mapNote: "Το ελεγμένο επίπεδο είναι σχηματικό τεκμήριο, όχι μετρημένο όριο του 742. Επιλέξτε κόμβο για πηγές, χρονολογία και άδεια.",
-    languageNote: "Το κινεζικό ιστορικό περιεχόμενο έχει ελεγχθεί· οι άλλες γλώσσες μεταφράζουν προς το παρόν μόνο το περιβάλλον.",
+    languageNote: "Το κινεζικό περιεχόμενο πέρασε εσωτερικό έλεγχο· η εξωτερική ιστορική πιστοποίηση της Φάσης 11 εκκρεμεί. Οι άλλες γλώσσες καλύπτουν μόνο το περιβάλλον.",
     loaded: (title) => `Φορτώθηκε: ${title}. Ο πρώτος γύρος δεν υποβλήθηκε.`,
   },
   ru: {
@@ -91,7 +100,7 @@ const uiCopy: Record<Locale, {
     method: "Каждый фрагмент отмечен как источник, реконструкция или вымысел.",
     mapLayer: "ИСТОРИЧЕСКИЙ СЛОЙ КАРТЫ",
     mapNote: "Этот проверенный слой — схематическое свидетельство, а не измеренная граница 742 года. Выберите узел для источников, дат и лицензии.",
-    languageNote: "Китайское историческое содержание проверено; другие языки пока переводят только элементы интерфейса.",
+    languageNote: "Китайский контент прошёл внутреннюю проверку; внешняя историческая сертификация Phase 11 ожидается. Другие языки пока переводят только интерфейс.",
     loaded: (title) => `Загружено: ${title}. Первый ход ещё не отправлен.`,
   },
 };
@@ -149,11 +158,39 @@ function signedDelta(value: number): string {
   return value > 0 ? `+${value}` : String(value);
 }
 
+function choicesForEvent(eventId: string | null, contentVersion = "11.0.0"): TurnChoice[] {
+  if (!eventId || eventId === "legacy-session-boundary") return [];
+  return getEventTemplate(eventId, contentVersion).choices.map(({ id, label, intent, risk }) => ({
+    id,
+    label,
+    intent,
+    risk,
+  }));
+}
+
+function titleForEvent(eventId: string, contentVersion = "11.0.0"): string {
+  if (eventId === "legacy-session-boundary") return "旧版存档边界";
+  try {
+    return getEventTemplate(eventId, contentVersion).title;
+  } catch {
+    return "未发布事件";
+  }
+}
+
 function BrandMark() {
   return (
     <span className="brand-mark" aria-hidden="true">
       <span>ZW</span>
     </span>
+  );
+}
+
+function Phase11ReleaseDisclosure() {
+  return (
+    <div className="release-disclosure" role="note">
+      <strong>PHASE 11 · PUBLIC BETA</strong>
+      <span>未经外部历史学家认证。新增章节、人物与地点仍标为 provisional；公开可玩不等于史实获批。</span>
+    </div>
   );
 }
 
@@ -209,6 +246,7 @@ export default function Home() {
   const mapFeatures: MapFeature[] = content.mapFeatures;
   const publishedClaimCount = content.claims.filter((claim) => claim.published).length;
   const fictionClaimCount = content.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
+  const provisionalClaimCount = changanContent.claims.filter((claim) => claim.publicationStatus === "provisional").length;
   const worldState = gameSession?.world_state ?? null;
 
   useEffect(() => {
@@ -338,9 +376,16 @@ export default function Home() {
       } satisfies CharacterProfile;
       await updateGameCharacterProfile(client, session.id, profile);
       setCharacterProfile(profile);
-      setGameSession({ ...session, character_profile: profile });
+      const hydratedSession = { ...session, character_profile: profile };
+      const currentEventId = hydratedSession.world_state.story.currentEventId;
+      const initialEventId = currentEventId ?? getFirstEventId(profile.origin, hydratedSession.content_version);
+      setGameSession(hydratedSession);
       setGameNarrative(`${name}，你的第一天从${selected.title}开始。先观察眼前的边界，再决定哪一种行动值得留下记录。`);
-      setGameChoices(openingChoices[selectedOrigin] ?? openingChoices.merchant);
+      setGameChoices(
+        hydratedSession.world_state.story.chapterEnding
+          ? []
+          : choicesForEvent(initialEventId, hydratedSession.content_version),
+      );
       setGameClassification("叙事虚构");
       setGameSourceIds([]);
       setTurnStatus("ready");
@@ -378,12 +423,19 @@ export default function Home() {
       setGameSession((current) => current ? {
         ...current,
         state_version: event.data.stateVersion,
-        status: event.data.worldState.death ? "ended" : "active",
+        status:
+          event.data.worldState.death || event.data.worldState.story.chapterEnding
+            ? "ended"
+            : "active",
         world_state: event.data.worldState,
         updated_at: new Date().toISOString(),
       } : current);
       setTurnStatus("committed");
-      setLastCommitSummary(`已记录第${event.data.stateVersion}个回合：时间推进、状态变化和来源引用已写入存档。`);
+      const decision = event.data.worldState.story.decisions.at(-1);
+      setLastCommitSummary(
+        decision?.summary
+        ?? `已记录第 ${event.data.stateVersion} 个回合；状态与来源已经写入存档。`,
+      );
       setMessage(event.data.duplicate
         ? "检测到重复回合编号：已回放原提交，没有再次调用模型或推进状态。"
         : `回合 ${event.data.stateVersion} 已原子提交，并建立存档点。`);
@@ -415,6 +467,24 @@ export default function Home() {
       setTurnStatus("failed");
       setTurnFailure(`${error instanceof Error ? error.message : "回合流失败"} 本回合未提交。`);
     }
+  }
+
+  function replayCurrentOrigin() {
+    rotateClientSessionId(selectedOrigin);
+    setGameSession(null);
+    setGameNarrative("");
+    setGameChoices(
+      choicesForEvent(getFirstEventId(selectedOrigin as CharacterProfile["origin"])),
+    );
+    setGameSourceIds([]);
+    setLastStateBefore(null);
+    setLastCommitSummary("");
+    setTurnStatus("ready");
+    setTurnFailure("");
+    setCustomAction("");
+    setShowGame(false);
+    setShowSetup(true);
+    setMessage("已保留旧存档，并为当前出身建立新的重玩入口。");
   }
 
   function selectNav(id: (typeof navItems)[number]["id"]) {
@@ -451,6 +521,12 @@ export default function Home() {
     }
     const cashDelta = lastStateBefore ? state.money.cash - lastStateBefore.money.cash : 0;
     const vitalityDelta = lastStateBefore ? state.health.vitality - lastStateBefore.health.vitality : 0;
+    const story = state.story;
+    const chapterEnded = Boolean(story.chapterEnding);
+    const lastDecision = story.decisions.at(-1);
+    const recentMemories = story.relationshipMemories.slice(-3).reverse();
+    const activeRiskClocks = story.riskClocks.filter((clock) => clock.status !== "resolved");
+    const cinematicScene = getPublishedCinematicScene(story.currentEventId);
     const pipeline = [
       ["审核", turnStatus === "streaming" ? "进行中" : "等待"],
       ["检索", turnStatus === "streaming" ? "进行中" : "等待"],
@@ -463,16 +539,20 @@ export default function Home() {
         <header className="masthead game-masthead">
           <div className="brand"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></div>
           <div className="game-header-actions">
-            <span className="edition">SESSION {gameSession.id.slice(0, 8)} · v{gameSession.state_version}</span>
+            <span className="edition">CONTENT {gameSession.content_version} · SESSION {gameSession.id.slice(0, 8)} · v{gameSession.state_version}</span>
+            <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
             <button className="text-button" type="button" onClick={() => setShowGame(false)}>返回档案入口</button>
           </div>
         </header>
+        <Phase11ReleaseDisclosure />
         <section className="game-grid" aria-label="742年长安游戏回合">
           <aside className="game-sidebar">
             <span className="eyebrow">TURN {String(state.time.turn).padStart(2, "0")} · {turnStatus.toUpperCase()}</span>
             <h1>{turnStatus === "failed" ? "本回合未提交。" : turnStatus === "streaming" ? "正在核验这一行动。" : "让行动留下可追溯的痕迹。"}</h1>
-            <p>模型只能提出候选叙事与状态变化。服务端规则和 Supabase 事务决定什么可以落档。</p>
+            <p>模型只负责受控叙事表达。事件模板与服务端规则决定状态变化，Supabase 事务负责一次性落档。</p>
             <dl className="state-list">
+              <div><dt>章节</dt><dd>{story.chapterId}</dd></div>
+              <div><dt>事件</dt><dd>{titleForEvent(story.currentEventId, gameSession.content_version)}</dd></div>
               <div><dt>地点</dt><dd>{state.location.label}</dd></div>
               <div><dt>身份</dt><dd>{selected.title}</dd></div>
               <div><dt>时间</dt><dd>{formatWorldTime(state.time)}</dd></div>
@@ -484,20 +564,41 @@ export default function Home() {
             <p className="game-boundary-note"><strong>十分钟切片 · 提交边界</strong><br />每个 clientTurnId 只允许一次事务。重复请求只回放原结果。</p>
           </aside>
           <article className="narrative-panel">
-            <div className="panel-heading"><span className="eyebrow">SCENE {String(state.time.turn).padStart(2, "0")} · {state.location.label}</span><span className="source-chip">{sourceLabel(gameClassification)}{gameSourceIds.length ? ` · ${sourceSummary(gameSourceIds)}` : " · 待首回合引用"}</span></div>
-            <p className="narrative-kicker">FIRST RECORDED LIFE · {String(state.time.turn).padStart(2, "0")} / 05</p>
-            <p className="narrative-lede" aria-live="polite">{gameNarrative}</p>
+            <CinematicNarrative
+              scene={cinematicScene}
+              sceneNumber={String(state.time.turn).padStart(2, "0")}
+              locationLabel={state.location.label}
+              classificationLabel={sourceLabel(gameClassification)}
+              sourceSummary={gameSourceIds.length ? sourceSummary(gameSourceIds) : "待首回合引用"}
+              narrative={gameNarrative}
+            />
             <p className="evidence-disclosure">叙事文本在提交前只属于候选输出；提交后才写入本人的回合与存档点。</p>
             {turnFailure && <div className="turn-failure" role="alert"><strong>本回合未提交</strong><span>{turnFailure}</span></div>}
             {lastCommitSummary && turnStatus === "committed" && <div className="recap-card" role="status"><span className="eyebrow">RECORD REVIEW</span><strong>{lastCommitSummary}</strong><small>下一次选择会读取本次回合留下的时间、关系和风险。</small></div>}
-            <div className="choice-list" aria-label="可提交行动">
-              {gameChoices.map((choice) => <button key={choice.id} type="button" disabled={turnStatus === "streaming"} onClick={() => void submitGameAction({ kind: "choice", choiceId: choice.id as `choice-${1 | 2 | 3 | 4 | 5}`, text: choice.label })}><span>{choice.label}</span><small>{choice.intent} · 风险 {choice.risk}</small></button>)}
-            </div>
-            <form className="free-action-form" onSubmit={(event) => { event.preventDefault(); if (customAction.trim()) void submitGameAction({ kind: "free_text", text: customAction.trim() }); }}>
-              <label htmlFor="custom-action">自由行动</label>
-              <textarea id="custom-action" value={customAction} onChange={(event) => setCustomAction(event.target.value)} placeholder="描述一个不超过1000字、属于当前身份与时代边界的行动。" maxLength={1000} disabled={turnStatus === "streaming"} />
-              <div className="free-action-footer"><span>{customAction.length}/1000 · 输入会经过审核与时代错置检查</span><button className="primary-button" type="submit" disabled={turnStatus === "streaming" || !customAction.trim()}>提交行动</button></div>
-            </form>
+            {chapterEnded && story.chapterEnding ? (
+              <section className="chapter-ending" aria-labelledby="chapter-ending-title">
+                <span className="eyebrow">CHAPTER CLOSED · {sourceLabel(story.chapterEnding.classification)}</span>
+                <h2 id="chapter-ending-title">{story.chapterEnding.title}</h2>
+                <p>{story.chapterEnding.summary}</p>
+                <dl>
+                  <div><dt>已完成事件</dt><dd>{story.completedEventIds.length}</dd></div>
+                  <div><dt>关键决定</dt><dd>{story.decisions.length}</dd></div>
+                  <div><dt>未解风险</dt><dd>{activeRiskClocks.length}</dd></div>
+                </dl>
+                <button className="primary-button" type="button" onClick={replayCurrentOrigin}>保留本次记录，重玩这一出身</button>
+              </section>
+            ) : (
+              <>
+                <div className="choice-list" aria-label="可提交行动">
+                  {gameChoices.map((choice) => <button key={choice.id} type="button" disabled={turnStatus === "streaming"} onClick={() => void submitGameAction({ kind: "choice", choiceId: choice.id as `choice-${1 | 2 | 3 | 4 | 5}`, text: choice.label })}><span>{choice.label}</span><small>{choice.intent} · 风险 {choice.risk}</small></button>)}
+                </div>
+                <form className="free-action-form" onSubmit={(event) => { event.preventDefault(); if (customAction.trim()) void submitGameAction({ kind: "free_text", text: customAction.trim() }); }}>
+                  <label htmlFor="custom-action">自由行动</label>
+                  <textarea id="custom-action" value={customAction} onChange={(event) => setCustomAction(event.target.value)} placeholder="描述一个不超过1000字、属于当前身份与时代边界的行动。" maxLength={1000} disabled={turnStatus === "streaming"} />
+                  <div className="free-action-footer"><span>{customAction.length}/1000 · 将映射到本事件声明的安全选择，不会创建任意状态</span><button className="primary-button" type="submit" disabled={turnStatus === "streaming" || !customAction.trim()}>提交行动</button></div>
+                </form>
+              </>
+            )}
             <div className="image-action-control image-action-prep" role="note">
               <span>图片行动输入 · 筹备中</span>
               <small>当前DeepSeek回合只接受文字。私有图片不会伪装成已经接入叙事流程。</small>
@@ -513,6 +614,14 @@ export default function Home() {
               <div><dt>物品</dt><dd>{state.items.length} 件</dd></div>
               <div><dt>关系</dt><dd>{state.relationships.length} 条</dd></div>
             </dl>
+            {lastDecision && <div className="story-review"><span className="eyebrow">LAST CONSEQUENCE</span><strong>{lastDecision.summary}</strong><small>{lastDecision.eventId} · {lastDecision.consequenceKey}</small></div>}
+            <div className="risk-clock-list">
+              <span className="eyebrow">RISK CLOCKS</span>
+              {activeRiskClocks.length === 0
+                ? <small>尚无未解风险。</small>
+                : activeRiskClocks.map((clock) => <div key={clock.id}><span><strong>{clock.label}</strong><small>{clock.status}</small></span><i><b style={{ width: `${Math.min(100, (clock.progress / clock.threshold) * 100)}%` }} /></i><em>{clock.progress}/{clock.threshold}</em></div>)}
+            </div>
+            {recentMemories.length > 0 && <div className="memory-list"><span className="eyebrow">RELATIONSHIP MEMORY</span>{recentMemories.map((memory) => <p key={`${memory.eventId}-${memory.relationshipId}-${memory.turn}`}><strong>{memory.valence === "positive" ? "＋" : memory.valence === "negative" ? "－" : "·"}</strong><span>{memory.summary}<small>回合 {memory.turn} · {memory.eventId}</small></span></p>)}</div>}
             <div className="reputation-list"><span className="eyebrow">REPUTATION</span>{Object.entries(state.reputation).map(([key, value]) => <div key={key}><span>{key === "household" ? "家户" : key === "market" ? "市场" : "行政"}</span><i><b style={{ width: `${Math.max(0, (value + 10) * 5)}%` }} /></i><strong>{value > 0 ? `+${value}` : value}</strong></div>)}</div>
             <div className="state-timeline"><span className="eyebrow">TIME AXIS</span><div className="mini-rail"><i style={{ left: `${Math.min(100, (state.time.dayOfYear / 365) * 100)}%` }} /></div><div><span>742 · 春</span><strong>日序 {state.time.dayOfYear}</strong><span>365</span></div></div>
             {gameSourceIds.length > 0 && <div className="source-ledger"><span className="eyebrow">SOURCE LEDGER</span><p>{gameSourceIds.join(" · ")}</p><small>仅引用已发布的阶段4来源镜像。</small></div>}
@@ -527,11 +636,12 @@ export default function Home() {
       <header className="masthead">
         <div className="brand"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></div>
         <nav className="mast-nav" aria-label="主导航">
-          <span className="edition"><span className="status-dot" />PREVIEW 0.7.42</span>
+          <span className="edition"><span className="status-dot" />PHASE 11 · PUBLIC BETA</span>
           <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
         </nav>
       </header>
+      <Phase11ReleaseDisclosure />
 
       <div className="site-layout">
         <aside className="side-nav" aria-label="账户与存档">
@@ -599,7 +709,7 @@ export default function Home() {
         {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
       </section>
 
-      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · 待核验 0 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "内容来自 Supabase 已发布镜像" : "内容来自本地校验包"} · 16+ · No real payments</span></footer>
+      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · Phase 11 provisional {provisionalClaimCount} 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "基础证据来自 Supabase 已发布镜像" : "基础证据来自本地校验包"} · 16+ · No real payments</span></footer>
 
       {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => { setSelectedOrigin(origin.id); updateCharacterProfile({ origin: origin.id as CharacterProfile["origin"] }); }}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="profile-fields"><label htmlFor="character-name">姓名<input id="character-name" name="character-name" type="text" maxLength={40} placeholder="例如：阿史那·..." value={characterProfile.name} onChange={(event) => updateCharacterProfile({ name: event.target.value })} /></label><label htmlFor="character-gender">性别<select id="character-gender" value={characterProfile.gender} onChange={(event) => updateCharacterProfile({ gender: event.target.value as CharacterProfile["gender"] })}><option value="unspecified">不预设</option><option value="female">女性</option><option value="male">男性</option><option value="nonbinary">不二元</option></select></label><div className="temperament-field"><span>性格倾向</span><div>{profileTemperaments.map((item) => <button key={item.value} className={characterProfile.temperament === item.value ? "temperament-choice selected" : "temperament-choice"} type="button" aria-pressed={characterProfile.temperament === item.value} onClick={() => updateCharacterProfile({ temperament: item.value })}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div></div></div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy || !characterProfile.name.trim()}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
       {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}

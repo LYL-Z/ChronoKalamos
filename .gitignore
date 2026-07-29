@@ -46,3 +46,7 @@ next-env.d.ts
 /outputs/
 /work/
 *.tar.gz
+
+# Private review artifacts may contain signatures or institutional metadata.
+# Keep only a SHA-256 digest and sanitized review record in the repository.
+/review-evidence/

@@ -22,6 +22,106 @@ async function deleteSessionWithTransientRetry(client, sessionId) {
 }
 
 describe("Supabase live integration", { concurrency: 3 }, () => {
+test("phase 11 source candidates stay service-only while the unreviewed runtime is public", {
+  skip: !url || !publishableKey || !secretKey
+    ? "SUPABASE_TEST_URL, SUPABASE_TEST_PUBLISHABLE_KEY and SUPABASE_TEST_SECRET_KEY are required"
+    : false,
+  timeout: 90_000,
+}, async () => {
+  const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
+  const publicClient = createClient(url, publishableKey, options);
+  const serverClient = createClient(url, secretKey, options);
+
+  const { data: publicCandidates, error: publicCandidateError } = await publicClient
+    .from("content_candidate_entries")
+    .select("entry_id")
+    .limit(1);
+  assert.ok(publicCandidateError, "anonymous clients must not access phase 11 candidates");
+  assert.equal(publicCandidates, null);
+
+  const { data: version, error: versionError } = await serverClient
+    .from("content_candidate_versions")
+    .select("review_status,release_mode,historical_certification_claimed,public_runtime_enabled,expected_counts")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("content_version", "11.0.0")
+    .single();
+  assert.ifError(versionError);
+  assert.equal(version?.review_status, "pending");
+  assert.equal(version?.release_mode, "public-beta-unreviewed");
+  assert.equal(version?.historical_certification_claimed, false);
+  assert.equal(version?.public_runtime_enabled, true);
+  assert.equal(version?.expected_counts?.events, 27);
+
+  const { count, error: countError } = await serverClient
+    .from("content_candidate_entries")
+    .select("entry_id", { count: "exact", head: true })
+    .eq("scenario_id", "tang-changan-742")
+    .eq("content_version", "11.0.0");
+  assert.ifError(countError);
+  assert.equal(count, 132);
+
+  const { data: publishedManifest, error: manifestError } = await publicClient
+    .from("scenario_manifests")
+    .select("content_version")
+    .eq("scenario_id", "tang-changan-742")
+    .single();
+  assert.ifError(manifestError);
+  assert.equal(publishedManifest?.content_version, "11.0.0");
+});
+
+test("phase 11 manifest and runtime registry are public-read and client-write denied", {
+  skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
+  timeout: 90_000,
+}, async () => {
+  const publicClient = createClient(url, publishableKey, {
+    auth: { persistSession: false, detectSessionInUrl: false },
+  });
+  const { data: manifests, error: manifestError } = await publicClient
+    .from("scenario_manifests")
+    .select("scenario_id,content_version,origins,evidence_policy,published")
+    .eq("scenario_id", "tang-changan-742");
+  assert.ifError(manifestError);
+  assert.equal(manifests?.length, 1);
+  assert.equal(manifests?.[0]?.content_version, "11.0.0");
+  assert.deepEqual(manifests?.[0]?.origins, ["merchant", "craft", "clerk"]);
+  assert.equal(manifests?.[0]?.evidence_policy, "source_required");
+
+  const { data: events, error: eventError } = await publicClient
+    .from("event_template_registry")
+    .select("event_id,origin_ids,choice_ids,consequence_keys,evidence_refs,publication_status,runtime_availability,content_version")
+    .eq("scenario_id", "tang-changan-742")
+    .eq("content_version", "11.0.0")
+    .eq("runtime_availability", "public-beta");
+  assert.ifError(eventError);
+  assert.equal(events?.length, 27);
+  assert.equal(events?.reduce((total, event) => total + event.choice_ids.length, 0), 81);
+  assert.ok(events?.every((event) =>
+    event.choice_ids.length === event.consequence_keys.length
+    && event.origin_ids.length === 1
+    && event.evidence_refs.length > 0
+    && event.publication_status === "provisional"
+    && event.runtime_availability === "public-beta"
+  ));
+
+  const { error: writeError } = await publicClient
+    .from("event_template_registry")
+    .insert({
+      event_id: "client-injected-event",
+      scenario_id: "tang-changan-742",
+      chapter_id: "invalid",
+      origin_ids: ["merchant"],
+      choice_ids: ["choice-1", "choice-2", "choice-3"],
+      consequence_keys: ["a", "b", "c"],
+      next_event_ids: [null, null, null],
+      evidence_refs: ["S-001"],
+      classification: "叙事虚构",
+      publication_status: "provisional",
+      runtime_availability: "public-beta",
+      content_version: "11.0.0",
+    });
+  assert.ok(writeError, "public clients must not write the event registry");
+});
+
 test("phase 4 historical content is public-read and draft-hidden", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
   timeout: 90_000,
@@ -141,8 +241,11 @@ test("two users are isolated and an optional controlled email can exercise guest
     assert.ok(saveA?.id);
     saveId = saveA.id;
     assert.equal(saveA.state_version, 0);
+    assert.equal(saveA.content_version, "11.0.0");
     assert.equal(saveA.world_state?.time?.year, 742);
     assert.equal(saveA.world_state?.socialIdentity, "merchant");
+    assert.equal(saveA.world_state?.story?.currentEventId, "merchant-ledger-mark");
+    assert.equal(saveA.world_state?.story?.chapterId, "merchant-ledger-day");
 
     const { data: retryResult, error: retryError } = await userA.rpc("create_or_get_game_session", {
       p_client_session_id: clientSessionId,
@@ -177,8 +280,9 @@ test("two users are isolated and an optional controlled email can exercise guest
 
     const turnInput = {
       action: {
-        kind: "free_text",
-        text: "观察西市今日货物，并向家人询问来往商旅。",
+        kind: "choice",
+        choiceId: "choice-1",
+        text: "逐项核对账纸与货签",
       },
     };
     const clientTurnId = crypto.randomUUID();
@@ -194,22 +298,50 @@ test("two users are isolated and an optional controlled email can exercise guest
     const stateAfter = structuredClone(saveA.world_state);
     stateAfter.time = {
       ...stateAfter.time,
-      minuteOfDay: 370,
-      totalMinutes: 10,
+      minuteOfDay: stateAfter.time.minuteOfDay + 30,
+      totalMinutes: stateAfter.time.totalMinutes + 30,
       turn: 1,
     };
+    stateAfter.relationships = [
+      ...stateAfter.relationships,
+      { id: "kang-muyan", label: "康穆延", affinity: 1 },
+    ];
+    stateAfter.skills = {
+      ...stateAfter.skills,
+      reasoning: stateAfter.skills.reasoning + 1,
+    };
+    stateAfter.story = {
+      chapterId: "merchant-ledger-day",
+      currentEventId: "merchant-seal-trace",
+      completedEventIds: ["merchant-ledger-mark"],
+      decisions: [{
+        eventId: "merchant-ledger-mark",
+        choiceId: "choice-1",
+        consequenceKey: "merchant-ledger-mark-choice-1",
+        summary: "疑点被保留，管事更愿意继续协作。",
+        turn: 1,
+      }],
+      relationshipMemories: [{
+        relationshipId: "kang-muyan",
+        eventId: "merchant-ledger-mark",
+        summary: "家庭管事记得你先查证再开口。",
+        valence: "positive",
+        turn: 1,
+      }],
+      riskClocks: [],
+      chapterEnding: null,
+    };
     const narrative = {
-      text: "你在西市的门槛旁停下，先辨认货包上的封记，再向家人确认今日该接待哪一批商旅。这个决定没有改变你的身份，却让你开始把记忆和谨慎当作谋生的本钱。",
-      choices: [
-        { id: "ask-family", label: "继续询问家人", consequenceHint: "获得更完整的来客信息" },
-        { id: "inspect-goods", label: "检查货包封记", consequenceHint: "尝试判断货物来源" },
-        { id: "wait", label: "先在门旁观察", consequenceHint: "等待新的线索出现" },
-      ],
-      classification: "合理重建",
+      eventId: "merchant-ledger-mark",
+      resolvedChoiceId: "choice-1",
+      consequenceKey: "merchant-ledger-mark-choice-1",
+      narrative: {
+        title: "账纸上的陌生印记",
+        text: "你逐项核对账纸与货签，并把无法确认的印记留作待查。这个后果来自公开测试的事件模板；叙事只解释行动，不改变数据库规则，也不代表外部历史审阅已经完成。",
+        classification: "合理重建",
+      },
+      choices: [],
       sourceIds: ["S-004"],
-      evidence: [
-        { sourceId: "S-004", classification: "合理重建", claim: "西市作为长安商业活动的重要场所，为叙事行动提供空间背景。" },
-      ],
     };
     const commitArguments = {
       p_session_id: saveId,

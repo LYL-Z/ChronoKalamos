@@ -1,4 +1,4 @@
--- Phase 7: bind a Twilio-verified CN phone as a secondary Supabase identity.
+-- Phase 7: bind a Twilio-verified CN phone as a secondary Supabase identity
 -- Email remains the primary recovery credential. This function does not issue
 -- a Supabase session and it never merges two users.
 

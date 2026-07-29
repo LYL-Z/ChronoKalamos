@@ -1,0 +1,595 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronokalamos.com/schemas/phase11-production-bundle.schema.json",
+  "title": "ChronoKalamos Phase 11 Production Bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contentVersion",
+    "scenarioId",
+    "publicationStatus",
+    "stateAuthority",
+    "unityStatus",
+    "events",
+    "npcs",
+    "locations",
+    "assetManifest"
+  ],
+  "properties": {
+    "contentVersion": {
+      "type": "string",
+      "pattern": "^11\\.[0-9]+\\.[0-9]+$"
+    },
+    "scenarioId": {
+      "const": "tang-changan-742"
+    },
+    "publicationStatus": {
+      "const": "provisional"
+    },
+    "stateAuthority": {
+      "const": "server-rules-and-supabase-transaction"
+    },
+    "unityStatus": {
+      "enum": [
+        "not-applicable",
+        "project-verified",
+        "import-validated",
+        "build-validated"
+      ]
+    },
+    "events": {
+      "type": "array",
+      "minItems": 27,
+      "maxItems": 27,
+      "items": {
+        "$ref": "#/$defs/eventProduction"
+      }
+    },
+    "npcs": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/$defs/npcProduction"
+      }
+    },
+    "locations": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/locationProduction"
+      }
+    },
+    "assetManifest": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/assetRecord"
+      }
+    }
+  },
+  "$defs": {
+    "boundedId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,100}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^S-[0-9]{3}$"
+    },
+    "claimId": {
+      "type": "string",
+      "pattern": "^C-[A-Z0-9-]+$"
+    },
+    "classification": {
+      "enum": [
+        "史料记载",
+        "合理重建",
+        "叙事虚构"
+      ]
+    },
+    "eventProduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "narrativeRole",
+        "dramaticBeats",
+        "socialEffects",
+        "clueIds",
+        "dialogueLineIds",
+        "cinematicCueIds",
+        "audioCueIds",
+        "evidenceRefs",
+        "publicationStatus"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "narrativeRole": {
+          "enum": [
+            "main",
+            "consequence",
+            "social-vignette",
+            "hidden-world"
+          ]
+        },
+        "dramaticBeats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "setup",
+            "complication",
+            "decision",
+            "aftermath",
+            "foreshadowing"
+          ],
+          "properties": {
+            "setup": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 180
+            },
+            "complication": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 240
+            },
+            "decision": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 240
+            },
+            "aftermath": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 240
+            },
+            "foreshadowing": {
+              "type": "string",
+              "minLength": 5,
+              "maxLength": 180
+            }
+          }
+        },
+        "socialEffects": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/socialEffect"
+          }
+        },
+        "clueIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boundedId"
+          }
+        },
+        "dialogueLineIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/boundedId"
+          }
+        },
+        "cinematicCueIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/boundedId"
+          }
+        },
+        "audioCueIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/boundedId"
+          }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "$ref": "#/$defs/sourceId"
+          }
+        },
+        "publicationStatus": {
+          "const": "provisional"
+        }
+      }
+    },
+    "socialEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "choiceId",
+        "accessBand",
+        "prestigeBand",
+        "factionPosture"
+      ],
+      "properties": {
+        "choiceId": {
+          "type": "string",
+          "pattern": "^choice-[1-5]$"
+        },
+        "accessBand": {
+          "$ref": "#/$defs/axisEffect"
+        },
+        "prestigeBand": {
+          "$ref": "#/$defs/axisEffect"
+        },
+        "factionPosture": {
+          "$ref": "#/$defs/axisEffect"
+        }
+      }
+    },
+    "axisEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "canonicalStatePaths",
+        "rationale"
+      ],
+      "properties": {
+        "operation": {
+          "enum": [
+            "increase",
+            "decrease",
+            "no_change"
+          ]
+        },
+        "canonicalStatePaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^worldState\\."
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 240
+        }
+      }
+    },
+    "npcProduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "npcId",
+        "publicGoal",
+        "privateMotive",
+        "dailyPressure",
+        "moralBoundary",
+        "factionId",
+        "relationshipBands",
+        "voiceDirection",
+        "historicalClaimIds",
+        "publicationStatus"
+      ],
+      "properties": {
+        "npcId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "publicGoal": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 180
+        },
+        "privateMotive": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 180
+        },
+        "dailyPressure": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 180
+        },
+        "moralBoundary": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 180
+        },
+        "factionId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "relationshipBands": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "band",
+              "informationIds"
+            ],
+            "properties": {
+              "band": {
+                "enum": [
+                  "hostile",
+                  "guarded",
+                  "neutral",
+                  "cooperative",
+                  "confidant"
+                ]
+              },
+              "informationIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/boundedId"
+                }
+              }
+            }
+          }
+        },
+        "voiceDirection": {
+          "$ref": "#/$defs/voiceDirection"
+        },
+        "historicalClaimIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/claimId"
+          }
+        },
+        "publicationStatus": {
+          "const": "provisional"
+        }
+      }
+    },
+    "locationProduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mapFeatureId",
+        "runtimeLocationId",
+        "clues",
+        "timeStates",
+        "establishingShotId",
+        "environmentAudioIds",
+        "uncertaintyNote",
+        "sourceIds",
+        "publicationStatus"
+      ],
+      "properties": {
+        "mapFeatureId": {
+          "type": "string",
+          "pattern": "^M-[0-9]{3}$"
+        },
+        "runtimeLocationId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "clues": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/$defs/clue"
+          }
+        },
+        "timeStates": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "enum": [
+              "morning",
+              "day",
+              "dusk",
+              "night"
+            ]
+          }
+        },
+        "establishingShotId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "environmentAudioIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/boundedId"
+          }
+        },
+        "uncertaintyNote": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500
+        },
+        "sourceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sourceId"
+          }
+        },
+        "publicationStatus": {
+          "const": "provisional"
+        }
+      }
+    },
+    "clue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clueId",
+        "layer",
+        "classification",
+        "claimIds",
+        "sourceIds",
+        "locatorNotes",
+        "interactionVerb",
+        "uncertaintyNote"
+      ],
+      "properties": {
+        "clueId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "layer": {
+          "enum": [
+            "surface",
+            "concealed",
+            "relational"
+          ]
+        },
+        "classification": {
+          "$ref": "#/$defs/classification"
+        },
+        "claimIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/claimId"
+          }
+        },
+        "sourceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sourceId"
+          }
+        },
+        "locatorNotes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 3
+          }
+        },
+        "interactionVerb": {
+          "enum": [
+            "observe",
+            "compare",
+            "ask",
+            "test",
+            "trace"
+          ]
+        },
+        "uncertaintyNote": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 300
+        }
+      }
+    },
+    "voiceDirection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language",
+        "register",
+        "emotion",
+        "paceWpm",
+        "emphasisWords",
+        "breathBeforeMs",
+        "pausesMs",
+        "pronunciationStatus"
+      ],
+      "properties": {
+        "language": {
+          "const": "zh-CN"
+        },
+        "register": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "emotion": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "paceWpm": {
+          "type": "integer",
+          "minimum": 120,
+          "maximum": 260
+        },
+        "emphasisWords": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "breathBeforeMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3000
+        },
+        "pausesMs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3000
+          }
+        },
+        "pronunciationStatus": {
+          "const": "modern-mandarin"
+        }
+      }
+    },
+    "assetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetId",
+        "domain",
+        "format",
+        "licenseCode",
+        "sourceIds",
+        "classification",
+        "reviewStatus"
+      ],
+      "properties": {
+        "assetId": {
+          "$ref": "#/$defs/boundedId"
+        },
+        "domain": {
+          "enum": [
+            "character",
+            "environment",
+            "ui",
+            "audio",
+            "fx"
+          ]
+        },
+        "format": {
+          "enum": [
+            "glb",
+            "gltf",
+            "png",
+            "webp",
+            "wav",
+            "ogg",
+            "json"
+          ]
+        },
+        "licenseCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "sourceIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceId"
+          }
+        },
+        "classification": {
+          "$ref": "#/$defs/classification"
+        },
+        "reviewStatus": {
+          "enum": [
+            "draft",
+            "historical-review",
+            "license-review",
+            "approved"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "merchant-account-sheet",
+    "originId": "merchant",
+    "nameZh": "账纸",
+    "function": "保留货物、金额和疑点的编辑化记录",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-M01"],
+    "sourceIds": ["S-004", "S-013"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "merchant-seal-trace",
+    "originId": "merchant",
+    "nameZh": "印记线索",
+    "function": "触发来源核对，不能单独证明经手人身份",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-M01"],
+    "sourceIds": ["S-004", "S-018"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "merchant-sample-bag",
+    "originId": "merchant",
+    "nameZh": "货样袋",
+    "function": "把质量判断与交割压力联系起来",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-M01"],
+    "sourceIds": ["S-004"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "craft-material-tag",
+    "originId": "craft",
+    "nameZh": "材料签",
+    "function": "区分材料批次与短缺来源",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-C01"],
+    "sourceIds": ["S-008", "S-016"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "craft-measuring-tool",
+    "originId": "craft",
+    "nameZh": "量具",
+    "function": "把经验判断转成可复核的工序选择",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-C01"],
+    "sourceIds": ["S-008"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "craft-unfinished-piece",
+    "originId": "craft",
+    "nameZh": "半成品",
+    "function": "承载返工、质量和署名冲突",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-C01"],
+    "sourceIds": ["S-008", "S-016"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "clerk-draft",
+    "originId": "clerk",
+    "nameZh": "文书草案",
+    "function": "保留歧义、改动和责任线索",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-L01"],
+    "sourceIds": ["S-002", "S-008"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "clerk-clean-copy",
+    "originId": "clerk",
+    "nameZh": "誊清件",
+    "function": "对照草案并决定是否保留修改痕迹",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-L01"],
+    "sourceIds": ["S-008", "S-015"],
+    "publicationStatus": "provisional"
+  },
+  {
+    "id": "clerk-dispatch-mark",
+    "originId": "clerk",
+    "nameZh": "递送记号",
+    "function": "表达去向与经手责任，不模拟具体出土格式",
+    "classification": "合理重建",
+    "claimIds": ["C-ITEM-L01"],
+    "sourceIds": ["S-002", "S-015"],
+    "publicationStatus": "provisional"
+  }
+]

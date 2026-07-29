@@ -1,0 +1,138 @@
+{
+  "contentVersion": "11.0.0",
+  "scenarioId": "tang-changan-742",
+  "publicationStatus": "provisional",
+  "releaseChannel": "public-beta-unreviewed",
+  "historicalReviewStatus": "pending",
+  "publicRuntimeEnabled": true,
+  "stateAuthority": "server-rules-and-supabase-transaction",
+  "unityStatus": "not-applicable",
+  "evaluationTarget": 240,
+  "eventIds": [
+    "merchant-ledger-mark",
+    "merchant-seal-trace",
+    "merchant-gate-window",
+    "merchant-interpreter-dispute",
+    "merchant-price-shift",
+    "merchant-witness-choice",
+    "merchant-credit-call",
+    "merchant-inspection-delay",
+    "merchant-settlement",
+    "craft-material-shortfall",
+    "craft-tool-check",
+    "craft-mentor-pressure",
+    "craft-supplier-terms",
+    "craft-peer-rework",
+    "craft-quality-test",
+    "craft-material-loss",
+    "craft-credit-dispute",
+    "craft-delivery",
+    "clerk-ambiguous-place",
+    "clerk-draft-comparison",
+    "clerk-delivery-range",
+    "clerk-seal-gap",
+    "clerk-urgent-request",
+    "clerk-copy-conflict",
+    "clerk-missed-window",
+    "clerk-accountability",
+    "clerk-register"
+  ],
+  "npcIds": [
+    "kang-muyan",
+    "nasi-ban",
+    "du-liuniang",
+    "kang-ata",
+    "he-jiucheng",
+    "a-huai",
+    "liu-erniang",
+    "zhao-xiaoqi",
+    "han-yansheng",
+    "lu-shengyan",
+    "guo-wulang",
+    "du-suniang"
+  ],
+  "locations": [
+    {
+      "mapFeatureId": "M-001",
+      "runtimeLocationId": "western-market",
+      "nameZh": "西市"
+    },
+    {
+      "mapFeatureId": "M-002",
+      "runtimeLocationId": "jin-guang-gate",
+      "nameZh": "金光门"
+    },
+    {
+      "mapFeatureId": "M-003",
+      "runtimeLocationId": "jingzhao-fu",
+      "nameZh": "京兆府"
+    },
+    {
+      "mapFeatureId": "M-004",
+      "runtimeLocationId": "daming-palace",
+      "nameZh": "大明宫"
+    },
+    {
+      "mapFeatureId": "M-005",
+      "runtimeLocationId": "craft-ward",
+      "nameZh": "坊区网格"
+    },
+    {
+      "mapFeatureId": "M-006",
+      "runtimeLocationId": "eastern-market",
+      "nameZh": "东市"
+    },
+    {
+      "mapFeatureId": "M-007",
+      "runtimeLocationId": "mingde-gate",
+      "nameZh": "明德门"
+    },
+    {
+      "mapFeatureId": "M-008",
+      "runtimeLocationId": "imperial-city",
+      "nameZh": "皇城官署区"
+    }
+  ],
+  "requiredEventArtifacts": [
+    "dramatic-beats",
+    "registered-choices",
+    "social-projection-rationales",
+    "clue-links",
+    "dialogue-beats",
+    "cinematic-cues",
+    "audio-cues",
+    "low-motion-alternative",
+    "evidence-locators"
+  ],
+  "requiredNpcArtifacts": [
+    "character-tension",
+    "five-relationship-bands",
+    "two-information-paths",
+    "gesture-set",
+    "voice-direction",
+    "historical-boundary"
+  ],
+  "requiredLocationArtifacts": [
+    "establishing-shot",
+    "four-or-more-clues",
+    "four-time-states",
+    "three-crowd-states",
+    "layered-audio",
+    "low-motion-alternative",
+    "uncertainty-and-license-note"
+  ],
+  "blockedExpansionLocations": [
+    {
+      "nameZh": "朱雀大街",
+      "reason": "不在当前8地点合同中；需要ADR、来源、许可和地图迁移。"
+    },
+    {
+      "nameZh": "曲江",
+      "reason": "不在当前8地点合同中；需要ADR、来源、许可和地图迁移。"
+    },
+    {
+      "nameZh": "安仁坊",
+      "reason": "不得把坊区网格静默改名；需要可核地点合同。"
+    }
+  ]
+}

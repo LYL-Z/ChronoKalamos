@@ -16,7 +16,7 @@
 
 ## 已应用修复
 
-迁移 `20260728110224_phase9_security_invoker_and_audit_policy` 完成以下处理：
+迁移 `20260728110532_phase9_security_invoker_and_audit_policy` 完成以下处理：
 
 - 公开 RPC 使用 `SECURITY INVOKER`。
 - AAL2 与所有者检查位于 `private` schema 的受保护函数。

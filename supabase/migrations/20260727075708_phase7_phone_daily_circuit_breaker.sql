@@ -1,4 +1,4 @@
--- Count actual provider admissions, not requests rejected by the phone/IP/daily
+-- Count actual provider admissions, not requests rejected by phone/IP/daily
 -- guardrails. Otherwise rejected traffic could exhaust the Twilio budget
 -- without making any external provider call.
 
