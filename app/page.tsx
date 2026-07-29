@@ -31,9 +31,11 @@ import {
 } from "@/lib/supabase/saves";
 import type { HistoricalContent } from "@/lib/historical/content";
 import { readInitialLowMotion, useOnlineStatus } from "@/lib/ui/preferences";
+import { recordClientPlaytestEvent } from "@/lib/playtest/client";
+import type { ClientPlaytestEvent } from "@/lib/playtest/schemas";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
-type NavId = "new" | "saves" | "settings" | "support";
+type NavId = "new" | "saves" | "settings" | "support" | "playtest";
 type CharacterProfileDraft = {
   origin: NonNullable<CharacterProfile["origin"]>;
   name: string;
@@ -60,7 +62,7 @@ const uiCopy: Record<Locale, {
   loaded: (title: string) => string;
 }> = {
   zh: {
-    nav: { new: "新开始", saves: "历史存档", settings: "个人设置", support: "支持说明" },
+    nav: { new: "新开始", saves: "历史存档", settings: "个人设置", support: "支持说明", playtest: "公开测试" },
     lowMotion: "低动态",
     restoreMotion: "恢复动态",
     method: "每段内容都标明：史料记载、合理重建或叙事虚构。",
@@ -70,7 +72,7 @@ const uiCopy: Record<Locale, {
     loaded: (title) => `已载入 ${title}。第一回合尚未提交。`,
   },
   en: {
-    nav: { new: "Begin", saves: "Archives", settings: "Settings", support: "Support" },
+    nav: { new: "Begin", saves: "Archives", settings: "Settings", support: "Support", playtest: "Playtest" },
     lowMotion: "Low motion",
     restoreMotion: "Restore motion",
     method: "Each passage is marked as record, reconstruction, or fiction.",
@@ -80,7 +82,7 @@ const uiCopy: Record<Locale, {
     loaded: (title) => `${title} loaded. Turn one has not been submitted.`,
   },
   fr: {
-    nav: { new: "Commencer", saves: "Archives", settings: "Réglages", support: "Assistance" },
+    nav: { new: "Commencer", saves: "Archives", settings: "Réglages", support: "Assistance", playtest: "Test public" },
     lowMotion: "Mouvement réduit",
     restoreMotion: "Rétablir le mouvement",
     method: "Chaque passage indique : source, reconstruction ou fiction.",
@@ -90,7 +92,7 @@ const uiCopy: Record<Locale, {
     loaded: (title) => `${title} chargé. Le premier tour n'est pas soumis.`,
   },
   el: {
-    nav: { new: "Νέα αρχή", saves: "Αρχεία", settings: "Ρυθμίσεις", support: "Υποστήριξη" },
+    nav: { new: "Νέα αρχή", saves: "Αρχεία", settings: "Ρυθμίσεις", support: "Υποστήριξη", playtest: "Δοκιμή" },
     lowMotion: "Ήπια κίνηση",
     restoreMotion: "Επαναφορά κίνησης",
     method: "Κάθε απόσπασμα σημειώνεται ως πηγή, ανακατασκευή ή μυθοπλασία.",
@@ -100,7 +102,7 @@ const uiCopy: Record<Locale, {
     loaded: (title) => `Φορτώθηκε: ${title}. Ο πρώτος γύρος δεν υποβλήθηκε.`,
   },
   ru: {
-    nav: { new: "Начать", saves: "Архивы", settings: "Настройки", support: "Поддержка" },
+    nav: { new: "Начать", saves: "Архивы", settings: "Настройки", support: "Поддержка", playtest: "Тест" },
     lowMotion: "Меньше движения",
     restoreMotion: "Вернуть движение",
     method: "Каждый фрагмент отмечен как источник, реконструкция или вымысел.",
@@ -185,6 +187,13 @@ function Phase11ReleaseDisclosure() {
       <span>未经外部历史学家认证。新增章节、人物与地点仍标为 provisional；公开可玩不等于史实获批。</span>
     </div>
   );
+}
+
+function recordPlaytestUiEvent(
+  input: Omit<ClientPlaytestEvent, "clientEventId">,
+): void {
+  const client = getSupabaseBrowserClient();
+  if (client) void recordClientPlaytestEvent(client, input);
 }
 
 export default function Home() {
@@ -310,8 +319,22 @@ export default function Home() {
         setTurnStatus("ready");
         setTurnFailure("");
         setShowGame(true);
+        recordPlaytestUiEvent({
+          eventName: "recovery_completed",
+          gameSessionId: session.id,
+          recoveryPath: "save_restore",
+          resultCode: "restored",
+        });
       } catch (error) {
-        if (active) setMessage(`存档恢复失败：${error instanceof Error ? error.message : "未知错误"}`);
+        if (active) {
+          setMessage(`存档恢复失败：${error instanceof Error ? error.message : "未知错误"}`);
+          recordPlaytestUiEvent({
+            eventName: "client_error",
+            exitPoint: "save_restore_failed",
+            recoveryPath: "save_restore",
+            resultCode: "save_restore_failed",
+          });
+        }
       }
     })();
     return () => {
@@ -345,7 +368,7 @@ export default function Home() {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusTimer = window.setTimeout(() => setupCloseButtonRef.current?.focus(), 0);
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setShowSetup(false);
+      if (event.key === "Escape") closeSetupWithExit();
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => {
@@ -354,6 +377,22 @@ export default function Home() {
       previouslyFocused?.focus();
     };
   }, [showSetup]);
+
+  useEffect(() => {
+    if (!showGame || !gameSession?.id) return;
+    const sessionId = gameSession.id;
+    function recordHiddenExit() {
+      if (document.visibilityState !== "hidden") return;
+      recordPlaytestUiEvent({
+        eventName: "player_exit",
+        gameSessionId: sessionId,
+        exitPoint: "page_hidden",
+        resultCode: "page_hidden",
+      });
+    }
+    document.addEventListener("visibilitychange", recordHiddenExit);
+    return () => document.removeEventListener("visibilitychange", recordHiddenExit);
+  }, [gameSession?.id, showGame]);
 
   const selected = useMemo(
     () => origins.find((origin) => origin.id === selectedOrigin) ?? origins[0],
@@ -387,6 +426,15 @@ export default function Home() {
   function openSetup() {
     setCharacterProfile((current) => ({ ...current, origin: selectedOrigin as CharacterProfileDraft["origin"] }));
     setShowSetup(true);
+  }
+
+  function closeSetupWithExit() {
+    recordPlaytestUiEvent({
+      eventName: "player_exit",
+      exitPoint: "setup_closed",
+      resultCode: "voluntary_exit",
+    });
+    setShowSetup(false);
   }
 
   async function startGame() {
@@ -439,6 +487,11 @@ export default function Home() {
       setShowSetup(false);
       setShowGame(true);
       setMessage(`${name} 的档案已经打开。第一回合尚未提交。`);
+      recordPlaytestUiEvent({
+        eventName: "session_started",
+        gameSessionId: hydratedSession.id,
+        resultCode: "ready",
+      });
     } catch (error) {
       setMessage(`无法建立权威存档：${error instanceof Error ? error.message : "未知错误"}`);
     } finally {
@@ -528,6 +581,12 @@ export default function Home() {
 
   async function retryPendingTurn() {
     if (!pendingTurn) return;
+    recordPlaytestUiEvent({
+      eventName: "recovery_attempted",
+      gameSessionId: gameSession?.id,
+      recoveryPath: "turn_retry",
+      resultCode: "retry_requested",
+    });
     await executeGameTurn(pendingTurn);
   }
 
@@ -600,7 +659,16 @@ export default function Home() {
             <span className="edition">CONTENT {gameSession.content_version} · SESSION {gameSession.id.slice(0, 8)} · v{gameSession.state_version}</span>
             <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
             <Link className="text-button" href="/saves">历史存档</Link>
-            <button className="text-button" type="button" onClick={() => setShowGame(false)}>返回首页</button>
+            <Link className="text-button" href="/playtest">公开测试</Link>
+            <button className="text-button" type="button" onClick={() => {
+              recordPlaytestUiEvent({
+                eventName: "player_exit",
+                gameSessionId: gameSession.id,
+                exitPoint: "game_back_home",
+                resultCode: "voluntary_exit",
+              });
+              setShowGame(false);
+            }}>返回首页</button>
           </div>
         </header>
         {!online && <div className="network-banner" role="alert"><strong>当前离线</strong><span>正在查看最后载入的状态。回合不会提交；恢复网络后请使用原回合重试。</span></div>}
@@ -704,7 +772,7 @@ export default function Home() {
       <header className="masthead">
         <Link className="brand" href="/"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></Link>
         <nav className="mast-nav" aria-label="主导航">
-          <span className="edition"><span className="status-dot" />PHASE 11 · PUBLIC BETA</span>
+          <span className="edition"><span className="status-dot" />PHASE 14 · SMALL BETA</span>
           <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
         </nav>
@@ -720,6 +788,7 @@ export default function Home() {
             <Link className="side-link" href="/saves"><span>{copy.nav.saves}</span><small>Archives</small></Link>
             <Link className="side-link" href="/settings"><span>{copy.nav.settings}</span><small>Settings</small></Link>
             <Link className="side-link" href="/support"><span>{copy.nav.support}</span><small>Support</small></Link>
+            <Link className="side-link" href="/playtest"><span>{copy.nav.playtest}</span><small>Playtest</small></Link>
           </div>
           <div className="side-note"><span className="eyebrow">METHOD</span><p>{copy.method}</p></div>
         </aside>
@@ -755,7 +824,7 @@ export default function Home() {
 
       <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · Phase 11 provisional {provisionalClaimCount} 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "基础证据来自 Supabase 已发布镜像" : "基础证据来自本地校验包"} · 16+ · No real payments</span></footer>
 
-      {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => { setSelectedOrigin(origin.id); updateCharacterProfile({ origin: origin.id as CharacterProfile["origin"] }); }}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="profile-fields"><label htmlFor="character-name">姓名<input id="character-name" name="character-name" type="text" maxLength={40} placeholder="例如：阿史那·..." value={characterProfile.name} onChange={(event) => updateCharacterProfile({ name: event.target.value })} /></label><label htmlFor="character-gender">性别<select id="character-gender" value={characterProfile.gender} onChange={(event) => updateCharacterProfile({ gender: event.target.value as CharacterProfile["gender"] })}><option value="unspecified">不预设</option><option value="female">女性</option><option value="male">男性</option><option value="nonbinary">不二元</option></select></label><div className="temperament-field"><span>性格倾向</span><div>{profileTemperaments.map((item) => <button key={item.value} className={characterProfile.temperament === item.value ? "temperament-choice selected" : "temperament-choice"} type="button" aria-pressed={characterProfile.temperament === item.value} onClick={() => updateCharacterProfile({ temperament: item.value })}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div></div></div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy || !characterProfile.name.trim()}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
+      {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) closeSetupWithExit(); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={closeSetupWithExit}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => { setSelectedOrigin(origin.id); updateCharacterProfile({ origin: origin.id as CharacterProfile["origin"] }); }}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="profile-fields"><label htmlFor="character-name">姓名<input id="character-name" name="character-name" type="text" maxLength={40} placeholder="例如：阿史那·..." value={characterProfile.name} onChange={(event) => updateCharacterProfile({ name: event.target.value })} /></label><label htmlFor="character-gender">性别<select id="character-gender" value={characterProfile.gender} onChange={(event) => updateCharacterProfile({ gender: event.target.value as CharacterProfile["gender"] })}><option value="unspecified">不预设</option><option value="female">女性</option><option value="male">男性</option><option value="nonbinary">不二元</option></select></label><div className="temperament-field"><span>性格倾向</span><div>{profileTemperaments.map((item) => <button key={item.value} className={characterProfile.temperament === item.value ? "temperament-choice selected" : "temperament-choice"} type="button" aria-pressed={characterProfile.temperament === item.value} onClick={() => updateCharacterProfile({ temperament: item.value })}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div></div></div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy || !characterProfile.name.trim()}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
       {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}
     </main>
   );

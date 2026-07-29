@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useOnlineStatus, useProductPreferences } from "@/lib/ui/preferences";
 
 type ProductPageShellProps = {
-  current: "home" | "saves" | "settings" | "support";
+  current: "home" | "saves" | "settings" | "support" | "playtest";
   eyebrow: string;
   title: string;
   intro: string;
@@ -17,6 +17,7 @@ const navigation = [
   { id: "saves", href: "/saves", label: "历史存档", english: "Archives" },
   { id: "settings", href: "/settings", label: "个人设置", english: "Settings" },
   { id: "support", href: "/support", label: "支持说明", english: "Support" },
+  { id: "playtest", href: "/playtest", label: "公开测试", english: "Playtest" },
 ] as const;
 
 export function BrandLockup() {
@@ -74,7 +75,7 @@ export function ProductPageShell({
         {children}
       </div>
       <footer className="product-footer">
-        <span>742 CE · CHANG’AN · PUBLIC BETA</span>
+        <span>742 CE · CHANG’AN · PHASE 14 SMALL BETA</span>
         <span>外部历史学者认证待定 · 不接支付、短信、微信、QQ 或 Passkey</span>
       </footer>
     </main>
