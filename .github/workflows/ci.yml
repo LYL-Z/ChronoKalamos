@@ -19,7 +19,44 @@ jobs:
           node-version: "22.13.0"
           cache: npm
       - run: npm ci
+      - name: Scan tracked files for credentials
+        run: npm run security:scan
+      - name: Verify migration ledger
+        run: npm run db:migrations:verify
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
+
+  supabase-live:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+      SUPABASE_TEST_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_TEST_PUBLISHABLE_KEY }}
+      SUPABASE_TEST_SECRET_KEY: ${{ secrets.SUPABASE_TEST_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+      - run: npm ci
+      - name: Require isolated live-test credentials
+        run: node scripts/require-live-supabase-env.mjs
+      - name: Run real RLS, Storage, deletion, quota, and cross-user tests
+        run: npm run test:supabase:live
+
+  production-health:
+    if: github.event_name == 'push'
+    needs: [verify, supabase-live]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+      - name: Verify public liveness endpoint
+        run: npm run health:production

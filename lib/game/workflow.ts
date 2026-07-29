@@ -11,6 +11,10 @@ import {
   type TurnStreamEvent,
 } from "@/lib/game/schemas";
 import type { GameTurnRepository } from "@/lib/game/supabase-repository";
+import {
+  getAiBudgetLimits,
+  type AiCallResultCode,
+} from "@/lib/game/ai-budget";
 
 type Emit = (event: TurnStreamEvent) => void | Promise<void>;
 
@@ -73,7 +77,31 @@ function classifyUnexpected(error: unknown): TurnFailure {
   if (raw.includes("turn_rate_limited")) {
     return new TurnFailure("rate_limited", "操作过于频繁，请稍后重试。本回合未提交。", true);
   }
+  if (raw.includes("ai_daily_user_limit")) {
+    return new TurnFailure("ai_daily_user_limit", "今日个人叙事额度已用尽，请明日再试。本回合未提交。", false);
+  }
+  if (raw.includes("ai_daily_global_limit")) {
+    return new TurnFailure("ai_daily_global_limit", "今日公开测试叙事额度已用尽，请明日再试。本回合未提交。", false);
+  }
+  if (raw.includes("ai_call_duplicate")) {
+    return new TurnFailure("ai_call_duplicate", "相同模型调用已被受理，不会重复计费或生成。本回合未提交。", true);
+  }
   return new TurnFailure("turn_failed", "回合处理失败，数据库状态未改变。", true);
+}
+
+function aiResultCode(error: unknown, validationStarted: boolean): AiCallResultCode {
+  if (validationStarted && !(error instanceof AIProviderError)) return "validation_failed";
+  if (error instanceof AIProviderError) {
+    if (
+      error.code === "model_failed"
+      || error.code === "model_timeout"
+      || error.code === "model_refusal"
+      || error.code === "image_not_supported"
+    ) {
+      return error.code;
+    }
+  }
+  return "unexpected_failure";
 }
 
 export async function runTurnWorkflow(options: {
@@ -158,7 +186,38 @@ export async function runTurnWorkflow(options: {
     }
 
     let lastValidationError = "";
+    const aiBudget = getAiBudgetLimits();
     for (const attempt of [1, 2] as const) {
+      const admission = await repository.reserveAiCall(
+        request.clientTurnId,
+        attempt,
+        aiBudget,
+      );
+      if (admission.status === "user_daily_limit") {
+        throw new TurnFailure(
+          "ai_daily_user_limit",
+          "今日个人叙事额度已用尽，请明日再试。本回合未提交。",
+          false,
+        );
+      }
+      if (admission.status === "global_daily_limit") {
+        throw new TurnFailure(
+          "ai_daily_global_limit",
+          "今日公开测试叙事额度已用尽，请明日再试。本回合未提交。",
+          false,
+        );
+      }
+      if (admission.status === "duplicate") {
+        throw new TurnFailure(
+          "ai_call_duplicate",
+          "相同模型调用已被受理，不会重复计费或生成。本回合未提交。",
+          true,
+        );
+      }
+
+      const aiStartedAt = Date.now();
+      let auditResult: AiCallResultCode = "unexpected_failure";
+      let validationStarted = false;
       try {
         const generated = await provider.generate({
           userId: repository.userId,
@@ -175,12 +234,14 @@ export async function runTurnWorkflow(options: {
           attempt,
           retryFeedback: attempt === 2 ? lastValidationError : undefined,
         });
+        validationStarted = true;
         const validated = validateNarrativeExpression(
           generated.output,
           state,
           evidence.claims,
           resolution,
         );
+        auditResult = "success";
 
         let sequence = 0;
         for (const delta of narrativeChunks(validated.generation.narrative.text)) {
@@ -206,12 +267,20 @@ export async function runTurnWorkflow(options: {
         await emit({ event: "state.committed", data: committed });
         return;
       } catch (error) {
+        auditResult = aiResultCode(error, validationStarted);
         const isProviderError = error instanceof AIProviderError;
         const shouldRetry =
           attempt === 1
           && (!isProviderError || error.code === "model_failed");
         if (!shouldRetry) throw error;
         lastValidationError = error instanceof Error ? error.message.slice(0, 240) : "invalid_generation";
+      } finally {
+        await repository.completeAiCall(
+          request.clientTurnId,
+          attempt,
+          auditResult,
+          Date.now() - aiStartedAt,
+        ).catch(() => undefined);
       }
     }
 

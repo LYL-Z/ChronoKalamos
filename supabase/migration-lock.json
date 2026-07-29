@@ -1,0 +1,33 @@
+{
+  "projectRef": "hqxtmaczhemaxjdfjtcz",
+  "verifiedAt": "2026-07-29",
+  "migrations": [
+    "202607180001_phase3_identity_saves.sql",
+    "20260718105631_full_prod_schema.sql",
+    "20260718123627_phase3_security_hardening.sql",
+    "20260718142752_phase4_historical_content.sql",
+    "20260718150936_phase4_historical_origins.sql",
+    "20260725121824_phase5_turn_transactions.sql",
+    "20260725130108_phase5_session_cleanup.sql",
+    "20260725131032_phase5_server_only_commit.sql",
+    "20260725131336_phase5_request_fk_index.sql",
+    "20260725213000_phase5_deepseek_provider.sql",
+    "20260725223000_phase6_turn_rate_limit_and_retention.sql",
+    "20260727071119_phase7_phone_auth_guardrails.sql",
+    "20260727075708_phase7_phone_daily_circuit_breaker.sql",
+    "20260727121702_phase7_phone_identity_binding.sql",
+    "20260727122025_phase7_phone_audit_deny_policy.sql",
+    "20260727122120_phase7_phone_audit_policy_revert.sql",
+    "20260727131612_phase7_totp_aal2.sql",
+    "20260727132435_phase7_totp_mfa_policy_fix.sql",
+    "20260727153227_phase9_character_profile.sql",
+    "20260728110532_phase9_security_invoker_and_audit_policy.sql",
+    "20260728113545_phase10_event_consequence_system.sql",
+    "20260728132303_phase11_changan_candidate_content.sql",
+    "20260728133127_phase11_candidate_deny_policies.sql",
+    "20260728133344_phase11_candidate_source_snapshot.sql",
+    "20260729063339_phase11_voice_line_candidates.sql",
+    "20260729063433_phase11_public_beta_runtime.sql",
+    "20260729130650_phase13_ai_budget_and_audit.sql"
+  ]
+}

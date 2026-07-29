@@ -10,9 +10,9 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run content:validate && npm run content:validate:phase11 && npm run lint && npm run typecheck && npm run build && npm run test:production-smoke && npm run test:unit && npm run test:contracts && npm run test:e2e",
+    "test": "npm run security:scan && npm run db:migrations:verify && npm run content:validate && npm run content:validate:phase11 && npm run lint && npm run typecheck && npm run build && npm run test:production-smoke && npm run test:unit && npm run test:contracts && npm run test:e2e",
     "test:unit": "vitest run",
-    "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs tests/phase5-rendered-contract.test.mjs tests/phase6-hardening.test.mjs tests/phase7-readiness.test.mjs tests/phase7-provider-contract.test.mjs tests/phase9-onboarding.test.mjs tests/phase9-security-hardening.test.mjs tests/phase10-narrative-contract.test.mjs tests/phase11-content-contract.test.mjs",
+    "test:contracts": "node --test tests/rendered-html.test.mjs tests/supabase-contract.test.mjs tests/phase5-rendered-contract.test.mjs tests/phase6-hardening.test.mjs tests/phase7-readiness.test.mjs tests/phase7-provider-contract.test.mjs tests/phase9-onboarding.test.mjs tests/phase9-security-hardening.test.mjs tests/phase10-narrative-contract.test.mjs tests/phase11-content-contract.test.mjs tests/phase13-hardening.test.mjs",
     "test:production-smoke": "node scripts/test-production-assets.mjs",
     "test:supabase:live": "node --env-file-if-exists=.env.test --test tests/supabase-live.test.mjs",
     "test:phase9:production": "node --env-file-if-exists=.env.test scripts/eval-phase9-production.mjs",
@@ -24,7 +24,12 @@
     "db:generate": "drizzle-kit generate",
     "content:validate": "node scripts/validate-phase4-content.mjs",
     "content:validate:phase11": "node scripts/validate-phase11-production.mjs",
-    "review:verify:phase11": "node scripts/verify-phase11-review-evidence.mjs"
+    "review:verify:phase11": "node scripts/verify-phase11-review-evidence.mjs",
+    "security:scan": "node scripts/check-tracked-secrets.mjs",
+    "db:migrations:verify": "node scripts/check-migration-ledger.mjs",
+    "health:production": "node scripts/check-production-health.mjs",
+    "observability:error-budget": "node --env-file-if-exists=.env.test scripts/check-ai-error-budget.mjs",
+    "maintenance:ai-audit": "node --env-file-if-exists=.env.test scripts/cleanup-ai-audit.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

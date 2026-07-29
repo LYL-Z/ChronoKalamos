@@ -102,8 +102,8 @@ test("phase 11 database candidate tables are server-only and RLS protected", asy
     readText("supabase/migrations/20260728132303_phase11_changan_candidate_content.sql"),
     readText("supabase/migrations/20260728133127_phase11_candidate_deny_policies.sql"),
     readText("supabase/migrations/20260728133344_phase11_candidate_source_snapshot.sql"),
-    readText("supabase/migrations/20260728141153_phase11_voice_line_candidates.sql"),
-    readText("supabase/migrations/20260729062713_phase11_public_beta_runtime.sql"),
+    readText("supabase/migrations/20260729063339_phase11_voice_line_candidates.sql"),
+    readText("supabase/migrations/20260729063433_phase11_public_beta_runtime.sql"),
     readText("scripts/sync-phase11-candidate.mjs"),
   ]);
 
