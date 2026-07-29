@@ -128,3 +128,18 @@ export async function listOwnSaves(client: SupabaseClient): Promise<SaveSummary[
   if (error) throw error;
   return z.array(saveSummarySchema).parse(data ?? []);
 }
+
+export async function getOwnGameSession(
+  client: SupabaseClient,
+  sessionId: string,
+): Promise<GameSession> {
+  const id = z.string().uuid().parse(sessionId);
+  const { data, error } = await client
+    .from("game_sessions")
+    .select("id,client_session_id,scenario_id,content_version,title,status,state_version,updated_at,world_state,character_profile")
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  return gameSessionSchema.parse(data);
+}

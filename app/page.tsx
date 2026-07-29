@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChapterTimeline } from "@/components/chapter-timeline";
 import { CinematicNarrative } from "@/components/cinematic-narrative";
+import { EvidenceMap } from "@/components/evidence-map";
 import { IdentityPanel } from "@/components/identity-panel";
 import { phase7ActiveTrackLabel } from "@/lib/capabilities/phase7";
 import { streamGameTurn } from "@/lib/game/client";
@@ -14,20 +17,23 @@ import {
   type TurnStreamEvent,
   type WorldState,
 } from "@/lib/game/schemas";
-import { changanContent, sourceLabel, sourceSummary, type HistoricalOrigin, type MapFeature } from "@/lib/historical/content";
+import { changanContent, sourceLabel, sourceSummary, type HistoricalOrigin } from "@/lib/historical/content";
 import { signInAsGuest } from "@/lib/supabase/auth";
 import { loadPublishedChanganContent } from "@/lib/supabase/historical";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   getOrCreateGameSession,
+  getOwnGameSession,
   rotateClientSessionId,
   updateGameCharacterProfile,
   type CharacterProfile,
   type GameSession,
 } from "@/lib/supabase/saves";
 import type { HistoricalContent } from "@/lib/historical/content";
+import { readInitialLowMotion, useOnlineStatus } from "@/lib/ui/preferences";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
+type NavId = "new" | "saves" | "settings" | "support";
 type CharacterProfileDraft = {
   origin: NonNullable<CharacterProfile["origin"]>;
   name: string;
@@ -44,7 +50,7 @@ const localeOptions: Array<{ value: Locale; label: string }> = [
 ];
 
 const uiCopy: Record<Locale, {
-  nav: Record<(typeof navItems)[number]["id"], string>;
+  nav: Record<NavId, string>;
   lowMotion: string;
   restoreMotion: string;
   method: string;
@@ -104,19 +110,6 @@ const uiCopy: Record<Locale, {
     loaded: (title) => `Загружено: ${title}. Первый ход ещё не отправлен.`,
   },
 };
-
-const navItems = [
-  { id: "new", label: "新开始", english: "Begin" },
-  { id: "saves", label: "历史存档", english: "Archives" },
-  { id: "settings", label: "个人设置", english: "Settings" },
-  { id: "support", label: "支持说明", english: "Support" },
-] as const;
-
-const timeline = [
-  { year: "738", note: "越过记载之前" },
-  { year: "742", note: "你的第一天" },
-  { year: "746", note: "尚未写下的四年" },
-];
 
 const profileTemperaments: Array<{ value: NonNullable<CharacterProfile["temperament"]>; label: string; detail: string }> = [
   { value: "谨慎", label: "谨慎", detail: "先核验，再行动" },
@@ -199,9 +192,8 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [content, setContent] = useState<HistoricalContent>(changanContent);
   const [contentSource, setContentSource] = useState<"syncing" | "database" | "fallback">(() => getSupabaseBrowserClient() ? "syncing" : "fallback");
-  const [activeNav, setActiveNav] = useState<(typeof navItems)[number]["id"]>("new");
+  const [contentSyncError, setContentSyncError] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState(changanContent.origins[0].id);
-  const [selectedFeatureId, setSelectedFeatureId] = useState(changanContent.mapFeatures[0].id);
   const [showSetup, setShowSetup] = useState(false);
   const [showGame, setShowGame] = useState(false);
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
@@ -221,7 +213,11 @@ export default function Home() {
   const [sessionBusy, setSessionBusy] = useState(false);
   const [lastStateBefore, setLastStateBefore] = useState<WorldState | null>(null);
   const [lastCommitSummary, setLastCommitSummary] = useState("");
-  const [activeTimelineYear, setActiveTimelineYear] = useState("742");
+  const [pendingTurn, setPendingTurn] = useState<{
+    action: TurnAction;
+    clientTurnId: string;
+    expectedStateVersion: number;
+  } | null>(null);
   const [language, setLanguage] = useState<Locale>(() => {
     if (typeof window === "undefined") return "zh";
     try {
@@ -231,43 +227,96 @@ export default function Home() {
       return "zh";
     }
   });
-  const [lowMotion, setLowMotion] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem("chronokalamos-low-motion") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [lowMotion, setLowMotion] = useState(readInitialLowMotion);
   const [message, setMessage] = useState("");
   const setupCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const online = useOnlineStatus();
   const copy = uiCopy[language];
   const origins: HistoricalOrigin[] = content.origins;
-  const mapFeatures: MapFeature[] = content.mapFeatures;
   const publishedClaimCount = content.claims.filter((claim) => claim.published).length;
   const fictionClaimCount = content.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
   const provisionalClaimCount = changanContent.claims.filter((claim) => claim.publicationStatus === "provisional").length;
   const worldState = gameSession?.world_state ?? null;
 
+  const syncHistoricalContent = useCallback(async () => {
+    const client = getSupabaseBrowserClient();
+    if (!client) {
+      setContentSource("fallback");
+      return;
+    }
+    if (!online) {
+      setContentSource("fallback");
+      setContentSyncError("设备离线。当前显示本地校验包。");
+      return;
+    }
+    setContentSource("syncing");
+    setContentSyncError("");
+    try {
+      const nextContent = await loadPublishedChanganContent(client);
+      const mergedSources = new Map(changanContent.sources.map((source) => [source.id, source]));
+      nextContent.sources.forEach((source) => mergedSources.set(source.id, source));
+      const mergedFeatures = new Map(changanContent.mapFeatures.map((feature) => [feature.id, feature]));
+      nextContent.mapFeatures.forEach((feature) => mergedFeatures.set(feature.id, feature));
+      setContent({
+        ...nextContent,
+        sources: [...mergedSources.values()],
+        mapFeatures: [...mergedFeatures.values()],
+      });
+      setContentSource("database");
+    } catch (error) {
+      setContentSource("fallback");
+      setContentSyncError(error instanceof Error ? error.message : "未知错误");
+    }
+  }, [online]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void syncHistoricalContent(), 0);
+    return () => window.clearTimeout(timer);
+  }, [syncHistoricalContent]);
+
   useEffect(() => {
     const client = getSupabaseBrowserClient();
-    if (!client) return;
+    const sessionId = new URLSearchParams(window.location.search).get("session");
+    const shouldStart = new URLSearchParams(window.location.search).get("start") === "1";
+    const setupTimer = shouldStart
+      ? window.setTimeout(() => setShowSetup(true), 0)
+      : undefined;
+    if (!client || !sessionId) return;
 
     let active = true;
-    void loadPublishedChanganContent(client)
-      .then((nextContent) => {
+    void (async () => {
+      try {
+        const { data, error } = await client.auth.getUser();
+        if (error) throw error;
+        if (!data.user) throw new Error("请先用创建该存档的身份登录。");
+        const session = await getOwnGameSession(client, sessionId);
         if (!active) return;
-        setContent(nextContent);
-        setContentSource("database");
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        setContentSource("fallback");
-        setMessage(`数据库内容同步失败，当前显示本地校验包：${error instanceof Error ? error.message : "未知错误"}`);
-      });
-
+        const profile = session.character_profile;
+        if (!profile?.origin) throw new Error("存档缺少可恢复的角色出身。");
+        setSelectedOrigin(profile.origin);
+        setCharacterProfile({
+          origin: profile.origin,
+          name: profile.name ?? "未命名",
+          gender: profile.gender ?? "unspecified",
+          temperament: profile.temperament ?? "谨慎",
+        });
+        setGameSession(session);
+        setGameNarrative("已从权威存档恢复。请先查看章节状态，再决定下一步。");
+        setGameChoices(session.world_state.story.chapterEnding
+          ? []
+          : choicesForEvent(session.world_state.story.currentEventId, session.content_version));
+        setGameClassification("叙事虚构");
+        setGameSourceIds([]);
+        setTurnStatus("ready");
+        setTurnFailure("");
+        setShowGame(true);
+      } catch (error) {
+        if (active) setMessage(`存档恢复失败：${error instanceof Error ? error.message : "未知错误"}`);
+      }
+    })();
     return () => {
       active = false;
+      if (setupTimer !== undefined) window.clearTimeout(setupTimer);
     };
   }, []);
 
@@ -310,11 +359,6 @@ export default function Home() {
     () => origins.find((origin) => origin.id === selectedOrigin) ?? origins[0],
     [origins, selectedOrigin],
   );
-  const selectedFeature = useMemo(
-    () => mapFeatures.find((feature) => feature.id === selectedFeatureId) ?? mapFeatures[0],
-    [mapFeatures, selectedFeatureId],
-  );
-
   function toggleLowMotion() {
     setLowMotion((current) => {
       const next = !current;
@@ -341,7 +385,6 @@ export default function Home() {
   }
 
   function openSetup() {
-    setActiveNav("new");
     setCharacterProfile((current) => ({ ...current, origin: selectedOrigin as CharacterProfileDraft["origin"] }));
     setShowSetup(true);
   }
@@ -392,6 +435,7 @@ export default function Home() {
       setTurnFailure("");
       setLastStateBefore(null);
       setLastCommitSummary("");
+      setPendingTurn(null);
       setShowSetup(false);
       setShowGame(true);
       setMessage(`${name} 的档案已经打开。第一回合尚未提交。`);
@@ -431,6 +475,7 @@ export default function Home() {
         updated_at: new Date().toISOString(),
       } : current);
       setTurnStatus("committed");
+      setPendingTurn(null);
       const decision = event.data.worldState.story.decisions.at(-1);
       setLastCommitSummary(
         decision?.summary
@@ -445,28 +490,45 @@ export default function Home() {
     setTurnFailure(event.data.message);
   }
 
-  async function submitGameAction(action: TurnAction) {
+  async function executeGameTurn(request: NonNullable<typeof pendingTurn>) {
     const client = getSupabaseBrowserClient();
     if (!client || !gameSession || turnStatus === "streaming" || gameSession.status === "ended") return;
 
     setLastStateBefore(gameSession.world_state);
     setTurnFailure("");
     setTurnStatus("streaming");
+    if (!online) {
+      setTurnStatus("failed");
+      setTurnFailure("设备当前离线。本回合未提交；恢复网络后可安全重试。");
+      return;
+    }
     try {
       await streamGameTurn({
         client,
         sessionId: gameSession.id,
-        request: {
-          clientTurnId: window.crypto.randomUUID(),
-          expectedStateVersion: gameSession.state_version,
-          action,
-        },
+        request,
         onEvent: handleTurnEvent,
       });
     } catch (error) {
       setTurnStatus("failed");
       setTurnFailure(`${error instanceof Error ? error.message : "回合流失败"} 本回合未提交。`);
     }
+  }
+
+  async function submitGameAction(action: TurnAction) {
+    if (!gameSession || turnStatus === "streaming" || gameSession.status === "ended") return;
+    const request = {
+      action,
+      clientTurnId: window.crypto.randomUUID(),
+      expectedStateVersion: gameSession.state_version,
+    };
+    setPendingTurn(request);
+    await executeGameTurn(request);
+  }
+
+  async function retryPendingTurn() {
+    if (!pendingTurn) return;
+    await executeGameTurn(pendingTurn);
   }
 
   function replayCurrentOrigin() {
@@ -479,18 +541,13 @@ export default function Home() {
     setGameSourceIds([]);
     setLastStateBefore(null);
     setLastCommitSummary("");
+    setPendingTurn(null);
     setTurnStatus("ready");
     setTurnFailure("");
     setCustomAction("");
     setShowGame(false);
     setShowSetup(true);
     setMessage("已保留旧存档，并为当前出身建立新的重玩入口。");
-  }
-
-  function selectNav(id: (typeof navItems)[number]["id"]) {
-    setActiveNav(id);
-    if (id === "new") openSetup();
-    if (id !== "new") setShowSetup(false);
   }
 
   if (booting) {
@@ -536,16 +593,26 @@ export default function Home() {
     ];
     return (
       <main className={`game-shell ${lowMotion ? "low-motion" : ""}`}>
+        <a className="skip-link" href="#game-content">跳到回合内容</a>
         <header className="masthead game-masthead">
           <div className="brand"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></div>
           <div className="game-header-actions">
             <span className="edition">CONTENT {gameSession.content_version} · SESSION {gameSession.id.slice(0, 8)} · v{gameSession.state_version}</span>
             <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
-            <button className="text-button" type="button" onClick={() => setShowGame(false)}>返回档案入口</button>
+            <Link className="text-button" href="/saves">历史存档</Link>
+            <button className="text-button" type="button" onClick={() => setShowGame(false)}>返回首页</button>
           </div>
         </header>
+        {!online && <div className="network-banner" role="alert"><strong>当前离线</strong><span>正在查看最后载入的状态。回合不会提交；恢复网络后请使用原回合重试。</span></div>}
         <Phase11ReleaseDisclosure />
-        <section className="game-grid" aria-label="742年长安游戏回合">
+        <ChapterTimeline
+          originId={selectedOrigin as CharacterProfile["origin"]}
+          contentVersion={gameSession.content_version}
+          currentEventId={story.currentEventId}
+          completedEventIds={story.completedEventIds}
+          turn={state.time.turn}
+        />
+        <section id="game-content" className="game-grid" aria-label="742年长安游戏回合" tabIndex={-1}>
           <aside className="game-sidebar">
             <span className="eyebrow">TURN {String(state.time.turn).padStart(2, "0")} · {turnStatus.toUpperCase()}</span>
             <h1>{turnStatus === "failed" ? "本回合未提交。" : turnStatus === "streaming" ? "正在核验这一行动。" : "让行动留下可追溯的痕迹。"}</h1>
@@ -573,7 +640,7 @@ export default function Home() {
               narrative={gameNarrative}
             />
             <p className="evidence-disclosure">叙事文本在提交前只属于候选输出；提交后才写入本人的回合与存档点。</p>
-            {turnFailure && <div className="turn-failure" role="alert"><strong>本回合未提交</strong><span>{turnFailure}</span></div>}
+            {turnFailure && <div className="turn-failure" role="alert"><strong>本回合未提交</strong><span>{turnFailure}</span>{pendingTurn && <button className="secondary-button" type="button" onClick={() => void retryPendingTurn()} disabled={!online || turnStatus === "streaming"}>重试本回合</button>}</div>}
             {lastCommitSummary && turnStatus === "committed" && <div className="recap-card" role="status"><span className="eyebrow">RECORD REVIEW</span><strong>{lastCommitSummary}</strong><small>下一次选择会读取本次回合留下的时间、关系和风险。</small></div>}
             {chapterEnded && story.chapterEnding ? (
               <section className="chapter-ending" aria-labelledby="chapter-ending-title">
@@ -633,59 +700,46 @@ export default function Home() {
 
   return (
     <main className={`site-frame ${lowMotion ? "low-motion" : ""}`}>
+      <a className="skip-link" href="#main-content">跳到主要内容</a>
       <header className="masthead">
-        <div className="brand"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></div>
+        <Link className="brand" href="/"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></Link>
         <nav className="mast-nav" aria-label="主导航">
           <span className="edition"><span className="status-dot" />PHASE 11 · PUBLIC BETA</span>
           <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
         </nav>
       </header>
+      {!online && <div className="network-banner" role="alert"><strong>当前离线</strong><span>证据镜像和身份状态可能不是最新；恢复网络后可重试同步。</span></div>}
       <Phase11ReleaseDisclosure />
 
-      <div className="site-layout">
+      <div id="main-content" className="site-layout" tabIndex={-1}>
         <aside className="side-nav" aria-label="账户与存档">
           <p className="side-kicker">ARCHIVE / 01</p>
           <div className="side-links">
-            {navItems.map((item) => <button className={activeNav === item.id ? "side-link active" : "side-link"} key={item.id} type="button" onClick={() => selectNav(item.id)}><span>{copy.nav[item.id]}</span><small>{item.english}</small></button>)}
+            <button className="side-link active" type="button" onClick={openSetup}><span>{copy.nav.new}</span><small>Begin</small></button>
+            <Link className="side-link" href="/saves"><span>{copy.nav.saves}</span><small>Archives</small></Link>
+            <Link className="side-link" href="/settings"><span>{copy.nav.settings}</span><small>Settings</small></Link>
+            <Link className="side-link" href="/support"><span>{copy.nav.support}</span><small>Support</small></Link>
           </div>
           <div className="side-note"><span className="eyebrow">METHOD</span><p>{copy.method}</p></div>
         </aside>
 
-        <section className="map-column" aria-labelledby="hero-title">
-          <div className="map-stage">
-            <div className="map-topline"><span className="eyebrow">{copy.mapLayer}</span><span className="map-scale">西安 / 742 · {mapFeatures.length} EVIDENCE FEATURES</span></div>
-            <div className={`content-sync ${contentSource}`} data-content-source={contentSource} role="status"><span className="status-dot" />{contentSource === "database" ? "SUPABASE / PUBLISHED MIRROR" : contentSource === "syncing" ? "SYNCING EVIDENCE PACKAGE" : "LOCAL VALIDATED FALLBACK"}</div>
-            <h1 id="hero-title" className="map-title">历史总是对我紧追不舍。<em>Chang’an, 742 CE · a bounded beginning</em></h1>
-            <div className="map-grid" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /><span /></div>
-            <div className="district district-west"><strong>西市</strong><small>贸易与迁徙</small></div>
-            <div className="district district-gate"><strong>金光门</strong><small>城门记录</small></div>
-            <div className="district district-jingzhao"><strong>京兆府</strong><small>行政范围</small></div>
-            {mapFeatures.map((feature) => <button
-              className={`map-node evidence-node ${selectedFeatureId === feature.id ? "selected" : ""}`}
-              key={feature.id}
-              type="button"
-              aria-pressed={selectedFeatureId === feature.id}
-              aria-label={`${feature.nameZh}：${feature.uncertaintyNoteZh}`}
-              style={{ left: `${feature.schematicPosition.left}%`, top: `${feature.schematicPosition.top}%` }}
-              onClick={() => setSelectedFeatureId(feature.id)}
-            ><span className={`node-dot ${feature.kind === "administration" ? "brass" : ""}`} /><span>{feature.nameEn.toUpperCase()}</span></button>)}
-            <div className="map-legend"><span><i className="legend-line red" />水系与交通</span><span><i className="legend-line navy" />行政边界</span><span><i className="legend-line brass" />来源不确定性</span></div>
-            <div className="map-evidence-panel" aria-live="polite">
-              <div className="map-evidence-heading"><span className="source-chip">{sourceLabel(selectedFeature.classification)}</span><strong>{selectedFeature.nameZh}</strong></div>
-              <p>{selectedFeature.uncertaintyNoteZh}</p>
-              <dl><div><dt>有效时间</dt><dd>{selectedFeature.validFrom}–{selectedFeature.validTo}</dd></div><div><dt>精度</dt><dd>{selectedFeature.temporalPrecision}</dd></div><div><dt>来源</dt><dd>{sourceSummary(selectedFeature.sourceIds)}</dd></div><div><dt>许可</dt><dd>{selectedFeature.licenseCode}</dd></div></dl>
-              <small>{selectedFeature.attribution}</small>
-            </div>
-            <p className="map-caption"><strong>地图说明</strong><br />{copy.mapNote}</p>
-            <span className="date-stamp">天宝元年<br />SPRING / 742</span>
-          </div>
-          <div className="timeline-rail" aria-label="历史时间轴">
-            <span className="rail-kicker">TANG · CHANG’AN · ANNO</span><div className="timeline-line" aria-hidden="true" />
-            {timeline.map((item) => <button className={`timeline-item ${item.year === activeTimelineYear ? "current" : ""}`} key={item.year} type="button" aria-pressed={item.year === activeTimelineYear} onClick={() => { setActiveTimelineYear(item.year); setMessage(item.year === "742" ? "当前起点：天宝元年。第一章从这里开始。" : `${item.year} 已标记为证据时间点；当前章节不会跳过未审校的中间状态。`); }}><span className="timeline-dot" /><strong>{item.year}</strong><small>{item.note}</small></button>)}
-            <span className="rail-foot">THE MAP REMEMBERS WHAT WE CANNOT</span>
-          </div>
-        </section>
+        <div className="map-column">
+          <EvidenceMap
+            features={content.mapFeatures}
+            sources={content.sources}
+            contentSource={contentSource}
+            contentError={contentSyncError}
+            currentEventId={gameSession?.world_state.story.currentEventId ?? getFirstEventId(selectedOrigin as CharacterProfile["origin"])}
+            onRetry={() => void syncHistoricalContent()}
+          />
+          <ChapterTimeline
+            originId={selectedOrigin as CharacterProfile["origin"]}
+            currentEventId={gameSession?.world_state.story.currentEventId ?? getFirstEventId(selectedOrigin as CharacterProfile["origin"])}
+            completedEventIds={gameSession?.world_state.story.completedEventIds ?? []}
+            turn={gameSession?.world_state.time.turn ?? 0}
+          />
+        </div>
 
         <aside className="login-sheet" aria-label="游客入口">
           <span className="sheet-tab">IDENTITY BOUNDARY</span><p className="sheet-label">ARCHIVE GATE / 03</p><h2>先留下一个入口。</h2><p className="sheet-copy">游客与邮箱账户使用同一用户 ID 升级路径。数据库和私有文件均由 RLS 限定为本人可见。</p>
@@ -693,16 +747,6 @@ export default function Home() {
           <div className="in-prep"><span>阶段 7 / 7</span><span>{phase7ActiveTrackLabel}</span></div>
         </aside>
       </div>
-
-      {activeNav !== "new" && <section className="utility-panel" aria-labelledby={`${activeNav}-panel-title`}>
-        <div>
-          <p className="eyebrow">ARCHIVE / {activeNav === "saves" ? "02" : activeNav === "settings" ? "03" : "04"}</p>
-          <h2 id={`${activeNav}-panel-title`}>{activeNav === "saves" ? "历史存档" : activeNav === "settings" ? "个人设置" : "支持说明"}</h2>
-        </div>
-        {activeNav === "saves" && <div className="utility-copy"><p>正式账户的存档由Supabase按用户隔离。游客存档只保留在当前浏览器身份，清除数据、退出登录或换设备后无法恢复。</p><p className="utility-status"><span className="status-dot ready" />当前入口已连接真实身份与存档边界</p><button className="primary-button" type="button" onClick={openSetup}>继续新开始</button></div>}
-        {activeNav === "settings" && <div className="utility-copy"><p>语言和低动态模式不会改变史料内容。法语、希腊语和俄语当前只覆盖界面骨架。</p><div className="settings-actions"><label>界面语言<select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="secondary-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? "恢复动态" : "启用低动态"}</button></div></div>}
-        {activeNav === "support" && <div className="utility-copy"><p>ChronoKalamos 只把已发布内容作为证据镜像。模型输出必须经过审核、检索、规则校验和事务提交。</p><p className="utility-status"><span className="status-dot warning" />短信、微信、QQ、支付和Passkey仍保持关闭</p><p>若回合失败，世界状态不会推进。请保留错误码，以便后续复核。</p></div>}
-      </section>}
 
       <section className="origin-deck" aria-labelledby="origins-title">
         <div className="origin-intro"><p className="eyebrow">FIRST RECORDED LIFE</p><h2 id="origins-title">三种出身，三个证据入口。</h2><p>先选择社会位置，再让故事获得边界。</p></div>

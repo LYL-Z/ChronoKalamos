@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+/audit/**/local-server*.log
+/audit/phase12/*.jpg
 
 # next.js
 /.next/
