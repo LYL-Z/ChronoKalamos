@@ -6,13 +6,19 @@ const page = new URL("../app/page.tsx", import.meta.url);
 const saves = new URL("../lib/supabase/saves.ts", import.meta.url);
 const migration = new URL("../supabase/migrations/20260727153227_phase9_character_profile.sql", import.meta.url);
 const styles = new URL("../app/globals.css", import.meta.url);
+const archivesPage = new URL("../app/saves/page.tsx", import.meta.url);
+const settingsPage = new URL("../app/settings/page.tsx", import.meta.url);
+const supportPage = new URL("../app/support/page.tsx", import.meta.url);
 
 test("phase 9 onboarding keeps character setup bounded and reviewable", async () => {
-  const [pageSource, savesSource, migrationSource, stylesSource] = await Promise.all([
+  const [pageSource, savesSource, migrationSource, stylesSource, archivesSource, settingsSource, supportSource] = await Promise.all([
     readFile(page, "utf8"),
     readFile(saves, "utf8"),
     readFile(migration, "utf8"),
     readFile(styles, "utf8"),
+    readFile(archivesPage, "utf8"),
+    readFile(settingsPage, "utf8"),
+    readFile(supportPage, "utf8"),
   ]);
 
   assert.match(pageSource, /FIRST RECORDED LIFE/);
@@ -20,7 +26,10 @@ test("phase 9 onboarding keeps character setup bounded and reviewable", async ()
   assert.match(pageSource, /character-name/);
   assert.match(pageSource, /temperament-choice/);
   assert.match(pageSource, /image-action-prep/);
-  assert.match(pageSource, /utility-panel/);
+  assert.match(pageSource, /href="\/saves"/);
+  assert.match(archivesSource, /listOwnSaves/);
+  assert.match(settingsSource, /低动态模式/);
+  assert.match(supportSource, /回合失败或断线/);
   assert.match(savesSource, /updateGameCharacterProfile/);
   assert.match(migrationSource, /update_game_character_profile/);
   assert.match(migrationSource, /invalid_character_profile/);

@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createPrototypeSavePayload,
+  getOwnGameSession,
   prototypeSaveStorageKey,
   rotateClientSessionId,
 } from "./saves";
+import { createInitialWorldState } from "@/lib/game/rules";
 
 describe("prototype save payload", () => {
   it("keeps the retry identifier separate from the database id", () => {
@@ -37,5 +39,41 @@ describe("prototype save payload", () => {
     expect(next).toBe("22222222-2222-4222-8222-222222222222");
     expect(values.get(prototypeSaveStorageKey("merchant"))).toBe(next);
     vi.unstubAllGlobals();
+  });
+
+  it("loads one owned session through the RLS-filtered browser client", async () => {
+    const id = "22222222-2222-4222-8222-222222222222";
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id,
+        client_session_id: "33333333-3333-4333-8333-333333333333",
+        scenario_id: "tang-changan-742",
+        content_version: "11.0.0",
+        title: "西市粟特商户家庭后辈",
+        status: "active",
+        state_version: 2,
+        updated_at: new Date().toISOString(),
+        world_state: createInitialWorldState("merchant"),
+        character_profile: {
+          origin: "merchant",
+          name: "安延",
+          gender: "unspecified",
+          temperament: "谨慎",
+        },
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const client = {
+      from: vi.fn().mockReturnValue({ select }),
+    };
+
+    const session = await getOwnGameSession(client as never, id);
+
+    expect(client.from).toHaveBeenCalledWith("game_sessions");
+    expect(eq).toHaveBeenCalledWith("id", id);
+    expect(session.id).toBe(id);
+    expect(session.character_profile?.name).toBe("安延");
   });
 });
