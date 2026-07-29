@@ -4,6 +4,10 @@ import test from "node:test";
 
 const files = {
   migration: new URL("../supabase/migrations/20260729130650_phase13_ai_budget_and_audit.sql", import.meta.url),
+  clientGuardMigration: new URL(
+    "../supabase/migrations/20260729141942_phase13_revoke_rls_auto_enable_client_execute.sql",
+    import.meta.url,
+  ),
   workflow: new URL("../lib/game/workflow.ts", import.meta.url),
   repository: new URL("../lib/game/supabase-repository.ts", import.meta.url),
   audit: new URL("../lib/security/audit.ts", import.meta.url),
@@ -45,11 +49,12 @@ test("phase 13 enforces privacy-safe, race-free AI daily admissions", async () =
 });
 
 test("phase 13 adds deploy health, migration, secret, and live RLS gates", async () => {
-  const [readiness, route, ci, migrationLock] = await Promise.all([
+  const [readiness, route, ci, migrationLock, clientGuardMigration] = await Promise.all([
     readFile(files.readiness, "utf8"),
     readFile(files.readyRoute, "utf8"),
     readFile(files.ci, "utf8"),
     readFile(files.migrationLock, "utf8"),
+    readFile(files.clientGuardMigration, "utf8"),
   ]);
   const lock = JSON.parse(migrationLock);
 
@@ -62,7 +67,18 @@ test("phase 13 adds deploy health, migration, secret, and live RLS gates", async
   assert.match(ci, /SUPABASE_TEST_SECRET_KEY/);
   assert.match(ci, /production-health/);
   assert.ok(lock.migrations.includes("20260729130650_phase13_ai_budget_and_audit.sql"));
+  assert.ok(
+    lock.migrations.includes("20260729141942_phase13_revoke_rls_auto_enable_client_execute.sql"),
+  );
   assert.ok(lock.migrations.includes("20260729063339_phase11_voice_line_candidates.sql"));
   assert.ok(lock.migrations.includes("20260729063433_phase11_public_beta_runtime.sql"));
   assert.ok(!lock.migrations.includes("20260728141153_phase11_voice_line_candidates.sql"));
+  assert.match(
+    clientGuardMigration,
+    /revoke all on function public\.rls_auto_enable\(\) from public/i,
+  );
+  assert.match(
+    clientGuardMigration,
+    /revoke execute on function public\.rls_auto_enable\(\) from anon, authenticated/i,
+  );
 });

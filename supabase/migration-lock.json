@@ -28,6 +28,7 @@
     "20260728133344_phase11_candidate_source_snapshot.sql",
     "20260729063339_phase11_voice_line_candidates.sql",
     "20260729063433_phase11_public_beta_runtime.sql",
-    "20260729130650_phase13_ai_budget_and_audit.sql"
+    "20260729130650_phase13_ai_budget_and_audit.sql",
+    "20260729141942_phase13_revoke_rls_auto_enable_client_execute.sql"
   ]
 }
