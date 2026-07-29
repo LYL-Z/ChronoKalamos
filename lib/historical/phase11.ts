@@ -5,6 +5,7 @@ import itemsJson from "@/content/tang-changan-742/items.json";
 import npcsJson from "@/content/tang-changan-742/npcs.json";
 import publicationGateJson from "@/content/tang-changan-742/publication-gate.json";
 import risksJson from "@/content/tang-changan-742/risks.json";
+import voiceLinesJson from "@/content/tang-changan-742/voice-lines.json";
 import {
   changanContent,
   classificationSchema,
@@ -31,7 +32,11 @@ export const phase11PublicationGateSchema = z.object({
     decision: z.enum(["changes-requested", "approved"]),
     evidenceArtifact: z.string().min(1),
   }).strict()),
+  releaseMode: z.enum(["private-candidate", "public-beta-unreviewed"]),
+  historicalCertificationClaimed: z.literal(false),
   publicRuntimeEnabled: z.boolean(),
+  publicDisclaimerZh: z.string().min(40),
+  publicDisclaimerEn: z.string().min(40),
   minimumReviewerCount: z.number().int().min(1),
   releaseRule: z.string().min(20),
 }).strict();
@@ -68,6 +73,19 @@ export const phase11RiskSchema = z.object({
   classification: z.literal("合理重建"),
   claimIds: z.array(claimIdSchema).min(1),
   sourceIds: z.array(sourceIdSchema).min(1),
+  publicationStatus: provisionalSchema,
+}).strict();
+
+export const phase11VoiceLineSchema = z.object({
+  id: boundedIdSchema,
+  eventId: boundedIdSchema,
+  npcId: boundedIdSchema,
+  speaker: z.string().min(2).max(40),
+  roleZh: z.string().min(2).max(60),
+  textZh: z.string().min(12).max(160),
+  delivery: z.string().min(4).max(100),
+  classification: z.literal("叙事虚构"),
+  language: z.literal("zh-CN"),
   publicationStatus: provisionalSchema,
 }).strict();
 
@@ -122,6 +140,7 @@ export type Phase11PublicationGate = z.infer<typeof phase11PublicationGateSchema
 export type Phase11Npc = z.infer<typeof phase11NpcSchema>;
 export type Phase11Item = z.infer<typeof phase11ItemSchema>;
 export type Phase11Risk = z.infer<typeof phase11RiskSchema>;
+export type Phase11VoiceLine = z.infer<typeof phase11VoiceLineSchema>;
 export type Phase11EventBeat = z.infer<typeof phase11EventBeatSchema>;
 export type Phase11Chapter = z.infer<typeof phase11ChapterSchema>;
 
@@ -132,6 +151,7 @@ export type Phase11Content = {
   npcs: Phase11Npc[];
   items: Phase11Item[];
   risks: Phase11Risk[];
+  voiceLines: Phase11VoiceLine[];
 };
 
 const locationEvidence = new Map([
@@ -165,6 +185,7 @@ export function validatePhase11Content(input: {
   npcs: unknown;
   items: unknown;
   risks: unknown;
+  voiceLines: unknown;
 }): Phase11Content {
   const gate = phase11PublicationGateSchema.parse(input.gate);
   const chapters = z.array(phase11ChapterSchema).parse(input.chapters);
@@ -172,15 +193,31 @@ export function validatePhase11Content(input: {
   const npcs = z.array(phase11NpcSchema).parse(input.npcs);
   const items = z.array(phase11ItemSchema).parse(input.items);
   const risks = z.array(phase11RiskSchema).parse(input.risks);
+  const voiceLines = z.array(phase11VoiceLineSchema).parse(input.voiceLines);
 
   assertUnique(chapters.map((chapter) => chapter.id), "phase11 chapters");
   assertUnique(events.map((event) => event.eventId), "phase11 events");
   assertUnique(npcs.map((npc) => npc.id), "phase11 NPCs");
   assertUnique(items.map((item) => item.id), "phase11 items");
   assertUnique(risks.map((risk) => risk.id), "phase11 risks");
+  assertUnique(voiceLines.map((line) => line.id), "phase11 voice lines");
 
-  if (gate.reviewStatus !== "pending" || gate.reviewers.length !== 0 || gate.publicRuntimeEnabled) {
-    throw new Error("phase11 candidate must remain private until a real external review is recorded");
+  if (
+    gate.reviewStatus !== "pending"
+    || gate.reviewers.length !== 0
+    || gate.historicalCertificationClaimed
+  ) {
+    throw new Error("phase11 external historical certification must remain pending without verified evidence");
+  }
+  if (
+    gate.publicRuntimeEnabled
+    && (
+      gate.releaseMode !== "public-beta-unreviewed"
+      || !gate.publicDisclaimerZh.includes("未经外部历史学家认证")
+      || !gate.publicDisclaimerEn.includes("certification is pending")
+    )
+  ) {
+    throw new Error("phase11 public beta requires an explicit unreviewed historical-content disclaimer");
   }
 
   const sourceIds = new Set(changanContent.sources.map((source) => source.id));
@@ -204,6 +241,14 @@ export function validatePhase11Content(input: {
   for (const risk of risks) {
     assertReferences(risk.claimIds, claimIds, risk.id, "claim");
     assertReferences(risk.sourceIds, sourceIds, risk.id, "source");
+  }
+  for (const line of voiceLines) {
+    assertReferences([line.eventId], eventIds, line.id, "event");
+    assertReferences([line.npcId], npcIds, line.id, "NPC");
+    const npc = npcs.find((candidate) => candidate.id === line.npcId);
+    if (!npc || npc.nameZh !== line.speaker) {
+      throw new Error(`${line.id} speaker name does not match NPC ${line.npcId}`);
+    }
   }
 
   for (const event of events) {
@@ -255,12 +300,13 @@ export function validatePhase11Content(input: {
     ...npcs.map((entry) => entry.publicationStatus),
     ...items.map((entry) => entry.publicationStatus),
     ...risks.map((entry) => entry.publicationStatus),
+    ...voiceLines.map((entry) => entry.publicationStatus),
   ];
   if (statuses.some((status) => publicationStatusSchema.parse(status) !== "provisional")) {
     throw new Error("phase11 candidate contains a non-provisional entry");
   }
 
-  return { gate, chapters, events, npcs, items, risks };
+  return { gate, chapters, events, npcs, items, risks, voiceLines };
 }
 
 export const phase11Content = validatePhase11Content({
@@ -270,4 +316,5 @@ export const phase11Content = validatePhase11Content({
   npcs: npcsJson,
   items: itemsJson,
   risks: risksJson,
+  voiceLines: voiceLinesJson,
 });

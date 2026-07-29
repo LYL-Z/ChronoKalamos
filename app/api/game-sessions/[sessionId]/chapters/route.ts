@@ -1,4 +1,4 @@
-import { phase10EventTemplates } from "@/lib/game/event-catalog";
+import { getRuntimeCatalog } from "@/lib/game/event-catalog";
 import { authenticateApiRequest, loadOwnedApiSession } from "@/lib/game/api-session";
 import { withSecurityHeaders } from "@/lib/security/http";
 
@@ -13,7 +13,7 @@ export async function GET(
     const { client } = await authenticateApiRequest(request);
     const session = await loadOwnedApiSession(client, sessionId);
     const story = session.world_state.story;
-    const events = phase10EventTemplates
+    const events = getRuntimeCatalog(session.content_version).events
       .filter(
         (event) =>
           event.chapterId === story.chapterId

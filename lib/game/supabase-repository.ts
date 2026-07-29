@@ -15,12 +15,14 @@ import {
   type TurnRequest,
   type WorldState,
 } from "@/lib/game/schemas";
-import { phase10EventTemplates, phase10ScenarioManifest } from "@/lib/game/event-catalog";
+import { getRuntimeCatalog } from "@/lib/game/event-catalog";
+import { changanContent } from "@/lib/historical/content";
 
 const sessionSchema = z.object({
   id: z.string().uuid(),
   owner_id: z.string().uuid(),
   scenario_id: z.literal("tang-changan-742"),
+  content_version: z.enum(["10.0.0", "11.0.0"]),
   character_profile: z.object({ origin: originIdSchema }).passthrough(),
   world_state: z.unknown(),
   status: z.enum(["draft", "active", "ended", "archived"]),
@@ -93,7 +95,8 @@ const eventRegistryRowSchema = z.object({
   consequence_keys: z.array(z.string()),
   next_event_ids: z.array(z.string().nullable()),
   evidence_refs: z.array(z.string()),
-  publication_status: z.literal("published"),
+  publication_status: z.enum(["provisional", "published"]),
+  runtime_availability: z.enum(["public-beta", "public"]),
   content_version: z.string(),
 });
 
@@ -115,7 +118,10 @@ export interface GameTurnRepository {
   loadSession(sessionId: string): Promise<GameSessionRecord>;
   reserveTurn(sessionId: string, request: TurnRequest): Promise<ReserveResult>;
   loadNarrativeCatalog(session: GameSessionRecord): Promise<NarrativeCatalog>;
-  retrieveEvidence(session: GameSessionRecord): Promise<HistoricalEvidence>;
+  retrieveEvidence(
+    session: GameSessionRecord,
+    event: EventTemplate,
+  ): Promise<HistoricalEvidence>;
   createSignedUploadUrl(uploadId: string): Promise<string>;
   commitTurn(
     sessionId: string,
@@ -175,7 +181,7 @@ export class SupabaseGameRepository implements GameTurnRepository {
   async loadSession(sessionId: string): Promise<GameSessionRecord> {
     const { data, error } = await this.client
       .from("game_sessions")
-      .select("id,owner_id,scenario_id,character_profile,world_state,status,state_version")
+      .select("id,owner_id,scenario_id,content_version,character_profile,world_state,status,state_version")
       .eq("id", sessionId)
       .single();
     if (error) throw new Error(`session_load_failed:${error.message}`);
@@ -193,7 +199,41 @@ export class SupabaseGameRepository implements GameTurnRepository {
     return reserveResultSchema.parse(data);
   }
 
-  async retrieveEvidence(session: GameSessionRecord): Promise<HistoricalEvidence> {
+  async retrieveEvidence(
+    session: GameSessionRecord,
+    event: EventTemplate,
+  ): Promise<HistoricalEvidence> {
+    if (session.content_version === "11.0.0") {
+      const allowedSourceIds = new Set(event.evidenceRefs);
+      const relevantClaims = changanContent.claims.filter((claim) =>
+        claim.sourceIds.some((sourceId) => allowedSourceIds.has(sourceId))
+      );
+      const claims = relevantClaims.map((claim) => evidenceClaimSchema.parse({
+        id: claim.id,
+        classification: claim.classification,
+        text: claim.textZh,
+        sourceIds: claim.sourceIds.filter((sourceId) => allowedSourceIds.has(sourceId)),
+      }));
+      const sources = changanContent.sources
+        .filter((source) => allowedSourceIds.has(source.id))
+        .map((source) => evidenceSourceSchema.parse({
+          id: source.id,
+          title: source.title,
+          creator: source.creator,
+          locator: source.locator,
+          licenseCode: source.licenseCode,
+        }));
+      const covered = new Set(claims.flatMap((claim) => claim.sourceIds));
+      if (
+        claims.length === 0
+        || sources.length === 0
+        || event.evidenceRefs.some((sourceId) => !covered.has(sourceId))
+      ) {
+        throw new Error(`phase11_evidence_incomplete:${event.eventId}`);
+      }
+      return { claims, sources };
+    }
+
     const origin = session.character_profile.origin;
     const [claimsResult, sourcesResult] = await Promise.all([
       this.client
@@ -242,6 +282,7 @@ export class SupabaseGameRepository implements GameTurnRepository {
   }
 
   async loadNarrativeCatalog(session: GameSessionRecord): Promise<NarrativeCatalog> {
+    const expectedCatalog = getRuntimeCatalog(session.content_version);
     const [manifestResult, registryResult] = await Promise.all([
       this.client
         .from("scenario_manifests")
@@ -251,9 +292,10 @@ export class SupabaseGameRepository implements GameTurnRepository {
         .single(),
       this.client
         .from("event_template_registry")
-        .select("event_id,chapter_id,origin_ids,choice_ids,consequence_keys,next_event_ids,evidence_refs,publication_status,content_version")
+        .select("event_id,chapter_id,origin_ids,choice_ids,consequence_keys,next_event_ids,evidence_refs,publication_status,runtime_availability,content_version")
         .eq("scenario_id", session.scenario_id)
-        .eq("publication_status", "published")
+        .eq("content_version", session.content_version)
+        .in("runtime_availability", ["public-beta", "public"])
         .order("event_id"),
     ]);
     if (manifestResult.error) throw new Error(`scenario_manifest_failed:${manifestResult.error.message}`);
@@ -269,13 +311,16 @@ export class SupabaseGameRepository implements GameTurnRepository {
       evidencePolicy: row.evidence_policy,
       firstEventByOrigin: row.first_event_by_origin,
     });
-    if (JSON.stringify(manifest) !== JSON.stringify(phase10ScenarioManifest)) {
+    if (
+      session.content_version === "11.0.0"
+      && JSON.stringify(manifest) !== JSON.stringify(expectedCatalog.manifest)
+    ) {
       throw new Error("scenario_manifest_drift");
     }
 
     const registry = z.array(eventRegistryRowSchema).parse(registryResult.data ?? []);
-    if (registry.length !== phase10EventTemplates.length) throw new Error("event_registry_incomplete");
-    for (const event of phase10EventTemplates) {
+    if (registry.length !== expectedCatalog.events.length) throw new Error("event_registry_incomplete");
+    for (const event of expectedCatalog.events) {
       const registered = registry.find((candidate) => candidate.event_id === event.eventId);
       if (!registered) throw new Error(`event_registry_missing:${event.eventId}`);
       const expected = {
@@ -285,7 +330,9 @@ export class SupabaseGameRepository implements GameTurnRepository {
         consequence_keys: event.choices.map((choice) => choice.consequence.key),
         next_event_ids: event.choices.map((choice) => choice.consequence.nextEventId),
         evidence_refs: event.evidenceRefs,
-        content_version: manifest.contentVersion,
+        content_version: expectedCatalog.manifest.contentVersion,
+        publication_status: event.publicationStatus,
+        runtime_availability: event.runtimeAvailability,
       };
       for (const [key, value] of Object.entries(expected)) {
         if (JSON.stringify(registered[key as keyof typeof registered]) !== JSON.stringify(value)) {
@@ -293,7 +340,7 @@ export class SupabaseGameRepository implements GameTurnRepository {
         }
       }
     }
-    return { manifest, events: phase10EventTemplates };
+    return expectedCatalog;
   }
 
   async createSignedUploadUrl(uploadId: string): Promise<string> {

@@ -8,6 +8,7 @@ const apiSessionRowSchema = z.object({
   id: z.string().uuid(),
   owner_id: z.string().uuid(),
   scenario_id: z.literal("tang-changan-742"),
+  content_version: z.enum(["10.0.0", "11.0.0"]),
   character_profile: z.object({ origin: originIdSchema }).passthrough(),
   world_state: z.unknown(),
   status: z.enum(["draft", "active", "ended", "archived"]),
@@ -18,6 +19,7 @@ export type ApiSession = {
   id: string;
   owner_id: string;
   scenario_id: "tang-changan-742";
+  content_version: "10.0.0" | "11.0.0";
   character_profile: z.infer<typeof apiSessionRowSchema>["character_profile"];
   status: "draft" | "active" | "ended" | "archived";
   state_version: number;
@@ -47,7 +49,7 @@ export async function loadOwnedApiSession(
   const id = z.string().uuid().parse(sessionId);
   const { data, error } = await client
     .from("game_sessions")
-    .select("id,owner_id,scenario_id,character_profile,world_state,status,state_version")
+    .select("id,owner_id,scenario_id,content_version,character_profile,world_state,status,state_version")
     .eq("id", id)
     .single();
   if (error) throw new Error("session_not_found");

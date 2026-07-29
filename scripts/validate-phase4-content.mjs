@@ -78,8 +78,13 @@ const locationIds = new Set([
 
 if (publicationGate.reviewStatus !== "pending") fail("external review status must remain pending");
 if (publicationGate.reviewers.length !== 0) fail("reviewers must be empty until a real signed review is recorded");
-if (publicationGate.publicRuntimeEnabled) fail("phase 11 candidate must not be public-runtime enabled");
 if (!publicationGate.externalReviewRequired) fail("external historical review gate is missing");
+if (!publicationGate.publicRuntimeEnabled) fail("phase 11 public-beta runtime is not enabled");
+if (publicationGate.releaseMode !== "public-beta-unreviewed") fail("phase 11 release mode is not public-beta-unreviewed");
+if (publicationGate.historicalCertificationClaimed !== false) fail("historical certification must not be claimed");
+if (!publicationGate.publicDisclaimerZh.includes("未经外部历史学家认证")) {
+  fail("public beta is missing the Chinese external-review disclaimer");
+}
 
 for (const npc of npcs) {
   if (npc.publicationStatus !== "provisional" || npc.classification !== "叙事虚构") {

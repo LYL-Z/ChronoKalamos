@@ -78,7 +78,7 @@ test("phase 10 migration makes registry and replay summaries RLS-protected", asy
   assert.match(migration, /grant execute on function public\.server_commit_game_turn[\s\S]*to service_role/i);
 });
 
-test("phase 10 exposes manifest, chapters, recap and replay APIs", async () => {
+test("versioned narrative runtime exposes manifest, chapters, recap and replay APIs", async () => {
   const [manifest, chapters, recap, replay] = await sources(
     "manifestRoute",
     "chaptersRoute",
@@ -86,7 +86,7 @@ test("phase 10 exposes manifest, chapters, recap and replay APIs", async () => {
     "replayRoute",
   );
 
-  assert.match(manifest, /phase10ScenarioManifest/);
+  assert.match(manifest, /activeScenarioManifest/);
   assert.match(chapters, /authenticateApiRequest/);
   assert.match(chapters, /loadOwnedApiSession/);
   assert.match(recap, /createReplaySummary/);

@@ -22,7 +22,7 @@ async function deleteSessionWithTransientRetry(client, sessionId) {
 }
 
 describe("Supabase live integration", { concurrency: 3 }, () => {
-test("phase 11 candidate is service-only while phase 10 remains public runtime", {
+test("phase 11 source candidates stay service-only while the unreviewed runtime is public", {
   skip: !url || !publishableKey || !secretKey
     ? "SUPABASE_TEST_URL, SUPABASE_TEST_PUBLISHABLE_KEY and SUPABASE_TEST_SECRET_KEY are required"
     : false,
@@ -41,13 +41,15 @@ test("phase 11 candidate is service-only while phase 10 remains public runtime",
 
   const { data: version, error: versionError } = await serverClient
     .from("content_candidate_versions")
-    .select("review_status,public_runtime_enabled,expected_counts")
+    .select("review_status,release_mode,historical_certification_claimed,public_runtime_enabled,expected_counts")
     .eq("scenario_id", "tang-changan-742")
     .eq("content_version", "11.0.0")
     .single();
   assert.ifError(versionError);
   assert.equal(version?.review_status, "pending");
-  assert.equal(version?.public_runtime_enabled, false);
+  assert.equal(version?.release_mode, "public-beta-unreviewed");
+  assert.equal(version?.historical_certification_claimed, false);
+  assert.equal(version?.public_runtime_enabled, true);
   assert.equal(version?.expected_counts?.events, 27);
 
   const { count, error: countError } = await serverClient
@@ -56,7 +58,7 @@ test("phase 11 candidate is service-only while phase 10 remains public runtime",
     .eq("scenario_id", "tang-changan-742")
     .eq("content_version", "11.0.0");
   assert.ifError(countError);
-  assert.equal(count, 105);
+  assert.equal(count, 132);
 
   const { data: publishedManifest, error: manifestError } = await publicClient
     .from("scenario_manifests")
@@ -64,10 +66,10 @@ test("phase 11 candidate is service-only while phase 10 remains public runtime",
     .eq("scenario_id", "tang-changan-742")
     .single();
   assert.ifError(manifestError);
-  assert.equal(publishedManifest?.content_version, "10.0.0");
+  assert.equal(publishedManifest?.content_version, "11.0.0");
 });
 
-test("phase 10 manifest and event registry are published-read and client-write denied", {
+test("phase 11 manifest and runtime registry are public-read and client-write denied", {
   skip: !url || !publishableKey ? "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY are not configured" : false,
   timeout: 90_000,
 }, async () => {
@@ -80,22 +82,25 @@ test("phase 10 manifest and event registry are published-read and client-write d
     .eq("scenario_id", "tang-changan-742");
   assert.ifError(manifestError);
   assert.equal(manifests?.length, 1);
-  assert.equal(manifests?.[0]?.content_version, "10.0.0");
+  assert.equal(manifests?.[0]?.content_version, "11.0.0");
   assert.deepEqual(manifests?.[0]?.origins, ["merchant", "craft", "clerk"]);
   assert.equal(manifests?.[0]?.evidence_policy, "source_required");
 
   const { data: events, error: eventError } = await publicClient
     .from("event_template_registry")
-    .select("event_id,origin_ids,choice_ids,consequence_keys,evidence_refs,publication_status")
+    .select("event_id,origin_ids,choice_ids,consequence_keys,evidence_refs,publication_status,runtime_availability,content_version")
     .eq("scenario_id", "tang-changan-742")
-    .eq("publication_status", "published");
+    .eq("content_version", "11.0.0")
+    .eq("runtime_availability", "public-beta");
   assert.ifError(eventError);
-  assert.equal(events?.length, 9);
-  assert.equal(events?.reduce((total, event) => total + event.choice_ids.length, 0), 27);
+  assert.equal(events?.length, 27);
+  assert.equal(events?.reduce((total, event) => total + event.choice_ids.length, 0), 81);
   assert.ok(events?.every((event) =>
     event.choice_ids.length === event.consequence_keys.length
     && event.origin_ids.length === 1
     && event.evidence_refs.length > 0
+    && event.publication_status === "provisional"
+    && event.runtime_availability === "public-beta"
   ));
 
   const { error: writeError } = await publicClient
@@ -110,8 +115,9 @@ test("phase 10 manifest and event registry are published-read and client-write d
       next_event_ids: [null, null, null],
       evidence_refs: ["S-001"],
       classification: "叙事虚构",
-      publication_status: "published",
-      content_version: "10.0.0",
+      publication_status: "provisional",
+      runtime_availability: "public-beta",
+      content_version: "11.0.0",
     });
   assert.ok(writeError, "public clients must not write the event registry");
 });
@@ -235,10 +241,11 @@ test("two users are isolated and an optional controlled email can exercise guest
     assert.ok(saveA?.id);
     saveId = saveA.id;
     assert.equal(saveA.state_version, 0);
+    assert.equal(saveA.content_version, "11.0.0");
     assert.equal(saveA.world_state?.time?.year, 742);
     assert.equal(saveA.world_state?.socialIdentity, "merchant");
     assert.equal(saveA.world_state?.story?.currentEventId, "merchant-ledger-mark");
-    assert.equal(saveA.world_state?.story?.chapterId, "merchant-first-ledger");
+    assert.equal(saveA.world_state?.story?.chapterId, "merchant-ledger-day");
 
     const { data: retryResult, error: retryError } = await userA.rpc("create_or_get_game_session", {
       p_client_session_id: clientSessionId,
@@ -291,56 +298,50 @@ test("two users are isolated and an optional controlled email can exercise guest
     const stateAfter = structuredClone(saveA.world_state);
     stateAfter.time = {
       ...stateAfter.time,
-      minuteOfDay: stateAfter.time.minuteOfDay + 25,
-      totalMinutes: stateAfter.time.totalMinutes + 25,
+      minuteOfDay: stateAfter.time.minuteOfDay + 30,
+      totalMinutes: stateAfter.time.totalMinutes + 30,
       turn: 1,
     };
     stateAfter.relationships = [
       ...stateAfter.relationships,
-      { id: "household-steward", label: "家庭管事", affinity: 1 },
+      { id: "kang-muyan", label: "康穆延", affinity: 1 },
     ];
     stateAfter.skills = {
       ...stateAfter.skills,
-      memory: stateAfter.skills.memory + 1,
+      reasoning: stateAfter.skills.reasoning + 1,
     };
     stateAfter.story = {
-      chapterId: "merchant-first-ledger",
-      currentEventId: "merchant-gate-window",
+      chapterId: "merchant-ledger-day",
+      currentEventId: "merchant-seal-trace",
       completedEventIds: ["merchant-ledger-mark"],
       decisions: [{
         eventId: "merchant-ledger-mark",
         choiceId: "choice-1",
-        consequenceKey: "merchant-ledger-audit",
-        summary: "你先核对账纸，避免把陌生印记直接解释成欠账。",
+        consequenceKey: "merchant-ledger-mark-choice-1",
+        summary: "疑点被保留，管事更愿意继续协作。",
         turn: 1,
       }],
       relationshipMemories: [{
-        relationshipId: "household-steward",
+        relationshipId: "kang-muyan",
         eventId: "merchant-ledger-mark",
         summary: "家庭管事记得你先查证再开口。",
         valence: "positive",
         turn: 1,
       }],
-      riskClocks: [{
-        id: "market-deadline",
-        label: "西市交割期限",
-        progress: 1,
-        threshold: 5,
-        status: "active",
-      }],
+      riskClocks: [],
       chapterEnding: null,
     };
     const narrative = {
       eventId: "merchant-ledger-mark",
       resolvedChoiceId: "choice-1",
-      consequenceKey: "merchant-ledger-audit",
+      consequenceKey: "merchant-ledger-mark-choice-1",
       narrative: {
         title: "账纸上的陌生印记",
-        text: "你逐项核对账纸与货签，并把无法确认的印记留作待查。这个后果来自已经发布的事件模板；叙事只解释行动，不改变数据库规则。",
+        text: "你逐项核对账纸与货签，并把无法确认的印记留作待查。这个后果来自公开测试的事件模板；叙事只解释行动，不改变数据库规则，也不代表外部历史审阅已经完成。",
         classification: "合理重建",
       },
       choices: [],
-      sourceIds: ["S-003"],
+      sourceIds: ["S-004"],
     };
     const commitArguments = {
       p_session_id: saveId,
@@ -349,7 +350,7 @@ test("two users are isolated and an optional controlled email can exercise guest
       p_input: turnInput,
       p_narrative: narrative,
       p_state_after: stateAfter,
-      p_source_ids: ["S-003"],
+      p_source_ids: ["S-004"],
       p_provider_response_id: "supabase-live-contract",
     };
     const { data: forbiddenCommit, error: forbiddenCommitError } = await userA.rpc("commit_game_turn", {

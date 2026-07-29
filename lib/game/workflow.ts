@@ -136,14 +136,12 @@ export async function runTurnWorkflow(options: {
       throw new TurnFailure(boundary.code, `${boundary.explanation} 本回合未提交。`, false);
     }
 
-    const [evidence, catalog] = await Promise.all([
-      repository.retrieveEvidence(session),
-      repository.loadNarrativeCatalog(session),
-    ]);
+    const catalog = await repository.loadNarrativeCatalog(session);
     if (catalog.manifest.scenarioId !== session.scenario_id) {
       throw new TurnFailure("scenario_manifest_mismatch", "场景版本与存档不一致，本回合未提交。", false);
     }
     const resolution = resolveEventAction(state, request.action, catalog.events);
+    const evidence = await repository.retrieveEvidence(session, resolution.event);
     const imageUrl = request.action.kind === "image"
       ? await repository.createSignedUploadUrl(request.action.uploadId)
       : undefined;

@@ -7,6 +7,10 @@ import {
   type ScenarioManifest,
   type StateDelta,
 } from "@/lib/game/schemas";
+import {
+  phase11PublicBetaEventTemplates,
+  phase11PublicBetaManifest,
+} from "@/lib/game/phase11-catalog";
 
 function delta(overrides: Partial<StateDelta> = {}): StateDelta {
   return stateDeltaSchema.parse({
@@ -66,7 +70,7 @@ export const phase10ScenarioManifest: ScenarioManifest = scenarioManifestSchema.
   },
 });
 
-const rawEvents: EventTemplate[] = [
+const rawEvents: Array<Omit<EventTemplate, "runtimeAvailability">> = [
   {
     eventId: "merchant-ledger-mark",
     chapterId: "merchant-first-ledger",
@@ -764,12 +768,36 @@ export const phase10EventTemplates: EventTemplate[] = rawEvents.map((event) =>
 
 const eventIndex = new Map(phase10EventTemplates.map((event) => [event.eventId, event]));
 
-export function getFirstEventId(origin: OriginId): string {
-  return phase10ScenarioManifest.firstEventByOrigin[origin];
+export const activeScenarioManifest = phase11PublicBetaManifest;
+export const activeEventTemplates = phase11PublicBetaEventTemplates;
+
+const phase11EventIndex = new Map(
+  phase11PublicBetaEventTemplates.map((event) => [event.eventId, event]),
+);
+
+export function getFirstEventId(origin: OriginId, contentVersion = "11.0.0"): string {
+  const manifest = contentVersion === "10.0.0"
+    ? phase10ScenarioManifest
+    : phase11PublicBetaManifest;
+  return manifest.firstEventByOrigin[origin];
 }
 
-export function getEventTemplate(eventId: string): EventTemplate {
-  const event = eventIndex.get(eventId);
+export function getEventTemplate(eventId: string, contentVersion = "11.0.0"): EventTemplate {
+  const index = contentVersion === "10.0.0" ? eventIndex : phase11EventIndex;
+  const event = index.get(eventId);
   if (!event) throw new Error(`event_not_found:${eventId}`);
   return event;
+}
+
+export function getRuntimeCatalog(contentVersion: string): {
+  manifest: ScenarioManifest;
+  events: EventTemplate[];
+} {
+  if (contentVersion === "10.0.0") {
+    return { manifest: phase10ScenarioManifest, events: phase10EventTemplates };
+  }
+  if (contentVersion === "11.0.0") {
+    return { manifest: phase11PublicBetaManifest, events: phase11PublicBetaEventTemplates };
+  }
+  throw new Error(`unsupported_content_version:${contentVersion}`);
 }

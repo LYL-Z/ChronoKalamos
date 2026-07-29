@@ -317,7 +317,7 @@ export function resolveEventAction(
   events: EventTemplate[],
 ): ResolvedEventAction {
   const event = events.find((candidate) => candidate.eventId === state.story.currentEventId);
-  if (!event || event.publicationStatus !== "published") {
+  if (!event || event.runtimeAvailability === "disabled") {
     throw new Error(`event_unavailable:${state.story.currentEventId}`);
   }
   if (!event.originIds.includes(state.socialIdentity)) throw new Error("event_origin_violation");

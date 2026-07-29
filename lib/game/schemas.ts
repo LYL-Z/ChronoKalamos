@@ -270,6 +270,7 @@ export const eventTemplateSchema = z.object({
   freeTextChoiceId: z.string().regex(/^choice-[1-5]$/),
   evidenceRefs: z.array(z.string().regex(/^S-[0-9]{3}$/)).min(1).max(8),
   publicationStatus: z.enum(["draft", "provisional", "reviewed", "published"]),
+  runtimeAvailability: z.enum(["disabled", "public-beta", "public"]).default("public"),
 }).strict();
 
 export type EventTemplate = z.infer<typeof eventTemplateSchema>;

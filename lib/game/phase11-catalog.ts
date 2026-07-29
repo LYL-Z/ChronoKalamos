@@ -131,6 +131,7 @@ function buildEvent(event: Phase11EventBeat): EventTemplate {
     freeTextChoiceId: "choice-1",
     evidenceRefs: event.evidenceRefs,
     publicationStatus: event.publicationStatus,
+    runtimeAvailability: "public-beta",
   });
 }
 
@@ -143,7 +144,7 @@ export const phase11CandidateManifest: ScenarioManifest = scenarioManifestSchema
     "jin-guang-gate",
     "jingzhao-fu",
     "daming-palace",
-    "ward-grid",
+    "craft-ward",
     "eastern-market",
     "mingde-gate",
     "imperial-city",
@@ -159,6 +160,14 @@ export const phase11CandidateManifest: ScenarioManifest = scenarioManifestSchema
 
 export const phase11CandidateEventTemplates: EventTemplate[] =
   phase11Content.events.map(buildEvent);
+
+/**
+ * Runtime availability and historical publication are separate axes.
+ * Phase 11 is playable as a public beta, while every historical content entry
+ * remains provisional until independently verifiable external review exists.
+ */
+export const phase11PublicBetaManifest = phase11CandidateManifest;
+export const phase11PublicBetaEventTemplates = phase11CandidateEventTemplates;
 
 const eventIndex = new Map(
   phase11CandidateEventTemplates.map((event) => [event.eventId, event]),

@@ -13,20 +13,26 @@ const root = new URL("../", import.meta.url);
 const readJson = (name) =>
   readFile(new URL(`content/tang-changan-742/${name}.json`, root), "utf8").then(JSON.parse);
 
-const [sources, chapters, events, npcs, items, risks, claims, mapFeatures, gate] = await Promise.all([
+const [sources, chapters, events, npcs, items, risks, voiceLines, claims, mapFeatures, gate] = await Promise.all([
   readJson("sources"),
   readJson("chapters"),
   readJson("events"),
   readJson("npcs"),
   readJson("items"),
   readJson("risks"),
+  readJson("voice-lines"),
   readJson("claims"),
   readJson("map-features"),
   readJson("publication-gate"),
 ]);
 
-if (gate.reviewStatus !== "pending" || gate.publicRuntimeEnabled || gate.reviewers.length !== 0) {
-  throw new Error("refusing to sync a candidate whose external review gate is not closed");
+if (
+  gate.reviewStatus !== "pending"
+  || gate.reviewers.length !== 0
+  || gate.historicalCertificationClaimed
+  || gate.releaseMode !== "public-beta-unreviewed"
+) {
+  throw new Error("refusing to sync Phase 11 without an explicit unreviewed public-beta gate");
 }
 
 const digest = (payload) =>
@@ -50,6 +56,7 @@ const rows = [
   ...asRows("npc", npcs),
   ...asRows("item", items),
   ...asRows("risk", risks),
+  ...asRows("voice-line", voiceLines),
   ...asRows("claim", claims.filter((claim) => claim.publicationStatus === "provisional")),
   ...asRows("map-feature", mapFeatures.filter((feature) => feature.publicationStatus === "provisional")),
 ];
@@ -66,6 +73,13 @@ const expectedCounts = {
   npcs: npcs.length,
   items: items.length,
   risks: risks.length,
+  voiceLines: voiceLines.length,
+  citationLinks: 100,
+  cinematicScenes: events.length,
+  productionEvents: events.length,
+  productionNpcs: npcs.length,
+  productionLocations: mapFeatures.length,
+  phase11Evaluations: 240,
   provisionalClaims: claims.filter((claim) => claim.publicationStatus === "provisional").length,
   provisionalMapFeatures: mapFeatures.filter((feature) => feature.publicationStatus === "provisional").length,
 };
@@ -78,7 +92,11 @@ const { error: versionError } = await client
     runtime_fallback_version: gate.runtimeFallbackVersion,
     review_status: "pending",
     external_review_required: true,
-    public_runtime_enabled: false,
+    release_mode: gate.releaseMode,
+    historical_certification_claimed: false,
+    public_disclaimer_zh: gate.publicDisclaimerZh,
+    public_disclaimer_en: gate.publicDisclaimerEn,
+    public_runtime_enabled: true,
     expected_counts: expectedCounts,
     source_commit: process.env.PHASE11_SOURCE_COMMIT ?? null,
   });
@@ -103,7 +121,9 @@ console.log(JSON.stringify({
   scenarioId: gate.scenarioId,
   contentVersion: gate.candidateContentVersion,
   reviewStatus: "pending",
-  publicRuntimeEnabled: false,
+  releaseMode: gate.releaseMode,
+  historicalReviewStatus: gate.reviewStatus,
+  publicRuntimeEnabled: true,
   entries: count,
   expectedCounts,
   status: "synced",

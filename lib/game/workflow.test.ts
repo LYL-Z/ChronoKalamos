@@ -49,8 +49,15 @@ class FakeRepository implements GameTurnRepository {
     id: sessionId,
     owner_id: this.userId,
     scenario_id: "tang-changan-742",
+    content_version: "10.0.0",
     character_profile: { origin: "merchant" },
-    world_state: createInitialWorldState("merchant"),
+    world_state: {
+      ...createInitialWorldState("merchant"),
+      story: {
+        ...createInitialWorldState("merchant").story,
+        chapterId: "merchant-first-ledger",
+      },
+    },
     status: "draft",
     state_version: 0,
   };

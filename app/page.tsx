@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CinematicNarrative } from "@/components/cinematic-narrative";
 import { IdentityPanel } from "@/components/identity-panel";
 import { phase7ActiveTrackLabel } from "@/lib/capabilities/phase7";
 import { streamGameTurn } from "@/lib/game/client";
+import { getPublishedCinematicScene } from "@/lib/game/cinematic";
 import { getEventTemplate, getFirstEventId } from "@/lib/game/event-catalog";
 import {
   type HistoricalClassification,
@@ -58,7 +60,7 @@ const uiCopy: Record<Locale, {
     method: "每段内容都标明：史料记载、合理重建或叙事虚构。",
     mapLayer: "HISTORICAL MAP LAYER",
     mapNote: "图层来自已审计的阶段4内容包。几何是手绘证据示意，不能当作742年的测量边界；点击节点查看来源、时间和许可。",
-    languageNote: "中文史实内容已审校；其他语言仅翻译界面骨架。",
+    languageNote: "中文内容已完成内部校验；Phase 11 外部历史学家认证待定。其他语言仅翻译界面骨架。",
     loaded: (title) => `已载入 ${title}。第一回合尚未提交。`,
   },
   en: {
@@ -68,7 +70,7 @@ const uiCopy: Record<Locale, {
     method: "Each passage is marked as record, reconstruction, or fiction.",
     mapLayer: "HISTORICAL MAP LAYER",
     mapNote: "This audited phase-4 layer is schematic evidence, not a surveyed 742 CE boundary. Select a node to inspect sources, dates, and licensing.",
-    languageNote: "Chinese historical content is reviewed; other languages currently translate interface chrome only.",
+    languageNote: "Chinese content has passed internal checks; external historian certification for Phase 11 is pending. Other languages translate interface chrome only.",
     loaded: (title) => `${title} loaded. Turn one has not been submitted.`,
   },
   fr: {
@@ -78,7 +80,7 @@ const uiCopy: Record<Locale, {
     method: "Chaque passage indique : source, reconstruction ou fiction.",
     mapLayer: "COUCHE CARTOGRAPHIQUE HISTORIQUE",
     mapNote: "Cette couche auditée reste une esquisse de preuve, pas une limite mesurée en 742. Sélectionnez un nœud pour voir les sources et les licences.",
-    languageNote: "Le contenu historique chinois est révisé ; les autres langues ne traduisent pour l'instant que l'interface.",
+    languageNote: "Le contenu chinois a passé les contrôles internes ; la certification historique externe de la phase 11 reste en attente. Les autres langues ne traduisent que l’interface.",
     loaded: (title) => `${title} chargé. Le premier tour n'est pas soumis.`,
   },
   el: {
@@ -88,7 +90,7 @@ const uiCopy: Record<Locale, {
     method: "Κάθε απόσπασμα σημειώνεται ως πηγή, ανακατασκευή ή μυθοπλασία.",
     mapLayer: "ΙΣΤΟΡΙΚΟ ΕΠΙΠΕΔΟ ΧΑΡΤΗ",
     mapNote: "Το ελεγμένο επίπεδο είναι σχηματικό τεκμήριο, όχι μετρημένο όριο του 742. Επιλέξτε κόμβο για πηγές, χρονολογία και άδεια.",
-    languageNote: "Το κινεζικό ιστορικό περιεχόμενο έχει ελεγχθεί· οι άλλες γλώσσες μεταφράζουν προς το παρόν μόνο το περιβάλλον.",
+    languageNote: "Το κινεζικό περιεχόμενο πέρασε εσωτερικό έλεγχο· η εξωτερική ιστορική πιστοποίηση της Φάσης 11 εκκρεμεί. Οι άλλες γλώσσες καλύπτουν μόνο το περιβάλλον.",
     loaded: (title) => `Φορτώθηκε: ${title}. Ο πρώτος γύρος δεν υποβλήθηκε.`,
   },
   ru: {
@@ -98,7 +100,7 @@ const uiCopy: Record<Locale, {
     method: "Каждый фрагмент отмечен как источник, реконструкция или вымысел.",
     mapLayer: "ИСТОРИЧЕСКИЙ СЛОЙ КАРТЫ",
     mapNote: "Этот проверенный слой — схематическое свидетельство, а не измеренная граница 742 года. Выберите узел для источников, дат и лицензии.",
-    languageNote: "Китайское историческое содержание проверено; другие языки пока переводят только элементы интерфейса.",
+    languageNote: "Китайский контент прошёл внутреннюю проверку; внешняя историческая сертификация Phase 11 ожидается. Другие языки пока переводят только интерфейс.",
     loaded: (title) => `Загружено: ${title}. Первый ход ещё не отправлен.`,
   },
 };
@@ -156,9 +158,9 @@ function signedDelta(value: number): string {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function choicesForEvent(eventId: string | null): TurnChoice[] {
+function choicesForEvent(eventId: string | null, contentVersion = "11.0.0"): TurnChoice[] {
   if (!eventId || eventId === "legacy-session-boundary") return [];
-  return getEventTemplate(eventId).choices.map(({ id, label, intent, risk }) => ({
+  return getEventTemplate(eventId, contentVersion).choices.map(({ id, label, intent, risk }) => ({
     id,
     label,
     intent,
@@ -166,10 +168,10 @@ function choicesForEvent(eventId: string | null): TurnChoice[] {
   }));
 }
 
-function titleForEvent(eventId: string): string {
+function titleForEvent(eventId: string, contentVersion = "11.0.0"): string {
   if (eventId === "legacy-session-boundary") return "旧版存档边界";
   try {
-    return getEventTemplate(eventId).title;
+    return getEventTemplate(eventId, contentVersion).title;
   } catch {
     return "未发布事件";
   }
@@ -180,6 +182,15 @@ function BrandMark() {
     <span className="brand-mark" aria-hidden="true">
       <span>ZW</span>
     </span>
+  );
+}
+
+function Phase11ReleaseDisclosure() {
+  return (
+    <div className="release-disclosure" role="note">
+      <strong>PHASE 11 · PUBLIC BETA</strong>
+      <span>未经外部历史学家认证。新增章节、人物与地点仍标为 provisional；公开可玩不等于史实获批。</span>
+    </div>
   );
 }
 
@@ -235,6 +246,7 @@ export default function Home() {
   const mapFeatures: MapFeature[] = content.mapFeatures;
   const publishedClaimCount = content.claims.filter((claim) => claim.published).length;
   const fictionClaimCount = content.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
+  const provisionalClaimCount = changanContent.claims.filter((claim) => claim.publicationStatus === "provisional").length;
   const worldState = gameSession?.world_state ?? null;
 
   useEffect(() => {
@@ -366,13 +378,13 @@ export default function Home() {
       setCharacterProfile(profile);
       const hydratedSession = { ...session, character_profile: profile };
       const currentEventId = hydratedSession.world_state.story.currentEventId;
-      const initialEventId = currentEventId ?? getFirstEventId(profile.origin);
+      const initialEventId = currentEventId ?? getFirstEventId(profile.origin, hydratedSession.content_version);
       setGameSession(hydratedSession);
       setGameNarrative(`${name}，你的第一天从${selected.title}开始。先观察眼前的边界，再决定哪一种行动值得留下记录。`);
       setGameChoices(
         hydratedSession.world_state.story.chapterEnding
           ? []
-          : choicesForEvent(initialEventId),
+          : choicesForEvent(initialEventId, hydratedSession.content_version),
       );
       setGameClassification("叙事虚构");
       setGameSourceIds([]);
@@ -514,6 +526,7 @@ export default function Home() {
     const lastDecision = story.decisions.at(-1);
     const recentMemories = story.relationshipMemories.slice(-3).reverse();
     const activeRiskClocks = story.riskClocks.filter((clock) => clock.status !== "resolved");
+    const cinematicScene = getPublishedCinematicScene(story.currentEventId);
     const pipeline = [
       ["审核", turnStatus === "streaming" ? "进行中" : "等待"],
       ["检索", turnStatus === "streaming" ? "进行中" : "等待"],
@@ -526,10 +539,12 @@ export default function Home() {
         <header className="masthead game-masthead">
           <div className="brand"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></div>
           <div className="game-header-actions">
-            <span className="edition">SESSION {gameSession.id.slice(0, 8)} · v{gameSession.state_version}</span>
+            <span className="edition">CONTENT {gameSession.content_version} · SESSION {gameSession.id.slice(0, 8)} · v{gameSession.state_version}</span>
+            <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
             <button className="text-button" type="button" onClick={() => setShowGame(false)}>返回档案入口</button>
           </div>
         </header>
+        <Phase11ReleaseDisclosure />
         <section className="game-grid" aria-label="742年长安游戏回合">
           <aside className="game-sidebar">
             <span className="eyebrow">TURN {String(state.time.turn).padStart(2, "0")} · {turnStatus.toUpperCase()}</span>
@@ -537,7 +552,7 @@ export default function Home() {
             <p>模型只负责受控叙事表达。事件模板与服务端规则决定状态变化，Supabase 事务负责一次性落档。</p>
             <dl className="state-list">
               <div><dt>章节</dt><dd>{story.chapterId}</dd></div>
-              <div><dt>事件</dt><dd>{titleForEvent(story.currentEventId)}</dd></div>
+              <div><dt>事件</dt><dd>{titleForEvent(story.currentEventId, gameSession.content_version)}</dd></div>
               <div><dt>地点</dt><dd>{state.location.label}</dd></div>
               <div><dt>身份</dt><dd>{selected.title}</dd></div>
               <div><dt>时间</dt><dd>{formatWorldTime(state.time)}</dd></div>
@@ -549,9 +564,14 @@ export default function Home() {
             <p className="game-boundary-note"><strong>十分钟切片 · 提交边界</strong><br />每个 clientTurnId 只允许一次事务。重复请求只回放原结果。</p>
           </aside>
           <article className="narrative-panel">
-            <div className="panel-heading"><span className="eyebrow">SCENE {String(state.time.turn).padStart(2, "0")} · {state.location.label}</span><span className="source-chip">{sourceLabel(gameClassification)}{gameSourceIds.length ? ` · ${sourceSummary(gameSourceIds)}` : " · 待首回合引用"}</span></div>
-            <p className="narrative-kicker">FIRST RECORDED LIFE · {String(state.time.turn).padStart(2, "0")} / 05</p>
-            <p className="narrative-lede" aria-live="polite">{gameNarrative}</p>
+            <CinematicNarrative
+              scene={cinematicScene}
+              sceneNumber={String(state.time.turn).padStart(2, "0")}
+              locationLabel={state.location.label}
+              classificationLabel={sourceLabel(gameClassification)}
+              sourceSummary={gameSourceIds.length ? sourceSummary(gameSourceIds) : "待首回合引用"}
+              narrative={gameNarrative}
+            />
             <p className="evidence-disclosure">叙事文本在提交前只属于候选输出；提交后才写入本人的回合与存档点。</p>
             {turnFailure && <div className="turn-failure" role="alert"><strong>本回合未提交</strong><span>{turnFailure}</span></div>}
             {lastCommitSummary && turnStatus === "committed" && <div className="recap-card" role="status"><span className="eyebrow">RECORD REVIEW</span><strong>{lastCommitSummary}</strong><small>下一次选择会读取本次回合留下的时间、关系和风险。</small></div>}
@@ -616,11 +636,12 @@ export default function Home() {
       <header className="masthead">
         <div className="brand"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></div>
         <nav className="mast-nav" aria-label="主导航">
-          <span className="edition"><span className="status-dot" />PREVIEW 0.7.42</span>
+          <span className="edition"><span className="status-dot" />PHASE 11 · PUBLIC BETA</span>
           <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
         </nav>
       </header>
+      <Phase11ReleaseDisclosure />
 
       <div className="site-layout">
         <aside className="side-nav" aria-label="账户与存档">
@@ -688,7 +709,7 @@ export default function Home() {
         {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
       </section>
 
-      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · 待核验 0 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "内容来自 Supabase 已发布镜像" : "内容来自本地校验包"} · 16+ · No real payments</span></footer>
+      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · Phase 11 provisional {provisionalClaimCount} 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "基础证据来自 Supabase 已发布镜像" : "基础证据来自本地校验包"} · 16+ · No real payments</span></footer>
 
       {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowSetup(false); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={() => setShowSetup(false)}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => { setSelectedOrigin(origin.id); updateCharacterProfile({ origin: origin.id as CharacterProfile["origin"] }); }}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="profile-fields"><label htmlFor="character-name">姓名<input id="character-name" name="character-name" type="text" maxLength={40} placeholder="例如：阿史那·..." value={characterProfile.name} onChange={(event) => updateCharacterProfile({ name: event.target.value })} /></label><label htmlFor="character-gender">性别<select id="character-gender" value={characterProfile.gender} onChange={(event) => updateCharacterProfile({ gender: event.target.value as CharacterProfile["gender"] })}><option value="unspecified">不预设</option><option value="female">女性</option><option value="male">男性</option><option value="nonbinary">不二元</option></select></label><div className="temperament-field"><span>性格倾向</span><div>{profileTemperaments.map((item) => <button key={item.value} className={characterProfile.temperament === item.value ? "temperament-choice selected" : "temperament-choice"} type="button" aria-pressed={characterProfile.temperament === item.value} onClick={() => updateCharacterProfile({ temperament: item.value })}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div></div></div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy || !characterProfile.name.trim()}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
       {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}

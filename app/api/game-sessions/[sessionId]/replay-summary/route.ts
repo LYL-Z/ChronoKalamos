@@ -33,7 +33,7 @@ export async function POST(
         session_id: session.id,
         owner_id: user.id,
         chapter_id: summary.chapterId,
-        content_version: "10.0.0",
+        content_version: session.content_version,
         state_version: session.state_version,
         summary,
         updated_at: new Date().toISOString(),

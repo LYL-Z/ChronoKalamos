@@ -31,10 +31,22 @@
 
 ## 审校状态
 
-这是可运行的内容包基线，不是历史学同行评审结论。发布前需逐条复核古籍卷次、研究页码、中文—英文边界译文和示意几何。 
+当前通道为 `public-beta-unreviewed`。这是可运行的公开测试内容，不是历史学同行评审结论。阶段11新增事实条目仍为 `provisional`。网站持续提示“未经外部历史学家认证”。公开可玩不等于史实获批。
 
-## 阶段11候选层
+## 阶段11公开测试层
 
-阶段11新增 `chapters.json`、`events.json`、`npcs.json`、`items.json`、`risks.json` 和 `publication-gate.json`。候选版本为 `11.0.0`，公开运行时回退版本为 `10.0.0`。
+阶段11新增 `chapters.json`、`events.json`、`npcs.json`、`items.json`、`risks.json`、`voice-lines.json` 和 `publication-gate.json`。内容版本与公开运行时版本均为 `11.0.0`。已经推进的10.0.0存档继续读取旧目录，形成回滚与存档兼容边界。
 
-新增条目全部保持 `provisional`。`publication-gate.json` 当前为 `pending`，审阅者列表为空，`publicRuntimeEnabled` 为 `false`。没有真实外部历史学者的审阅证据时，不得改变这三个事实。
+`production-batch-plan.json` 是11.0.0的量产覆盖清单。`lib/historical/phase11-production.ts` 将现有27个事件、12名NPC和8个地点编译为经Zod校验的完整制作合同，包含三幕节拍、三项社会投影、关系带、线索层、镜头、声音和来源定位。统一生产规则位于 `docs/phase11-content-production-bible.md`，跨引擎JSON合同位于 `docs/schemas/phase11-production-bundle.schema.json`。
+
+`lib/historical/phase11-production.eval.test.ts` 包含精确240项可执行评测。数字由81项选择后果、27项证据绑定、36项NPC关系带、24项地点线索层、27项时间表现、15项提示注入、15项时代错置和15项非法状态／幂等合同组成。目标数字本身不是通过证据；只有测试运行结果才是。
+
+新增条目全部保持 `provisional`。`publication-gate.json` 当前为 `pending`，审阅者列表为空，`historicalCertificationClaimed` 为 `false`，`publicRuntimeEnabled` 为 `true`。这组状态刻意区分“允许公开试玩”和“获得历史认证”。
+
+聊天文本、手工录入的姓名或机构名称不能替代签名文件或可核的机构记录。审阅证据还必须逐条补齐来源页码、卷次或稳定条目标识；公开人物的任职资料只能证明身份，不能证明其审阅过本项目。
+
+`voice-lines.json` 含27条人物台词。每条台词均为 `叙事虚构`，并强制配字幕。项目不声称现代普通话设备合成音等于唐代语音复原，也不使用未经授权的真人声纹。
+
+`lib/historical/phase11-citations.ts` 从事件、声明和地点证据中构建100条“事件—来源”链接。100是可追溯的引用链接数，不是100部独立文献。来源台账有18条，其中11条实际进入事件链接。
+
+当前仓库不是Unity工程。`production-batch-plan.json` 中的 `unityStatus` 必须保持 `not-applicable`，直到独立Unity项目通过版本、包、场景、测试与构建验证。
