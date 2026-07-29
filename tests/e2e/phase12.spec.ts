@@ -103,6 +103,14 @@ test.describe("Phase 12 accessibility and responsive regression", () => {
       expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
       await expect(page.getByRole("form", { name: "证据图层筛选" })).toBeVisible();
       await expect(page.getByRole("complementary", { name: "游客入口" })).toBeVisible();
+
+      await page.goto("/settings");
+      await expect(page.getByRole("heading", { name: "个人设置" })).toBeVisible();
+      const settingsDimensions = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(settingsDimensions.scrollWidth).toBeLessThanOrEqual(settingsDimensions.clientWidth + 1);
     });
   }
 

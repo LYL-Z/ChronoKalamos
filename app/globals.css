@@ -242,10 +242,10 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .save-card dl div { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 8px; }
 .save-card dt { color: var(--cinnabar-deep); }
 .save-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.settings-card { padding: 23px; border: 1px solid var(--line); background: var(--paper); }
+.settings-grid { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.settings-card { min-width: 0; padding: 23px; border: 1px solid var(--line); background: var(--paper); }
 .settings-card h2 { margin: 8px 0 22px; font: 700 28px/1 var(--serif); }
-.settings-language { grid-column: 1 / -1; }
+.settings-language { grid-column: 1 / -1; overflow: hidden; }
 .setting-toggle { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; cursor: pointer; }
 .setting-toggle input { width: 21px; height: 21px; accent-color: var(--cinnabar); }
 .setting-toggle span { display: grid; gap: 6px; }
@@ -260,7 +260,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .segmented-control input:focus-visible + span { outline: 3px solid var(--brass-bright); outline-offset: 3px; }
 .translation-warning { display: grid; gap: 5px; margin: 17px 0; padding: 12px 14px; border-left: 3px solid var(--cinnabar); background: rgba(163, 61, 46, .07); color: var(--ink-soft); font: 9px/1.5 var(--mono); }
 .translation-warning strong { color: var(--ink); }
-.table-scroll { overflow-x: auto; }
+.table-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
 .table-scroll table { width: 100%; min-width: 630px; border-collapse: collapse; font: 9px/1.45 var(--mono); }
 .table-scroll th, .table-scroll td { padding: 11px 10px; border-bottom: 1px solid var(--line); text-align: left; }
 .table-scroll thead th { color: var(--cinnabar-deep); letter-spacing: .08em; text-transform: uppercase; }
@@ -578,7 +578,7 @@ html[data-text-scale="large"] small { letter-spacing: .05em; }
   .product-footer { align-items: flex-start; flex-direction: column; }
   .boundary-callout { align-items: flex-start; flex-direction: column; }
   .state-card { min-height: 250px; padding: 22px; }
-  .save-grid, .settings-grid, .support-grid { grid-template-columns: 1fr; }
+  .save-grid, .settings-grid, .support-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-language { grid-column: auto; }
   .support-status { grid-template-columns: 1fr; }
   .support-status .health-indicator,
