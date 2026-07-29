@@ -34,8 +34,8 @@
 
 已应用以下阶段11迁移：
 
-- `20260728141153_phase11_voice_line_candidates`
-- `20260729062713_phase11_public_beta_runtime`
+- `20260729063339_phase11_voice_line_candidates`
+- `20260729063433_phase11_public_beta_runtime`
 
 服务端候选快照共132条。匿名客户端不能读取候选审阅表。公开运行时目录包含27个阶段11事件。游戏会话记录 `content_version`，避免旧存档静默换目录。
 

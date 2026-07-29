@@ -584,4 +584,90 @@ test("phase 6 admission control limits new turn reservations per owner", {
     await client.auth.signOut();
   }
 });
+
+test("phase 13 AI budget is service-only, idempotent, and fail-closed", {
+  skip: !url || !publishableKey || !secretKey
+    ? "SUPABASE_TEST_URL, SUPABASE_TEST_PUBLISHABLE_KEY and SUPABASE_TEST_SECRET_KEY are required"
+    : false,
+  timeout: 90_000,
+}, async () => {
+  const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
+  const browserClient = createClient(url, publishableKey, options);
+  const serverClient = createClient(url, secretKey, options);
+  const { data: auth, error: authError } = await browserClient.auth.signInAnonymously({
+    options: { data: { chronokalamos_phase13_budget_test: crypto.randomUUID() } },
+  });
+  assert.ifError(authError);
+  assert.ok(auth.user);
+  const ownerId = auth.user.id;
+  const firstTurnId = crypto.randomUUID();
+
+  try {
+    const { data: browserRows, error: browserReadError } = await browserClient
+      .from("ai_call_audit")
+      .select("id")
+      .limit(1);
+    assert.ok(browserReadError, "browser roles must have no audit-table privileges");
+    assert.equal(browserRows, null);
+
+    const { data: forbiddenReservation, error: forbiddenReservationError } = await browserClient
+      .rpc("reserve_ai_call", {
+        p_owner_id: ownerId,
+        p_client_turn_id: firstTurnId,
+        p_attempt: 1,
+        p_user_daily_limit: 2,
+        p_global_daily_limit: 100000,
+      });
+    assert.ok(forbiddenReservationError, "browser roles must not execute the budget RPC");
+    assert.equal(forbiddenReservation, null);
+
+    const reserve = (turnId) => serverClient.rpc("reserve_ai_call", {
+      p_owner_id: ownerId,
+      p_client_turn_id: turnId,
+      p_attempt: 1,
+      p_user_daily_limit: 2,
+      p_global_daily_limit: 100000,
+    });
+    const first = await reserve(firstTurnId);
+    assert.ifError(first.error);
+    assert.equal(first.data?.status, "reserved");
+
+    const duplicate = await reserve(firstTurnId);
+    assert.ifError(duplicate.error);
+    assert.equal(duplicate.data?.status, "duplicate");
+
+    const { data: completed, error: completionError } = await serverClient.rpc("complete_ai_call", {
+      p_owner_id: ownerId,
+      p_client_turn_id: firstTurnId,
+      p_attempt: 1,
+      p_result_code: "success",
+      p_latency_ms: 12,
+    });
+    assert.ifError(completionError);
+    assert.equal(completed, true);
+
+    const second = await reserve(crypto.randomUUID());
+    assert.ifError(second.error);
+    assert.equal(second.data?.status, "reserved");
+
+    const blocked = await reserve(crypto.randomUUID());
+    assert.ifError(blocked.error);
+    assert.equal(blocked.data?.status, "user_daily_limit");
+
+    const { data: auditRows, error: auditError } = await serverClient
+      .from("ai_call_audit")
+      .select("client_turn_id,result_code,latency_ms")
+      .eq("owner_id", ownerId)
+      .order("created_at");
+    assert.ifError(auditError);
+    assert.equal(auditRows?.length, 2);
+    assert.equal(auditRows?.[0]?.result_code, "success");
+    assert.equal(auditRows?.[0]?.latency_ms, 12);
+    assert.equal(auditRows?.[1]?.result_code, "reserved");
+  } finally {
+    await serverClient.from("ai_call_audit").delete().eq("owner_id", ownerId);
+    await browserClient.auth.signOut();
+    await serverClient.auth.admin.deleteUser(ownerId);
+  }
+});
 });

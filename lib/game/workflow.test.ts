@@ -5,6 +5,7 @@ import { createInitialWorldState } from "./rules";
 import type { GameSessionRecord, GameTurnRepository, HistoricalEvidence, ReserveResult } from "./supabase-repository";
 import type { CommittedTurn, NarrativeExpression, TurnGeneration, TurnRequest } from "./schemas";
 import { runTurnWorkflow } from "./workflow";
+import type { AiBudgetLimits, AiCallReservation, AiCallResultCode } from "./ai-budget";
 
 const sessionId = "018f2614-326b-7e67-b42d-0f19cde35dc1";
 const clientTurnId = "018f2614-326b-7e67-b42d-0f19cde35dc2";
@@ -45,6 +46,13 @@ class FakeRepository implements GameTurnRepository {
   private committed: CommittedTurn | null = null;
   failCount = 0;
   commitCount = 0;
+  aiReservations: Array<{ attempt: 1 | 2; limits: AiBudgetLimits }> = [];
+  aiCompletions: Array<{ attempt: 1 | 2; resultCode: AiCallResultCode }> = [];
+  aiReservationResult: AiCallReservation = {
+    status: "reserved",
+    userDailyCount: 1,
+    globalDailyCount: 1,
+  };
   private readonly session: GameSessionRecord = {
     id: sessionId,
     owner_id: this.userId,
@@ -86,6 +94,28 @@ class FakeRepository implements GameTurnRepository {
   async createSignedUploadUrl(): Promise<string> {
     return "https://example.invalid/signed-image";
   }
+  async reserveAiCall(
+    clientTurnIdArg: string,
+    attempt: 1 | 2,
+    limits: AiBudgetLimits,
+  ): Promise<AiCallReservation> {
+    void clientTurnIdArg;
+    this.aiReservations.push({ attempt, limits });
+    if (this.aiReservationResult.status !== "reserved") return this.aiReservationResult;
+    return {
+      ...this.aiReservationResult,
+      userDailyCount: this.aiReservations.length,
+      globalDailyCount: this.aiReservations.length,
+    };
+  }
+  async completeAiCall(
+    clientTurnIdArg: string,
+    attempt: 1 | 2,
+    resultCode: AiCallResultCode,
+  ): Promise<void> {
+    void clientTurnIdArg;
+    this.aiCompletions.push({ attempt, resultCode });
+  }
   async commitTurn(sessionIdArg: string, requestArg: TurnRequest, narrative: TurnGeneration, nextState: ReturnType<typeof createInitialWorldState>, providerResponseId: string): Promise<CommittedTurn> {
     void sessionIdArg;
     void requestArg;
@@ -123,6 +153,8 @@ describe("phase 5 workflow", () => {
     expect(provider.generateCalls).toBe(1);
     expect(repository.commitCount).toBe(1);
     expect(repository.failCount).toBe(0);
+    expect(repository.aiReservations).toHaveLength(1);
+    expect(repository.aiCompletions).toEqual([{ attempt: 1, resultCode: "success" }]);
     expect(events.filter((event) => event === "state.committed")).toHaveLength(2);
   });
 
@@ -136,6 +168,41 @@ describe("phase 5 workflow", () => {
     expect(provider.generateCalls).toBe(2);
     expect(repository.commitCount).toBe(1);
     expect(repository.failCount).toBe(0);
+    expect(repository.aiReservations.map((entry) => entry.attempt)).toEqual([1, 2]);
+    expect(repository.aiCompletions).toEqual([
+      { attempt: 1, resultCode: "validation_failed" },
+      { attempt: 2, resultCode: "success" },
+    ]);
     expect(events.at(-1)).toBe("state.committed");
+  });
+
+  it("fails closed before provider generation when the user daily budget is exhausted", async () => {
+    const repository = new FakeRepository();
+    repository.aiReservationResult = {
+      status: "user_daily_limit",
+      userDailyCount: 40,
+      globalDailyCount: 41,
+    };
+    const provider = new FakeProvider();
+    const failures: Array<{ code: string; notCommitted: boolean }> = [];
+
+    await runTurnWorkflow({
+      sessionId,
+      request,
+      repository,
+      provider,
+      emit: (event) => {
+        if (event.event === "turn.failed") failures.push(event.data);
+      },
+    });
+
+    expect(provider.generateCalls).toBe(0);
+    expect(repository.aiCompletions).toHaveLength(0);
+    expect(repository.commitCount).toBe(0);
+    expect(repository.failCount).toBe(1);
+    expect(failures.at(-1)).toMatchObject({
+      code: "ai_daily_user_limit",
+      notCommitted: true,
+    });
   });
 });

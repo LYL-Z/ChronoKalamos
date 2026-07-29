@@ -1,13 +1,16 @@
+import { checkReadiness } from "@/lib/health/readiness";
 import { withSecurityHeaders } from "@/lib/security/http";
 
 export const dynamic = "force-dynamic";
 
-export function GET(request: Request): Response {
+export async function GET(request: Request): Promise<Response> {
+  const readiness = await checkReadiness();
   return withSecurityHeaders(Response.json({
-    status: "ok",
+    ...readiness,
     service: "chronokalamos",
     scenario: "tang-changan-742",
     release: process.env.APP_RELEASE?.slice(0, 64) || "unknown",
-    checks: { application: "ok" },
+  }, {
+    status: readiness.status === "ready" ? 200 : 503,
   }), request);
 }

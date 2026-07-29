@@ -17,6 +17,12 @@ import {
 } from "@/lib/game/schemas";
 import { getRuntimeCatalog } from "@/lib/game/event-catalog";
 import { changanContent } from "@/lib/historical/content";
+import {
+  aiCallReservationSchema,
+  type AiBudgetLimits,
+  type AiCallReservation,
+  type AiCallResultCode,
+} from "@/lib/game/ai-budget";
 
 const sessionSchema = z.object({
   id: z.string().uuid(),
@@ -123,6 +129,17 @@ export interface GameTurnRepository {
     event: EventTemplate,
   ): Promise<HistoricalEvidence>;
   createSignedUploadUrl(uploadId: string): Promise<string>;
+  reserveAiCall(
+    clientTurnId: string,
+    attempt: 1 | 2,
+    limits: AiBudgetLimits,
+  ): Promise<AiCallReservation>;
+  completeAiCall(
+    clientTurnId: string,
+    attempt: 1 | 2,
+    resultCode: AiCallResultCode,
+    latencyMs: number,
+  ): Promise<void>;
   commitTurn(
     sessionId: string,
     request: TurnRequest,
@@ -357,6 +374,39 @@ export class SupabaseGameRepository implements GameTurnRepository {
       .createSignedUrl(upload.storage_path, 60);
     if (signedError) throw new Error(`upload_sign_failed:${signedError.message}`);
     return signed.signedUrl;
+  }
+
+  async reserveAiCall(
+    clientTurnId: string,
+    attempt: 1 | 2,
+    limits: AiBudgetLimits,
+  ): Promise<AiCallReservation> {
+    const { data, error } = await this.serverClient.rpc("reserve_ai_call", {
+      p_owner_id: this.userId,
+      p_client_turn_id: clientTurnId,
+      p_attempt: attempt,
+      p_user_daily_limit: limits.userDailyLimit,
+      p_global_daily_limit: limits.globalDailyLimit,
+    });
+    if (error) throw new Error(`ai_budget_reserve_failed:${error.message}`);
+    return aiCallReservationSchema.parse(data);
+  }
+
+  async completeAiCall(
+    clientTurnId: string,
+    attempt: 1 | 2,
+    resultCode: AiCallResultCode,
+    latencyMs: number,
+  ): Promise<void> {
+    const { data, error } = await this.serverClient.rpc("complete_ai_call", {
+      p_owner_id: this.userId,
+      p_client_turn_id: clientTurnId,
+      p_attempt: attempt,
+      p_result_code: resultCode,
+      p_latency_ms: Math.max(0, Math.min(300000, Math.round(latencyMs))),
+    });
+    if (error) throw new Error(`ai_audit_completion_failed:${error.message}`);
+    if (data !== true) throw new Error("ai_audit_completion_missing");
   }
 
   async commitTurn(

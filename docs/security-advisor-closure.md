@@ -1,5 +1,10 @@
 # Supabase 安全审查闭环
 
+> Phase 13 复核（2026-07-29）：远程 Advisor 仍只有八条游客策略提示与一条泄露密码
+> 保护提示。`phone_auth_audit` 无策略与公开业务 `SECURITY DEFINER` 两类旧提示没有复发。
+> 新增 `ai_call_audit` 已启用 RLS、restrictive 客户端全拒绝策略和 service-role-only RPC。
+> 完整结果见 [`docs/security-hardening-v2.md`](./security-hardening-v2.md)。
+
 > 复核日期：2026-07-28
 >
 > 项目：`hqxtmaczhemaxjdfjtcz`

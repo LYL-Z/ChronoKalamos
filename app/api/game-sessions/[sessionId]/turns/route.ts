@@ -7,6 +7,8 @@ import {
 } from "@/lib/game/supabase-repository";
 import { runTurnWorkflow } from "@/lib/game/workflow";
 import { withSecurityHeaders } from "@/lib/security/http";
+import { writeSecurityAudit } from "@/lib/security/audit";
+import { aiTurnsEnabled } from "@/lib/game/ai-budget";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -94,9 +96,16 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ sessionId: string }> | { sessionId: string } },
 ): Promise<Response> {
+  const requestId = crypto.randomUUID();
   const params = await context.params;
   const boundedBody = await readBoundedBody(request);
   if (!boundedBody.ok) {
+    await writeSecurityAudit({
+      event: "turn.request_rejected",
+      outcome: "denied",
+      requestId,
+      code: "request_too_large",
+    });
     return streamResponse(async (emit) => {
       emit(failedEvent("request_too_large", "回合请求超过安全大小限制，本回合未提交。", false));
     }, request, 413);
@@ -110,6 +119,12 @@ export async function POST(
   }
   const parsed = turnRequestSchema.safeParse(rawBody);
   if (!parsed.success) {
+    await writeSecurityAudit({
+      event: "turn.request_rejected",
+      outcome: "denied",
+      requestId,
+      code: "invalid_request",
+    });
     return streamResponse(async (emit) => {
       emit(failedEvent("invalid_request", "回合请求格式无效，状态未提交。", false));
     }, request);
@@ -117,6 +132,12 @@ export async function POST(
 
   const sessionId = sessionIdSchema.safeParse(params.sessionId);
   if (!sessionId.success) {
+    await writeSecurityAudit({
+      event: "turn.request_rejected",
+      outcome: "denied",
+      requestId,
+      code: "invalid_session",
+    });
     return streamResponse(async (emit) => {
       emit(failedEvent("invalid_session", "存档标识无效，本回合未提交。", false));
     }, request, 400);
@@ -125,6 +146,12 @@ export async function POST(
   const authorization = request.headers.get("authorization");
   const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!accessToken || accessToken.length > 8192) {
+    await writeSecurityAudit({
+      event: "turn.authentication_failed",
+      outcome: "denied",
+      requestId,
+      code: "authentication_required",
+    });
     return streamResponse(async (emit) => {
       emit(failedEvent("authentication_required", "请先创建游客身份或登录邮箱账户。", false));
     }, request, 401);
@@ -134,7 +161,29 @@ export async function POST(
     const client = createAuthenticatedSupabaseClient(accessToken);
     const { data, error } = await client.auth.getUser(accessToken);
     if (error || !data.user) {
+      await writeSecurityAudit({
+        event: "turn.authentication_failed",
+        outcome: "denied",
+        requestId,
+        code: "authentication_invalid",
+      });
       emit(failedEvent("authentication_invalid", "登录凭证无效，请重新登录。", false));
+      return;
+    }
+
+    if (!aiTurnsEnabled()) {
+      emit(failedEvent(
+        "ai_temporarily_disabled",
+        "叙事服务正在维护，本回合未提交。请稍后重试。",
+        true,
+      ));
+      await writeSecurityAudit({
+        event: "turn.configuration_failed",
+        outcome: "denied",
+        requestId,
+        actorId: data.user.id,
+        code: "ai_temporarily_disabled",
+      });
       return;
     }
 
@@ -154,15 +203,49 @@ export async function POST(
         message,
         false,
       ));
+      await writeSecurityAudit({
+        event: "turn.configuration_failed",
+        outcome: "failed",
+        requestId,
+        actorId: data.user.id,
+        code: error instanceof AIProviderError ? "ai_not_configured" : "transaction_server_not_configured",
+      });
       return;
     }
+
+    const auditedEmit = async (event: TurnStreamEvent) => {
+      emit(event);
+      if (event.event === "turn.started") {
+        await writeSecurityAudit({
+          event: "turn.started",
+          outcome: "allowed",
+          requestId,
+          actorId: data.user.id,
+        });
+      } else if (event.event === "turn.failed") {
+        await writeSecurityAudit({
+          event: "turn.failed",
+          outcome: "failed",
+          requestId,
+          actorId: data.user.id,
+          code: event.data.code,
+        });
+      } else if (event.event === "state.committed") {
+        await writeSecurityAudit({
+          event: "turn.committed",
+          outcome: "succeeded",
+          requestId,
+          actorId: data.user.id,
+        });
+      }
+    };
 
     await runTurnWorkflow({
       sessionId: sessionId.data,
       request: parsed.data,
       repository: new SupabaseGameRepository(client, serverClient, data.user.id),
       provider,
-      emit,
+      emit: auditedEmit,
     });
   }, request);
 }
