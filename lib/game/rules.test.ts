@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialWorldState, assessActionBoundary, validateGeneratedTurn } from "./rules";
+import { applyStateDelta, createInitialWorldState, assessActionBoundary, validateGeneratedTurn } from "./rules";
 import type { OriginId, TurnGeneration } from "./schemas";
 
 const origins: OriginId[] = ["merchant", "craft", "clerk"];
@@ -22,6 +22,8 @@ function safeGeneration(): TurnGeneration {
     ],
     stateDelta: {
       minutesElapsed: 10,
+      energyDelta: -1,
+      moraleDelta: 0,
       location: null,
       occupation: null,
       moneyDelta: 0,
@@ -51,10 +53,40 @@ describe("phase 5 state rules", () => {
         state = validated.nextState;
         expect(state.time.year).toBe(742);
         expect(state.time.turn).toBe(turn + 1);
-        expect(state.time.totalMinutes).toBe((turn + 1) * 10);
+        const completedDays = Math.floor((turn + 1) / 3);
+        if ((turn + 1) % 3 === 0) {
+          expect(state.time.dayOfYear).toBe(completedDays + 1);
+          expect(state.time.minuteOfDay).toBe(360);
+          expect(state.energy.current).toBe(3);
+        } else {
+          expect(state.energy.current).toBe(3 - ((turn + 1) % 3));
+        }
         expect(state.money.cash).toBeGreaterThanOrEqual(0);
       }
     }
+  });
+
+  it("settles exactly three actions into the next day without a second write", () => {
+    const delta = safeGeneration().stateDelta;
+    const first = applyStateDelta(createInitialWorldState("merchant"), delta);
+    const second = applyStateDelta(first, delta);
+    const third = applyStateDelta(second, delta);
+
+    expect(first.energy.current).toBe(2);
+    expect(second.energy.current).toBe(1);
+    expect(third.energy.current).toBe(3);
+    expect(third.time.turn).toBe(3);
+    expect(third.time.dayOfYear).toBe(2);
+    expect(third.time.minuteOfDay).toBe(360);
+    expect(third.time.totalMinutes).toBe(1440);
+  });
+
+  it("rejects an extra action when a legacy or interrupted state has no energy", () => {
+    const depleted = {
+      ...createInitialWorldState("craft"),
+      energy: { current: 0 as const, max: 3 as const },
+    };
+    expect(assessActionBoundary({ kind: "free_text", text: "继续做工" }, depleted).code).toBe("energy_depleted");
   });
 
   it("rejects prompt injection, anachronism, and actions after death", () => {

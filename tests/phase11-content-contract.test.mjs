@@ -65,11 +65,12 @@ test("phase 11 keeps every new identity and event provisional", async () => {
 });
 
 test("phase 11 cinematic and citation contracts are explicit", async () => {
-  const [citations, cinematic, component, page] = await Promise.all([
+  const [citations, cinematic, component, page, gameShell] = await Promise.all([
     readText("lib/historical/phase11-citations.ts"),
     readText("lib/historical/phase11-cinematic.ts"),
     readText("components/cinematic-narrative.tsx"),
     readText("app/page.tsx"),
+    readText("components/phase15-game-shell.tsx"),
   ]);
 
   assert.match(citations, /requires 100 links/);
@@ -79,7 +80,7 @@ test("phase 11 cinematic and citation contracts are explicit", async () => {
   assert.match(cinematic, /captionsRequired: z\.literal\(true\)/);
   assert.match(component, /现代普通话设备合成音/);
   assert.match(component, /不是唐代语音复原/);
-  assert.match(page, /<CinematicNarrative/);
+  assert.match(`${page}\n${gameShell}`, /<CinematicNarrative/);
 });
 
 test("phase 11 public beta is active without promoting provisional history", async () => {
