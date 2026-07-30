@@ -20,7 +20,7 @@ import { getEventTemplate, getFirstEventId } from "@/lib/game/event-catalog";
 
 export type ActionBoundary = {
   allowed: boolean;
-  code: "allowed" | "prompt_injection" | "anachronism" | "character_dead" | "chapter_ended";
+  code: "allowed" | "prompt_injection" | "anachronism" | "character_dead" | "chapter_ended" | "energy_depleted";
   explanation: string;
   limits: {
     minutes: [number, number];
@@ -84,6 +84,8 @@ export function createInitialWorldState(originInput: string): WorldState {
     },
     location: defaults.location,
     health: { condition: "stable", vitality: 8 },
+    energy: { current: 3, max: 3 },
+    morale: 6,
     socialIdentity: origin,
     occupation: defaults.occupation,
     money: { cash: defaults.cash, unit: "文（游戏记账单位）" },
@@ -153,6 +155,14 @@ export function assessActionBoundary(action: TurnAction, state: WorldState): Act
       limits,
     };
   }
+  if (state.energy.current <= 0) {
+    return {
+      allowed: false,
+      code: "energy_depleted",
+      explanation: "本日三个行动位已经用尽。必须先完成确定性的日结，不能继续提交行动。",
+      limits,
+    };
+  }
   if (promptInjectionPattern.test(text)) {
     return {
       allowed: false,
@@ -206,13 +216,18 @@ function applyDeltaToList(
 }
 
 export function applyStateDelta(state: WorldState, delta: StateDelta): WorldState {
-  const totalMinutes = state.time.totalMinutes + delta.minutesElapsed;
-  if (totalMinutes >= 365 * 24 * 60) {
+  const nextTurn = state.time.turn + 1;
+  const closesDay = nextTurn % 3 === 0;
+  const currentAbsoluteMinutes = ((state.time.dayOfYear - 1) * 1440) + state.time.minuteOfDay;
+  const nextAbsoluteMinutes = closesDay
+    ? (state.time.dayOfYear * 1440) + 360
+    : currentAbsoluteMinutes + delta.minutesElapsed;
+  const totalMinutes = nextAbsoluteMinutes - 360;
+  if (totalMinutes < 0 || totalMinutes >= 365 * 24 * 60) {
     throw new Error("scenario_time_boundary");
   }
-  const absoluteMinutes = 360 + totalMinutes;
-  const dayOfYear = Math.floor(absoluteMinutes / 1440) + 1;
-  const minuteOfDay = absoluteMinutes % 1440;
+  const dayOfYear = Math.floor(nextAbsoluteMinutes / 1440) + 1;
+  const minuteOfDay = nextAbsoluteMinutes % 1440;
 
   const relationships = new Map(state.relationships.map((relationship) => [
     relationship.id,
@@ -256,10 +271,17 @@ export function applyStateDelta(state: WorldState, delta: StateDelta): WorldStat
       dayOfYear,
       minuteOfDay,
       totalMinutes,
-      turn: state.time.turn + 1,
+      turn: nextTurn,
     },
     location: delta.location ?? state.location,
     health: { condition, vitality },
+    energy: {
+      current: closesDay
+        ? state.energy.max
+        : clamp(state.energy.current + delta.energyDelta, 0, state.energy.max),
+      max: state.energy.max,
+    },
+    morale: clamp(state.morale + delta.moraleDelta, 0, 10),
     occupation: delta.occupation ?? state.occupation,
     money: {
       ...state.money,

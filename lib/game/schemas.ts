@@ -71,6 +71,11 @@ export const worldStateSchema = z.object({
     condition: z.enum(["stable", "strained", "ill", "critical", "dead"]),
     vitality: z.number().int().min(0).max(10),
   }).strict(),
+  energy: z.object({
+    current: z.number().int().min(0).max(3),
+    max: z.literal(3),
+  }).strict().default({ current: 3, max: 3 }),
+  morale: z.number().int().min(0).max(10).default(6),
   socialIdentity: originIdSchema,
   occupation: z.string().min(1).max(120).nullable(),
   money: z.object({
@@ -157,6 +162,8 @@ export type TurnChoice = z.infer<typeof turnChoiceSchema>;
 
 export const stateDeltaSchema = z.object({
   minutesElapsed: z.number().int().min(5).max(180),
+  energyDelta: z.number().int().min(-1).max(0).default(-1),
+  moraleDelta: z.number().int().min(-2).max(2).default(0),
   location: locationSchema.nullable(),
   occupation: z.string().min(1).max(120).nullable(),
   moneyDelta: z.number().int().min(-100).max(100),

@@ -4,6 +4,7 @@ import test from "node:test";
 
 const files = {
   page: new URL("../app/page.tsx", import.meta.url),
+  gameShell: new URL("../components/phase15-game-shell.tsx", import.meta.url),
   provider: new URL("../lib/game/ai-provider.ts", import.meta.url),
   repository: new URL("../lib/game/supabase-repository.ts", import.meta.url),
   rules: new URL("../lib/game/rules.ts", import.meta.url),
@@ -95,14 +96,15 @@ test("versioned narrative runtime exposes manifest, chapters, recap and replay A
 });
 
 test("phase 10 interface discloses deterministic consequences and replay", async () => {
-  const [page] = await sources("page");
+  const [page, gameShell] = await sources("page", "gameShell");
+  const interfaceSource = `${page}\n${gameShell}`;
 
-  assert.match(page, /模型只负责受控叙事表达/);
-  assert.match(page, /RISK CLOCKS/);
-  assert.match(page, /RELATIONSHIP MEMORY/);
-  assert.match(page, /CHAPTER CLOSED/);
-  assert.match(page, /保留本次记录，重玩这一出身/);
-  assert.match(page, /将映射到本事件声明的安全选择/);
+  assert.match(interfaceSource, /只负责受控叙事表达/);
+  assert.match(interfaceSource, /RISK CLOCKS/);
+  assert.match(interfaceSource, /RELATIONSHIP MEMORY/);
+  assert.match(interfaceSource, /chapterEnded/);
+  assert.match(interfaceSource, /保留记录，重玩这一出身/);
+  assert.match(interfaceSource, /将映射到本事件允许的安全选择/);
 });
 
 test("phase 10 contains at least 90 fixed and adversarial evaluations", async () => {
