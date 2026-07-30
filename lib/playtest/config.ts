@@ -1,5 +1,5 @@
 export const PHASE14_PLAYTEST = {
-  appRelease: "36",
+  appRelease: "38",
   contentVersion: "11.0.0",
   scenarioId: "tang-changan-742",
   scenarioVersion: "1.0.0",
@@ -21,4 +21,3 @@ export const PHASE14_THRESHOLDS = {
   sourceCoverageRate: 1,
   minimumHistorianReviews: 1,
 } as const;
-
