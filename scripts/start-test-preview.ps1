@@ -27,6 +27,7 @@ function Get-DotEnvValue {
 
 $testUrl = Get-DotEnvValue -Name "SUPABASE_TEST_URL"
 $testPublishableKey = Get-DotEnvValue -Name "SUPABASE_TEST_PUBLISHABLE_KEY"
+$testSecretKey = Get-DotEnvValue -Name "SUPABASE_TEST_SECRET_KEY"
 
 if (-not $testUrl -or -not $testPublishableKey) {
   throw "SUPABASE_TEST_URL and SUPABASE_TEST_PUBLISHABLE_KEY must be configured."
@@ -34,6 +35,11 @@ if (-not $testUrl -or -not $testPublishableKey) {
 
 $env:NEXT_PUBLIC_SUPABASE_URL = $testUrl
 $env:NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = $testPublishableKey
+if ($testSecretKey) {
+  $env:SUPABASE_URL = $testUrl
+  $env:SUPABASE_SECRET_KEY = $testSecretKey
+  $env:CHRONOKALAMOS_AUTH_TEST_PREVIEW = "true"
+}
 
 Set-Location -LiteralPath $projectRoot
 npm run dev -- --hostname 0.0.0.0 --port $Port

@@ -5,7 +5,10 @@ export type SecurityAuditEvent = {
     | "turn.configuration_failed"
     | "turn.started"
     | "turn.failed"
-    | "turn.committed";
+    | "turn.committed"
+    | "system_action.rejected"
+    | "system_action.committed"
+    | "system_action.failed";
   outcome: "allowed" | "denied" | "failed" | "succeeded";
   requestId: string;
   actorId?: string;

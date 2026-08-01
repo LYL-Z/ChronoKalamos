@@ -14,7 +14,7 @@ const client = createClient(url, secretKey, {
 const { data, error } = await client
   .from("playtest_enrollments")
   .select("id")
-  .eq("app_release", "36")
+  .eq("app_release", "39")
   .lt("consented_at", cutoff)
   .limit(1000);
 if (error) throw error;
@@ -34,4 +34,3 @@ console.log(JSON.stringify({
   enrollmentsMatched: ids.length,
   associatedEvents: "cascade-delete",
 }, null, 2));
-
