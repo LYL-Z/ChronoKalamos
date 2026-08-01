@@ -12,7 +12,7 @@ const client = createClient(url, secretKey, {
 });
 
 const context = {
-  appRelease: "36",
+  appRelease: "39",
   contentVersion: "11.0.0",
   scenarioId: "tang-changan-742",
   scenarioVersion: "1.0.0",

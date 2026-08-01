@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChapterTimeline } from "@/components/chapter-timeline";
 import { CinematicNarrative } from "@/components/cinematic-narrative";
 import { EvidenceMap } from "@/components/evidence-map";
+import { Phase17WorldSystems } from "@/components/phase17-world-systems";
 import { getPublishedCinematicScene } from "@/lib/game/cinematic";
+import { phase16PublicMatureContentStatus } from "@/lib/capabilities/phase16";
 import {
   getChoiceDisclosure,
   getDayCycleState,
@@ -13,7 +15,12 @@ import {
   getSocialPosition,
   type Phase15ModuleId,
 } from "@/lib/game/phase15-simulation";
+import {
+  getPhase16Progression,
+  getPhase16SettlementChanges,
+} from "@/lib/game/phase16-progression";
 import type {
+  AuthoritativeSystemActionRequest,
   HistoricalClassification,
   TurnAction,
   TurnChoice,
@@ -25,6 +32,7 @@ import {
   type HistoricalContent,
 } from "@/lib/historical/content";
 import type { GameSession } from "@/lib/supabase/saves";
+import { readInitialEvidenceMode } from "@/lib/ui/preferences";
 
 type Phase15GameShellProps = {
   state: WorldState;
@@ -52,6 +60,9 @@ type Phase15GameShellProps = {
   lowMotionLabel: string;
   onCustomActionChange: (value: string) => void;
   onSubmitAction: (action: TurnAction) => Promise<void>;
+  onCommitSystemAction: (action: Pick<AuthoritativeSystemActionRequest, "actionId" | "approach" | "parameters">) => Promise<void>;
+  systemTransactionBusy: boolean;
+  systemTransactionMessage: string;
   onRetryTurn: () => Promise<void>;
   onRetryContent: () => void;
   onReplay: () => void;
@@ -139,6 +150,9 @@ export function Phase15GameShell({
   lowMotionLabel,
   onCustomActionChange,
   onSubmitAction,
+  onCommitSystemAction,
+  systemTransactionBusy,
+  systemTransactionMessage,
   onRetryTurn,
   onRetryContent,
   onReplay,
@@ -148,21 +162,31 @@ export function Phase15GameShell({
   const [activeModule, setActiveModule] = useState<Phase15ModuleId>(
     state.socialIdentity === "clerk" ? "livelihood" : "map",
   );
-  const [evidenceMode, setEvidenceMode] = useState(false);
+  const [evidenceMode, setEvidenceMode] = useState(readInitialEvidenceMode);
+  const [utilityPanel, setUtilityPanel] = useState<"codex" | "achievements" | "world" | null>(null);
   const actionDocketRef = useRef<HTMLElement>(null);
   const modules = useMemo(() => getModuleDescriptors(state), [state]);
   const dayCycle = useMemo(() => getDayCycleState(state), [state]);
+  const progression = useMemo(
+    () => getPhase16Progression(state, session.content_version),
+    [session.content_version, state],
+  );
+  const settlementChanges = useMemo(
+    () => getPhase16SettlementChanges(previousState, state),
+    [previousState, state],
+  );
   const position = useMemo(() => getSocialPosition(state), [state]);
   const cinematicScene = getPublishedCinematicScene(state.story.currentEventId);
   const activeRiskClocks = state.story.riskClocks.filter((clock) => clock.status !== "resolved");
   const recentMemories = state.story.relationshipMemories.slice(-8).reverse();
   const chapterEnded = Boolean(state.story.chapterEnding);
   const cashDelta = previousState ? state.money.cash - previousState.money.cash : 0;
-  const vitalityDelta = previousState ? state.health.vitality - previousState.health.vitality : 0;
   const daySettled = previousState
     ? state.time.dayOfYear > previousState.time.dayOfYear
     : state.time.turn > 0 && state.time.turn % 3 === 0;
   const originTheme = `phase15-origin-${state.socialIdentity}`;
+  const currentGoal = progression.goals.find((goal) => !goal.complete) ?? progression.goals[0];
+  const publishedSources = content.sources.filter((source) => source.published);
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
@@ -172,6 +196,30 @@ export function Phase15GameShell({
         event.preventDefault();
         setActiveModule(moduleId);
         document.querySelector<HTMLElement>("#phase15-module-content")?.focus();
+        return;
+      }
+      if (event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        setUtilityPanel((value) => value === "codex" ? null : "codex");
+        return;
+      }
+      if (event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        setUtilityPanel((value) => value === "achievements" ? null : "achievements");
+        return;
+      }
+      if (event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        setUtilityPanel((value) => value === "world" ? null : "world");
+        return;
+      }
+      if (/^[1-5]$/.test(event.key)) {
+        const choice = document.querySelector<HTMLButtonElement>(`[data-phase16-choice="${event.key}"]`);
+        if (choice && !choice.disabled) {
+          event.preventDefault();
+          choice.focus();
+          choice.scrollIntoView({ block: "nearest", behavior: lowMotion ? "auto" : "smooth" });
+        }
         return;
       }
       if (event.code === "Space") {
@@ -193,7 +241,7 @@ export function Phase15GameShell({
               <span className="eyebrow">MICRO MAP · EVIDENCE BOUNDED</span>
               <h2>长安坊市证据图层</h2>
             </div>
-            <p><strong>8 个已发布地点</strong>。108 坊只作为未来证据索引目标。当前不宣称完整或精确复原。</p>
+            <p><strong>8 个已发布证据地点</strong>。Phase 15 时，108 坊只作为未来证据索引目标；Phase 17 现提供传统口径索引，但索引不等于精确复原。</p>
           </div>
           <EvidenceMap
             features={content.mapFeatures}
@@ -203,6 +251,7 @@ export function Phase15GameShell({
             currentEventId={state.story.currentEventId}
             onRetry={onRetryContent}
           />
+          <button className="phase17-open-workbench" type="button" onClick={() => setUtilityPanel("world")}>打开 108 坊与天下十五道工作台 <kbd>W</kbd></button>
         </div>
       );
     }
@@ -237,6 +286,11 @@ export function Phase15GameShell({
                 <div><dt>权限</dt><dd>{position.institutionalAccess}</dd></div>
                 <div><dt>边界</dt><dd>{position.evidenceBoundary}</dd></div>
               </dl>
+              <div className="phase16-reputation-axes" aria-label="三维声望">
+                <Meter label="家户" value={state.reputation.household} min={-10} max={10} />
+                <Meter label="市井" value={state.reputation.market} min={-10} max={10} />
+                <Meter label="行政" value={state.reputation.administration} min={-10} max={10} />
+              </div>
             </article>
           </div>
         </section>
@@ -249,8 +303,9 @@ export function Phase15GameShell({
           <header>
             <span className="eyebrow">INVENTORY LEDGER</span>
             <h2 id="phase15-inventory-title">背包与持有物</h2>
-            <p>只展示已经由规则事务提交的物品。内容包中的物件不会自动成为玩家所有物。</p>
+            <p>只展示已经由规则事务提交的物品。200 项目录不会自动成为玩家所有物。</p>
           </header>
+          <button className="phase17-open-workbench" type="button" onClick={() => setUtilityPanel("world")}>检索 200 项物品目录</button>
           {state.items.length ? (
             <div className="phase15-card-grid">
               {state.items.map((item) => (
@@ -333,6 +388,27 @@ export function Phase15GameShell({
               <small>{state.story.chapterId}</small>
             </article>
           </div>
+          <section className="phase16-goal-board" aria-labelledby="phase16-goal-board-title">
+            <header>
+              <div>
+                <span className="eyebrow">TEN-DAY OBJECTIVES · DERIVED STATE</span>
+                <h3 id="phase16-goal-board-title">模拟旬目标</h3>
+              </div>
+              <strong>{progression.completedGoals} / {progression.goals.length}</strong>
+            </header>
+            <div>
+              {progression.goals.map((goal) => (
+                <article key={goal.id} className={goal.complete ? "complete" : ""}>
+                  <span>{goal.complete ? "已完成" : "进行中"}</span>
+                  <strong>{goal.label}</strong>
+                  <p>{goal.detail}</p>
+                  <i aria-hidden="true"><b style={{ width: `${(goal.progress / goal.target) * 100}%` }} /></i>
+                  <small>{goal.progress} / {goal.target}</small>
+                </article>
+              ))}
+            </div>
+            <p>目标只读取已提交的世界状态，不另行奖励、推进时间或写入数据库。</p>
+          </section>
           <ChapterTimeline
             originId={state.socialIdentity}
             contentVersion={session.content_version}
@@ -381,7 +457,7 @@ export function Phase15GameShell({
         <header>
           <span className="eyebrow">HOUSEHOLD DOSSIER</span>
           <h2 id="phase15-household-title">家户与出身档案</h2>
-          <p>当前切片只记录出身家户影响，不实现婚姻、生育、宗族扩张或跨代继承。</p>
+          <p>当前世界工作台已定义成年、同意、亲属核对与照护规则；婚姻和子女状态仍须后续权威事务模型。</p>
         </header>
         <div className="phase15-household-sheet">
           <div>
@@ -396,6 +472,7 @@ export function Phase15GameShell({
             <div><dt>明确排除</dt><dd>{position.evidenceBoundary}</dd></div>
           </dl>
         </div>
+        <button className="phase17-open-workbench" type="button" onClick={() => setUtilityPanel("world")}>查看家户婚育边界与行动草案</button>
       </section>
     );
   }
@@ -407,10 +484,13 @@ export function Phase15GameShell({
         <ArchiveBrand />
         <div className="phase15-time-block">
           <span>{formatWorldTime(state.time)}</span>
-          <strong>第 {dayCycle.dayIndex} 日 · 行动 {dayCycle.usedSlots}/3</strong>
+          <strong>第 {dayCycle.dayIndex} 日 · 行动 {dayCycle.usedSlots}/3 · {progression.cycle.label}</strong>
         </div>
         <nav aria-label="游戏全局操作">
           <button type="button" className={evidenceMode ? "active" : ""} aria-pressed={evidenceMode} onClick={() => setEvidenceMode((value) => !value)}>证据视图</button>
+          <button type="button" className={utilityPanel === "codex" ? "active" : ""} aria-pressed={utilityPanel === "codex"} aria-keyshortcuts="C" onClick={() => setUtilityPanel((value) => value === "codex" ? null : "codex")}>图鉴</button>
+          <button type="button" className={utilityPanel === "achievements" ? "active" : ""} aria-pressed={utilityPanel === "achievements"} aria-keyshortcuts="A" onClick={() => setUtilityPanel((value) => value === "achievements" ? null : "achievements")}>成就</button>
+          <button type="button" className={utilityPanel === "world" ? "active" : ""} aria-pressed={utilityPanel === "world"} aria-keyshortcuts="W" onClick={() => setUtilityPanel((value) => value === "world" ? null : "world")}>天下</button>
           <Link href="/saves">存档</Link>
           <Link href="/settings">设置</Link>
           <button type="button" aria-pressed={lowMotion} onClick={onToggleLowMotion}>{lowMotionLabel}</button>
@@ -427,14 +507,87 @@ export function Phase15GameShell({
       )}
 
       <div className="phase15-review-strip" role="note">
-        <strong>PUBLIC BETA · HISTORIAN REVIEW PENDING</strong>
-        <span>Phase 11 内容仍为 provisional。公开可玩不等于史实获批。</span>
+        <strong>PHASE 18 · AUTHORITATIVE SYSTEM LOOP · REVIEW PENDING</strong>
+        <span>家户、案卷、官职、交易、高门与全国治理通过规则事务推进；高层分支与50结局仍属叙事虚构，不等于史实获批。</span>
         <small>CONTENT {session.content_version} · SESSION {session.id.slice(0, 8)} · STATE v{session.state_version}</small>
       </div>
 
+      {utilityPanel === "world" && (
+        <Phase17WorldSystems
+          state={state}
+          onClose={() => setUtilityPanel(null)}
+          onCommitAction={onCommitSystemAction}
+          transactionBusy={systemTransactionBusy}
+          transactionMessage={systemTransactionMessage}
+          onDraftAction={(draft) => {
+            onCustomActionChange(draft);
+            setUtilityPanel(null);
+            window.setTimeout(() => {
+              actionDocketRef.current?.focus();
+              actionDocketRef.current?.scrollIntoView({ block: "nearest", behavior: lowMotion ? "auto" : "smooth" });
+              document.querySelector<HTMLTextAreaElement>("#phase15-custom-action")?.focus();
+            }, 0);
+          }}
+        />
+      )}
+
+      {utilityPanel && utilityPanel !== "world" && (
+        <section className="phase16-utility-panel" aria-labelledby="phase16-utility-title">
+          <header>
+            <div>
+              <span className="eyebrow">ARCHIVE UTILITY · {utilityPanel === "codex" ? "C" : "A"}</span>
+              <h2 id="phase16-utility-title">{utilityPanel === "codex" ? "证据图鉴" : "成就与旬目标"}</h2>
+            </div>
+            <button type="button" onClick={() => setUtilityPanel(null)}>关闭面板</button>
+          </header>
+          {utilityPanel === "codex" ? (
+            <div className="phase16-codex-layout">
+              <aside>
+                <strong>{publishedSources.length}</strong><span>条已发布来源</span>
+                <strong>{content.mapFeatures.length}</strong><span>个证据地点</span>
+                <strong>{sourceIds.length}</strong><span>条当前事件引用</span>
+              </aside>
+              <div className="phase16-source-grid">
+                {publishedSources.map((source) => (
+                  <article key={source.id} className={sourceIds.includes(source.id) ? "current" : ""}>
+                    <span>{source.id} · {source.kind}</span>
+                    <strong>{source.title}</strong>
+                    <small>{source.creator} · {source.licenseCode}</small>
+                    {sourceIds.includes(source.id) && <em>当前事件引用</em>}
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="phase16-achievement-layout">
+              <section>
+                <h3>{progression.cycle.label}</h3>
+                {progression.goals.map((goal) => (
+                  <article key={goal.id} className={goal.complete ? "complete" : ""}>
+                    <span>{goal.complete ? "已完成" : `${goal.progress}/${goal.target}`}</span>
+                    <strong>{goal.label}</strong>
+                    <small>{goal.detail}</small>
+                  </article>
+                ))}
+              </section>
+              <section>
+                <h3>档案成就 · {progression.achievements.filter((entry) => entry.unlocked).length}/{progression.achievements.length}</h3>
+                {progression.achievements.map((entry) => (
+                  <article key={entry.id} className={entry.unlocked ? "unlocked" : "locked"}>
+                    <span>{entry.unlocked ? "已解锁" : "未解锁"}</span>
+                    <strong>{entry.label}</strong>
+                    <small>{entry.detail}</small>
+                  </article>
+                ))}
+              </section>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="phase15-workspace">
         <aside className="phase15-module-nav" aria-label="游戏系统">
-          <span className="phase15-archive-index">ARCHIVE / 15</span>
+          <span className="phase15-archive-index">ARCHIVE / 16</span>
           {modules.map((module, index) => (
             <button
               key={module.id}
@@ -491,6 +644,12 @@ export function Phase15GameShell({
             <small>{state.location.label} · {sourceLabel(classification)}</small>
           </header>
 
+          <div className="phase16-current-objective" aria-label="当前旬目标">
+            <span>当前旬目标</span>
+            <strong>{currentGoal.label}</strong>
+            <small>{currentGoal.progress}/{currentGoal.target} · {progression.completedEvents}/{progression.totalOriginEvents} 事件已归档</small>
+          </div>
+
           <CinematicNarrative
             scene={cinematicScene}
             sceneNumber={String(state.time.turn).padStart(2, "0")}
@@ -510,7 +669,15 @@ export function Phase15GameShell({
           {lastCommitSummary && turnStatus === "committed" && (
             <div className="phase15-recap-card" role="status">
               <strong>{lastCommitSummary}</strong>
-              <small>钱财 {signedDelta(cashDelta)} · 健康 {signedDelta(vitalityDelta)}</small>
+              {settlementChanges.length ? (
+                <div className="phase16-settlement-ledger">
+                  {settlementChanges.map((change) => (
+                    <span key={change.id} className={change.tone}>
+                      {change.label} {signedDelta(change.delta)}
+                    </span>
+                  ))}
+                </div>
+              ) : <small>本回合没有可见数值变化；事件记录仍已提交。</small>}
             </div>
           )}
           {turnFailure && (
@@ -537,6 +704,8 @@ export function Phase15GameShell({
                     <button
                       key={choice.id}
                       type="button"
+                      data-phase16-choice={choice.id.slice(-1)}
+                      aria-keyshortcuts={choice.id.slice(-1)}
                       disabled={turnStatus === "streaming" || !online}
                       onClick={() => void onSubmitAction({
                         kind: "choice",
@@ -575,11 +744,11 @@ export function Phase15GameShell({
               </form>
             </>
           )}
-          <p className="phase15-input-boundary">图片、短信、微信、QQ、支付与 Passkey 均未启用。DeepSeek 只负责受控叙事表达。</p>
+          <p className="phase15-input-boundary">图片、短信、微信、QQ、支付与 Passkey 均未启用。DeepSeek 只负责受控叙事表达。{phase16PublicMatureContentStatus}</p>
         </aside>
       </div>
 
-      <footer className="phase15-statusbar" aria-label="常驻游戏状态">
+      <footer className="phase15-statusbar" aria-label="常驻游戏状态，可横向滚动" tabIndex={0}>
         <div><span>钱财</span><strong>{state.money.cash} 文</strong><small>{signedDelta(cashDelta)}</small></div>
         <div><span>精力</span><strong>{state.energy.current}/{state.energy.max}</strong><small>{dayCycle.settlementLabel}</small></div>
         <div><span>健康</span><strong>{state.health.vitality}/10</strong><small>{state.health.condition}</small></div>
@@ -590,7 +759,7 @@ export function Phase15GameShell({
           <span className="phase15-slot-meter" role="img" aria-label={`已使用 ${dayCycle.usedSlots} 个，共 3 个`}>
             {[0, 1, 2].map((slot) => <b key={slot} className={slot < dayCycle.usedSlots ? "used" : ""} />)}
           </span>
-          <small>空格：聚焦行动，不自动提交</small>
+          <small>1–5：聚焦选项，不自动提交 · 空格：聚焦行动，不自动提交</small>
         </div>
       </footer>
     </main>

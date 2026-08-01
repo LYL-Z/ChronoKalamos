@@ -7,10 +7,11 @@ import { EvidenceMap } from "@/components/evidence-map";
 import { IdentityPanel } from "@/components/identity-panel";
 import { Phase15GameShell } from "@/components/phase15-game-shell";
 import { phase7ActiveTrackLabel } from "@/lib/capabilities/phase7";
-import { streamGameTurn } from "@/lib/game/client";
+import { commitAuthoritativeSystemAction, streamGameTurn } from "@/lib/game/client";
 import { getEventTemplate, getFirstEventId } from "@/lib/game/event-catalog";
 import {
   type HistoricalClassification,
+  type AuthoritativeSystemActionRequest,
   type TurnAction,
   type TurnChoice,
   type TurnStreamEvent,
@@ -197,6 +198,8 @@ export default function Home() {
   const [sessionBusy, setSessionBusy] = useState(false);
   const [lastStateBefore, setLastStateBefore] = useState<WorldState | null>(null);
   const [lastCommitSummary, setLastCommitSummary] = useState("");
+  const [systemTransactionBusy, setSystemTransactionBusy] = useState(false);
+  const [systemTransactionMessage, setSystemTransactionMessage] = useState("选择事务后，将由规则引擎与数据库共同校验。");
   const [pendingTurn, setPendingTurn] = useState<{
     action: TurnAction;
     clientTurnId: string;
@@ -565,6 +568,53 @@ export default function Home() {
     await executeGameTurn(pendingTurn);
   }
 
+  async function commitSystemAction(
+    draft: Pick<AuthoritativeSystemActionRequest, "actionId" | "approach" | "parameters">,
+  ) {
+    const client = getSupabaseBrowserClient();
+    if (!client || !gameSession || systemTransactionBusy || gameSession.status === "ended") return;
+    if (!online) {
+      setSystemTransactionMessage("设备离线。事务未提交；恢复网络后可重试。");
+      return;
+    }
+    const request: AuthoritativeSystemActionRequest = {
+      ...draft,
+      clientActionId: window.crypto.randomUUID(),
+      expectedStateVersion: gameSession.state_version,
+    };
+    setSystemTransactionBusy(true);
+    setSystemTransactionMessage("正在校验规则并锁定存档版本…");
+    setLastStateBefore(gameSession.world_state);
+    try {
+      const committed = await commitAuthoritativeSystemAction({
+        client,
+        sessionId: gameSession.id,
+        request,
+      });
+      setGameSession((current) => current ? {
+        ...current,
+        state_version: committed.stateVersion,
+        status: committed.worldState.story.chapterEnding ? "ended" : "active",
+        world_state: committed.worldState,
+        updated_at: new Date().toISOString(),
+      } : current);
+      setGameNarrative(committed.event.summary);
+      setGameClassification(committed.event.classification);
+      setGameSourceIds(committed.event.sourceIds);
+      setLastCommitSummary(committed.event.consequenceLabels.join("；"));
+      setSystemTransactionMessage(
+        committed.duplicate
+          ? "检测到重复事务编号：已返回原提交，没有再次推进状态。"
+          : `事务已提交：${committed.event.consequenceLabels.join("；")}`,
+      );
+      setMessage(`权威事务 ${committed.stateVersion} 已原子提交，并建立存档点。`);
+    } catch (error) {
+      setSystemTransactionMessage(`${error instanceof Error ? error.message : "事务失败"} 数据库状态未改变。`);
+    } finally {
+      setSystemTransactionBusy(false);
+    }
+  }
+
   function replayCurrentOrigin() {
     rotateClientSessionId(selectedOrigin);
     setGameSession(null);
@@ -634,6 +684,9 @@ export default function Home() {
         lowMotionLabel={lowMotion ? copy.restoreMotion : copy.lowMotion}
         onCustomActionChange={setCustomAction}
         onSubmitAction={submitGameAction}
+        onCommitSystemAction={commitSystemAction}
+        systemTransactionBusy={systemTransactionBusy}
+        systemTransactionMessage={systemTransactionMessage}
         onRetryTurn={retryPendingTurn}
         onRetryContent={() => void syncHistoricalContent()}
         onReplay={replayCurrentOrigin}

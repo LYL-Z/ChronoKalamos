@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 export const interfaceLocales = ["zh", "en", "fr", "el", "ru"] as const;
 export type InterfaceLocale = (typeof interfaceLocales)[number];
 export type TextScale = "standard" | "large";
+export type InterfaceDensity = "compact" | "standard" | "comfortable";
+export type EvidenceDefault = "game" | "evidence";
 
 export const localeOptions: Array<{ value: InterfaceLocale; label: string }> = [
   { value: "zh", label: "中文" },
@@ -37,21 +39,36 @@ export function readInitialLowMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+export function readInitialEvidenceMode(): boolean {
+  if (typeof window === "undefined") return false;
+  return readStorage("chronokalamos-evidence-default") === "evidence";
+}
+
 export function useProductPreferences() {
   const [locale, setLocaleState] = useState<InterfaceLocale>("zh");
   const [lowMotion, setLowMotionState] = useState(false);
   const [textScale, setTextScaleState] = useState<TextScale>("standard");
+  const [density, setDensityState] = useState<InterfaceDensity>("standard");
+  const [highContrast, setHighContrastState] = useState(false);
+  const [evidenceDefault, setEvidenceDefaultState] = useState<EvidenceDefault>("game");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const storedLocale = readStorage("chronokalamos-locale");
       const storedTextScale = readStorage("chronokalamos-text-scale");
+      const storedDensity = readStorage("chronokalamos-density");
+      const storedEvidenceDefault = readStorage("chronokalamos-evidence-default");
       setLocaleState(interfaceLocales.includes(storedLocale as InterfaceLocale)
         ? storedLocale as InterfaceLocale
         : "zh");
       setLowMotionState(readInitialLowMotion());
       setTextScaleState(storedTextScale === "large" ? "large" : "standard");
+      setDensityState(["compact", "standard", "comfortable"].includes(storedDensity ?? "")
+        ? storedDensity as InterfaceDensity
+        : "standard");
+      setHighContrastState(readStorage("chronokalamos-high-contrast") === "true");
+      setEvidenceDefaultState(storedEvidenceDefault === "evidence" ? "evidence" : "game");
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -62,7 +79,9 @@ export function useProductPreferences() {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : locale;
     document.documentElement.dataset.motion = lowMotion ? "reduced" : "full";
     document.documentElement.dataset.textScale = textScale;
-  }, [locale, lowMotion, ready, textScale]);
+    document.documentElement.dataset.density = density;
+    document.documentElement.dataset.contrast = highContrast ? "high" : "standard";
+  }, [density, highContrast, locale, lowMotion, ready, textScale]);
 
   const setLocale = useCallback((value: InterfaceLocale) => {
     setLocaleState(value);
@@ -79,14 +98,35 @@ export function useProductPreferences() {
     writeStorage("chronokalamos-text-scale", value);
   }, []);
 
+  const setDensity = useCallback((value: InterfaceDensity) => {
+    setDensityState(value);
+    writeStorage("chronokalamos-density", value);
+  }, []);
+
+  const setHighContrast = useCallback((value: boolean) => {
+    setHighContrastState(value);
+    writeStorage("chronokalamos-high-contrast", String(value));
+  }, []);
+
+  const setEvidenceDefault = useCallback((value: EvidenceDefault) => {
+    setEvidenceDefaultState(value);
+    writeStorage("chronokalamos-evidence-default", value);
+  }, []);
+
   return {
     locale,
     lowMotion,
     textScale,
+    density,
+    highContrast,
+    evidenceDefault,
     ready,
     setLocale,
     setLowMotion,
     setTextScale,
+    setDensity,
+    setHighContrast,
+    setEvidenceDefault,
   };
 }
 

@@ -11,7 +11,7 @@ test("phase 14 is voluntary, version-bound, and refuses commercial completion wi
     read("scripts/report-phase14-playtest.mjs"),
     read("app/playtest/page.tsx"),
   ]);
-  assert.match(config, /appRelease: "38"/);
+  assert.match(config, /appRelease: "39"/);
   assert.match(config, /contentVersion: "11\.0\.0"/);
   assert.match(config, /scenarioId: "tang-changan-742"/);
   assert.match(config, /scenarioVersion: "1\.0\.0"/);

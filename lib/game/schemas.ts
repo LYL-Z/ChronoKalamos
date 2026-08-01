@@ -64,6 +64,117 @@ export const storyStateSchema = z.object({
   chapterEnding: chapterEndingSchema.nullable(),
 }).strict();
 
+export const systemApproachSchema = z.enum([
+  "prudent",
+  "opportunity",
+  "cost",
+  "disorder",
+  "aftermath",
+]);
+export type SystemApproach = z.infer<typeof systemApproachSchema>;
+
+const systemMemberSchema = z.object({
+  id: boundedIdSchema,
+  label: z.string().min(1).max(40),
+  relation: z.enum(["self", "spouse", "child", "dependent"]),
+  age: z.number().int().min(0).max(100).nullable(),
+  consentRecorded: z.boolean(),
+  careStatus: z.enum(["independent", "supported", "priority-care"]),
+  classification: historicalClassificationSchema,
+}).strict();
+
+const systemCaseSchema = z.object({
+  id: boundedIdSchema,
+  title: z.string().min(2).max(80),
+  status: z.enum(["opened", "investigating", "resolved"]),
+  evidenceCount: z.number().int().min(0).max(12),
+  disposition: z.string().min(2).max(160).nullable(),
+}).strict();
+
+export const authoritativeSystemsSchema = z.object({
+  rulesetVersion: z.literal("18.0.0"),
+  household: z.object({
+    actorAge: z.number().int().min(0).max(100).nullable(),
+    standing: z.number().int().min(0).max(20),
+    marriageStatus: z.enum(["unmarried", "contracted"]),
+    marriageContractId: boundedIdSchema.nullable(),
+    members: z.array(systemMemberSchema).max(16),
+    children: z.number().int().min(0).max(8),
+  }).strict(),
+  office: z.object({
+    qualification: z.number().int().min(0).max(20),
+    appointment: z.object({
+      officeId: boundedIdSchema,
+      institution: z.string().min(2).max(80),
+      title: z.string().min(2).max(80),
+      rankLabel: z.string().min(2).max(80),
+      classification: historicalClassificationSchema,
+    }).strict().nullable(),
+    dutyCompleted: z.number().int().min(0).max(100),
+    merit: z.number().int().min(-20).max(100),
+  }).strict(),
+  commerce: z.object({
+    completedTrades: z.number().int().min(0).max(200),
+    turnover: z.number().int().min(0).max(100000),
+    workshopOutput: z.number().int().min(0).max(200),
+  }).strict(),
+  casework: z.object({
+    cases: z.array(systemCaseSchema).max(12),
+    resolvedCount: z.number().int().min(0).max(100),
+  }).strict(),
+  eliteNetwork: z.object({
+    standing: z.number().int().min(0).max(20),
+    introductions: z.number().int().min(0).max(20),
+    councilAccess: z.boolean(),
+  }).strict(),
+  governance: z.object({
+    access: z.boolean(),
+    treasury: z.number().int().min(0).max(100),
+    publicTrust: z.number().int().min(0).max(100),
+    order: z.number().int().min(0).max(100),
+    relief: z.number().int().min(0).max(100),
+    reviewedCircuits: z.array(z.string().regex(/^[a-z0-9-]{1,80}$/)).max(15),
+    policyCount: z.number().int().min(0).max(100),
+  }).strict(),
+  legacy: z.object({
+    prudent: z.number().int().min(0).max(100),
+    opportunity: z.number().int().min(0).max(100),
+    cost: z.number().int().min(0).max(100),
+    disorder: z.number().int().min(0).max(100),
+    aftermath: z.number().int().min(0).max(100),
+  }).strict(),
+  actionCounts: z.record(z.string().regex(/^[a-z0-9-]{1,80}$/), z.number().int().min(1).max(200)),
+  activeEndingId: z.string().regex(/^ending-[0-9]{2}-[0-9]{2}$/).nullable(),
+}).strict();
+
+export const initialAuthoritativeSystems: z.infer<typeof authoritativeSystemsSchema> = authoritativeSystemsSchema.parse({
+  rulesetVersion: "18.0.0",
+  household: {
+    actorAge: null,
+    standing: 0,
+    marriageStatus: "unmarried",
+    marriageContractId: null,
+    members: [],
+    children: 0,
+  },
+  office: { qualification: 0, appointment: null, dutyCompleted: 0, merit: 0 },
+  commerce: { completedTrades: 0, turnover: 0, workshopOutput: 0 },
+  casework: { cases: [], resolvedCount: 0 },
+  eliteNetwork: { standing: 0, introductions: 0, councilAccess: false },
+  governance: {
+    access: false,
+    treasury: 50,
+    publicTrust: 50,
+    order: 50,
+    relief: 0,
+    reviewedCircuits: [],
+    policyCount: 0,
+  },
+  legacy: { prudent: 0, opportunity: 0, cost: 0, disorder: 0, aftermath: 0 },
+  actionCounts: {},
+  activeEndingId: null,
+});
+
 export const worldStateSchema = z.object({
   time: gameTimeSchema,
   location: locationSchema,
@@ -120,9 +231,73 @@ export const worldStateSchema = z.object({
     classification: z.literal("叙事虚构"),
   }).strict().nullable(),
   story: storyStateSchema,
+  systems: authoritativeSystemsSchema.default(initialAuthoritativeSystems),
 }).strict();
 
 export type WorldState = z.infer<typeof worldStateSchema>;
+
+export const authoritativeSystemActionIdSchema = z.enum([
+  "confirm-adult-age",
+  "household-care",
+  "marriage-contract",
+  "register-child-care",
+  "study-records",
+  "case-open",
+  "case-investigate",
+  "case-resolve",
+  "office-appoint",
+  "office-duty",
+  "trade-buy",
+  "trade-sell",
+  "workshop-production",
+  "elite-introduction",
+  "elite-council",
+  "governance-accession",
+  "governance-revenue",
+  "governance-relief",
+  "prepare-departure",
+  "conclude-chapter",
+]);
+export type AuthoritativeSystemActionId = z.infer<typeof authoritativeSystemActionIdSchema>;
+
+export const authoritativeSystemActionRequestSchema = z.object({
+  clientActionId: z.string().uuid(),
+  expectedStateVersion: z.number().int().nonnegative(),
+  actionId: authoritativeSystemActionIdSchema,
+  approach: systemApproachSchema,
+  parameters: z.object({
+    actorAge: z.number().int().min(18).max(80).optional(),
+    partnerLabel: z.string().trim().min(1).max(40).optional(),
+    partnerAge: z.number().int().min(18).max(80).optional(),
+    mutualConsent: z.literal(true).optional(),
+    childLabel: z.string().trim().min(1).max(40).optional(),
+    childAge: z.number().int().min(0).max(17).optional(),
+    itemId: z.string().regex(/^p17-[a-z0-9-]{1,70}$/).optional(),
+    circuitId: z.string().regex(/^[a-z0-9-]{1,80}$/).optional(),
+    endingId: z.string().regex(/^ending-[0-9]{2}-[0-9]{2}$/).optional(),
+  }).strict().default({}),
+}).strict();
+export type AuthoritativeSystemActionRequest = z.infer<typeof authoritativeSystemActionRequestSchema>;
+
+export const authoritativeSystemEventSchema = z.object({
+  actionId: authoritativeSystemActionIdSchema,
+  title: z.string().min(2).max(80),
+  summary: z.string().min(10).max(500),
+  classification: historicalClassificationSchema,
+  sourceIds: z.array(z.string().regex(/^S-[0-9]{3}$/)).min(1).max(8),
+  consequenceLabels: z.array(z.string().min(1).max(80)).min(1).max(8),
+  endingId: z.string().regex(/^ending-[0-9]{2}-[0-9]{2}$/).nullable(),
+}).strict();
+export type AuthoritativeSystemEvent = z.infer<typeof authoritativeSystemEventSchema>;
+
+export const committedSystemActionSchema = z.object({
+  actionLedgerId: z.string().uuid(),
+  stateVersion: z.number().int().positive(),
+  worldState: worldStateSchema,
+  event: authoritativeSystemEventSchema,
+  duplicate: z.boolean(),
+}).strict();
+export type CommittedSystemAction = z.infer<typeof committedSystemActionSchema>;
 
 export const turnActionSchema = z.discriminatedUnion("kind", [
   z.object({
