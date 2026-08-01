@@ -9,6 +9,11 @@ import { runTurnWorkflow } from "@/lib/game/workflow";
 import { withSecurityHeaders } from "@/lib/security/http";
 import { writeSecurityAudit } from "@/lib/security/audit";
 import { aiTurnsEnabled } from "@/lib/game/ai-budget";
+import {
+  loadPlaytestSessionContext,
+  recordTurnOutcome,
+  recordTurnSubmission,
+} from "@/lib/playtest/server";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -158,6 +163,7 @@ export async function POST(
   }
 
   return streamResponse(async (emit) => {
+    const turnStartedAt = Date.now();
     const client = createAuthenticatedSupabaseClient(accessToken);
     const { data, error } = await client.auth.getUser(accessToken);
     if (error || !data.user) {
@@ -213,6 +219,18 @@ export async function POST(
       return;
     }
 
+    const playtestSession = await loadPlaytestSessionContext(
+      serverClient,
+      data.user.id,
+      sessionId.data,
+    ).catch(() => null);
+    await recordTurnSubmission(
+      serverClient,
+      data.user.id,
+      playtestSession,
+      parsed.data,
+    ).catch(() => undefined);
+
     const auditedEmit = async (event: TurnStreamEvent) => {
       emit(event);
       if (event.event === "turn.started") {
@@ -223,6 +241,14 @@ export async function POST(
           actorId: data.user.id,
         });
       } else if (event.event === "turn.failed") {
+        await recordTurnOutcome(
+          serverClient,
+          data.user.id,
+          playtestSession,
+          parsed.data,
+          event,
+          Date.now() - turnStartedAt,
+        ).catch(() => undefined);
         await writeSecurityAudit({
           event: "turn.failed",
           outcome: "failed",
@@ -231,6 +257,14 @@ export async function POST(
           code: event.data.code,
         });
       } else if (event.event === "state.committed") {
+        await recordTurnOutcome(
+          serverClient,
+          data.user.id,
+          playtestSession,
+          parsed.data,
+          event,
+          Date.now() - turnStartedAt,
+        ).catch(() => undefined);
         await writeSecurityAudit({
           event: "turn.committed",
           outcome: "succeeded",

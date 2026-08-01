@@ -2,8 +2,12 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  authoritativeSystemActionRequestSchema,
+  committedSystemActionSchema,
   turnRequestSchema,
   turnStreamEventSchema,
+  type AuthoritativeSystemActionRequest,
+  type CommittedSystemAction,
   type TurnRequest,
   type TurnStreamEvent,
 } from "@/lib/game/schemas";
@@ -68,3 +72,31 @@ export async function streamGameTurn(options: {
   if (trailing) options.onEvent(trailing);
 }
 
+export async function commitAuthoritativeSystemAction(options: {
+  client: SupabaseClient;
+  sessionId: string;
+  request: AuthoritativeSystemActionRequest;
+  signal?: AbortSignal;
+}): Promise<CommittedSystemAction> {
+  const request = authoritativeSystemActionRequestSchema.parse(options.request);
+  const { data, error } = await options.client.auth.getSession();
+  if (error) throw error;
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("请先创建游客身份或登录邮箱账户。");
+
+  const response = await fetch(`/api/game-sessions/${encodeURIComponent(options.sessionId)}/system-actions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+    signal: options.signal,
+  });
+  const payload = await response.json() as unknown;
+  if (!response.ok) {
+    const parsed = payload && typeof payload === "object" ? payload as { message?: string } : {};
+    throw new Error(parsed.message ?? `系统行动提交失败（HTTP ${response.status}）。`);
+  }
+  return committedSystemActionSchema.parse(payload);
+}

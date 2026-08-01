@@ -40,6 +40,12 @@ test.describe("Phase 12 product routes", () => {
 
     await page.getByRole("radio", { name: "较大" }).check();
     await expect(page.locator("html")).toHaveAttribute("data-text-scale", "large");
+    await page.getByRole("radio", { name: "紧凑" }).check();
+    await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
+    const highContrast = page.getByRole("checkbox", { name: /高对比档案/ });
+    await highContrast.check();
+    await expect(page.locator("html")).toHaveAttribute("data-contrast", "high");
+    await page.getByRole("radio", { name: "证据视图" }).check();
     await expect(page.getByText("法语、希腊语和俄语仅处于界面翻译状态。")).toBeVisible();
     await expect(page.getByText("仅界面翻译")).toHaveCount(3);
   });

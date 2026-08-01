@@ -671,3 +671,100 @@ test("phase 13 AI budget is service-only, idempotent, and fail-closed", {
   }
 });
 });
+
+describe("Phase 14 live isolation", { concurrency: 1 }, () => {
+test("voluntary enrollments and sparse events stay isolated and delete by cascade", {
+  skip: !url || !publishableKey || !secretKey
+    ? "SUPABASE_TEST_URL, SUPABASE_TEST_PUBLISHABLE_KEY and SUPABASE_TEST_SECRET_KEY are required"
+    : false,
+  timeout: 120_000,
+}, async () => {
+  const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
+  const userA = createClient(url, publishableKey, options);
+  const userB = createClient(url, publishableKey, options);
+  const server = createClient(url, secretKey, options);
+  const authA = await userA.auth.signInAnonymously();
+  const authB = await userB.auth.signInAnonymously();
+  assert.ifError(authA.error);
+  assert.ifError(authB.error);
+  assert.ok(authA.data.user);
+  assert.ok(authB.data.user);
+
+  const insertEnrollment = (client, ownerId) => client
+    .from("playtest_enrollments")
+    .insert({
+      owner_id: ownerId,
+      app_release: "36",
+      content_version: "11.0.0",
+      scenario_id: "tang-changan-742",
+      scenario_version: "1.0.0",
+      consent_version: "phase14-v1",
+      cohort: "small-public-beta",
+    })
+    .select("id")
+    .single();
+
+  let enrollmentA;
+  let enrollmentB;
+  try {
+    const createdA = await insertEnrollment(userA, authA.data.user.id);
+    const createdB = await insertEnrollment(userB, authB.data.user.id);
+    assert.ifError(createdA.error);
+    assert.ifError(createdB.error);
+    enrollmentA = createdA.data.id;
+    enrollmentB = createdB.data.id;
+
+    const forbidden = await userA.from("playtest_events").insert({
+      enrollment_id: enrollmentA,
+      owner_id: authA.data.user.id,
+      event_key: `client:${crypto.randomUUID()}`,
+      app_release: "36",
+      content_version: "11.0.0",
+      scenario_id: "tang-changan-742",
+      scenario_version: "1.0.0",
+      event_name: "client_error",
+      result_code: "injected",
+    });
+    assert.ok(forbidden.error, "browser clients must not insert authoritative event rows");
+
+    for (const [enrollmentId, ownerId, origin] of [
+      [enrollmentA, authA.data.user.id, "merchant"],
+      [enrollmentB, authB.data.user.id, "craft"],
+    ]) {
+      const inserted = await server.from("playtest_events").insert({
+        enrollment_id: enrollmentId,
+        owner_id: ownerId,
+        event_key: `client:${crypto.randomUUID()}`,
+        app_release: "36",
+        content_version: "11.0.0",
+        scenario_id: "tang-changan-742",
+        scenario_version: "1.0.0",
+        event_name: "session_started",
+        origin_id: origin,
+        result_code: "ready",
+      });
+      assert.ifError(inserted.error);
+    }
+
+    const visibleA = await userA.from("playtest_events").select("owner_id,event_name");
+    const visibleB = await userB.from("playtest_events").select("owner_id,event_name");
+    assert.ifError(visibleA.error);
+    assert.ifError(visibleB.error);
+    assert.deepEqual(visibleA.data?.map((row) => row.owner_id), [authA.data.user.id]);
+    assert.deepEqual(visibleB.data?.map((row) => row.owner_id), [authB.data.user.id]);
+
+    const deleted = await userA.from("playtest_enrollments").delete().eq("id", enrollmentA);
+    assert.ifError(deleted.error);
+    const afterDelete = await server
+      .from("playtest_events")
+      .select("id")
+      .eq("owner_id", authA.data.user.id);
+    assert.ifError(afterDelete.error);
+    assert.deepEqual(afterDelete.data, []);
+  } finally {
+    if (enrollmentB) await server.from("playtest_enrollments").delete().eq("id", enrollmentB);
+    if (authA.data.user) await server.auth.admin.deleteUser(authA.data.user.id);
+    if (authB.data.user) await server.auth.admin.deleteUser(authB.data.user.id);
+  }
+});
+});

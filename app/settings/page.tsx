@@ -64,6 +64,49 @@ export default function SettingsPage() {
               <span>较大</span>
             </label>
           </fieldset>
+          <fieldset className="segmented-control">
+            <legend>界面密度</legend>
+            {(["compact", "standard", "comfortable"] as const).map((density) => (
+              <label key={density}>
+                <input
+                  type="radio"
+                  name="interface-density"
+                  value={density}
+                  checked={preferences.density === density}
+                  onChange={() => preferences.setDensity(density)}
+                />
+                <span>{{ compact: "紧凑", standard: "标准", comfortable: "宽松" }[density]}</span>
+              </label>
+            ))}
+          </fieldset>
+          <label className="setting-toggle">
+            <input
+              type="checkbox"
+              checked={preferences.highContrast}
+              onChange={(event) => preferences.setHighContrast(event.target.checked)}
+            />
+            <span>
+              <strong>高对比档案</strong>
+              <small>提高墨色、边框与纸面反差；不改变史料标签含义。</small>
+            </span>
+          </label>
+        </section>
+
+        <section className="settings-card" aria-labelledby="game-title">
+          <p className="eyebrow">GAME DEFAULTS</p>
+          <h2 id="game-title">游戏默认视图</h2>
+          <fieldset className="segmented-control">
+            <legend>进入游戏后</legend>
+            <label>
+              <input type="radio" name="evidence-default" checked={preferences.evidenceDefault === "game"} onChange={() => preferences.setEvidenceDefault("game")} />
+              <span>游戏视图</span>
+            </label>
+            <label>
+              <input type="radio" name="evidence-default" checked={preferences.evidenceDefault === "evidence"} onChange={() => preferences.setEvidenceDefault("evidence")} />
+              <span>证据视图</span>
+            </label>
+          </fieldset>
+          <p className="translation-warning"><strong>这只改变信息展开方式。</strong><span>规则、来源和 provisional 状态始终存在，不会被隐藏或改写。</span></p>
         </section>
 
         <section className="settings-card settings-language" aria-labelledby="language-title">

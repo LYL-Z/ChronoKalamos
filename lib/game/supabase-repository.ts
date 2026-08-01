@@ -2,11 +2,15 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import {
   committedTurnSchema,
+  committedSystemActionSchema,
   evidenceClaimSchema,
   evidenceSourceSchema,
   originIdSchema,
   scenarioManifestSchema,
   type CommittedTurn,
+  type CommittedSystemAction,
+  type AuthoritativeSystemActionRequest,
+  type AuthoritativeSystemEvent,
   type EvidenceClaim,
   type EvidenceSource,
   type EventTemplate,
@@ -148,6 +152,16 @@ export interface GameTurnRepository {
     providerResponseId: string,
   ): Promise<CommittedTurn>;
   failTurn(sessionId: string, clientTurnId: string, code: string, message: string): Promise<void>;
+  commitSystemAction?(
+    sessionId: string,
+    request: AuthoritativeSystemActionRequest,
+    event: AuthoritativeSystemEvent,
+    nextState: WorldState,
+  ): Promise<CommittedSystemAction>;
+  findSystemActionReplay?(
+    sessionId: string,
+    request: AuthoritativeSystemActionRequest,
+  ): Promise<CommittedSystemAction | null>;
 }
 
 function requireConfig(): { url: string; publishableKey: string } {
@@ -163,6 +177,17 @@ function requireServerSecretConfig(): { url: string; secretKey: string } {
   const secretKey = process.env.SUPABASE_SECRET_KEY;
   if (!url || !secretKey) throw new Error("supabase_server_secret_not_configured");
   return { url, secretKey };
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 export function createAuthenticatedSupabaseClient(accessToken: string): SupabaseClient {
@@ -445,5 +470,56 @@ export class SupabaseGameRepository implements GameTurnRepository {
       p_failure_message: message,
     });
     if (error) throw new Error(`turn_failure_record_failed:${error.message}`);
+  }
+
+  async commitSystemAction(
+    sessionId: string,
+    request: AuthoritativeSystemActionRequest,
+    event: AuthoritativeSystemEvent,
+    nextState: WorldState,
+  ): Promise<CommittedSystemAction> {
+    const { data, error } = await this.serverClient.rpc("server_commit_system_action", {
+      p_owner_id: this.userId,
+      p_session_id: sessionId,
+      p_client_action_id: request.clientActionId,
+      p_expected_state_version: request.expectedStateVersion,
+      p_action_id: request.actionId,
+      p_approach: request.approach,
+      p_parameters: request.parameters,
+      p_event: event,
+      p_state_after: nextState,
+      p_source_ids: event.sourceIds,
+    });
+    if (error) throw new Error(`system_action_commit_failed:${error.message}`);
+    return committedSystemActionSchema.parse(data);
+  }
+
+  async findSystemActionReplay(
+    sessionId: string,
+    request: AuthoritativeSystemActionRequest,
+  ): Promise<CommittedSystemAction | null> {
+    const { data, error } = await this.serverClient
+      .from("game_system_actions")
+      .select("session_id,expected_state_version,action_id,approach,parameters,response_snapshot")
+      .eq("owner_id", this.userId)
+      .eq("client_action_id", request.clientActionId)
+      .maybeSingle();
+    if (error) throw new Error(`system_action_replay_failed:${error.message}`);
+    if (!data) return null;
+
+    if (
+      data.session_id !== sessionId
+      || data.expected_state_version !== request.expectedStateVersion
+      || data.action_id !== request.actionId
+      || data.approach !== request.approach
+      || canonicalJson(data.parameters ?? {}) !== canonicalJson(request.parameters)
+    ) {
+      throw new Error("system_idempotency_mismatch");
+    }
+
+    return committedSystemActionSchema.parse({
+      ...(data.response_snapshot as Record<string, unknown>),
+      duplicate: true,
+    });
   }
 }
