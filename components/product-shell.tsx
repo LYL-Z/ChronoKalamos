@@ -89,7 +89,7 @@ export function ProductPageShell({
       </div>
       <footer className="product-footer">
         <span>742 CE · CHANG’AN · {PHASE14_PLAYTEST.editionLabel}</span>
-        <span>外部历史学者认证待定 · 不接支付、短信、微信、QQ 或 Passkey · Ctrl+K 查找 · ? 键位</span>
+        <span>16+ · 外部历史学者认证待定 · 不接支付、短信、微信、QQ 或 Passkey · Ctrl+K 查找 · ? 键位</span>
       </footer>
     </main>
   );

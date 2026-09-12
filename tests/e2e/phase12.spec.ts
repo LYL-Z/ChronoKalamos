@@ -35,6 +35,13 @@ test.describe("Phase 12 product routes", () => {
     await expect(page.getByRole("button", { name: /西市，合理重建/ })).toHaveCount(0);
   });
 
+  test("intent start skips the boot ceremony and opens setup", async ({ page }) => {
+    await page.goto("/?start=1");
+    await expect(page.getByRole("heading", { name: "把时间落在一个人身上。" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "跳过启动" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/$/);
+  });
+
   test("archives is a real identity-bound state, not demo records", async ({ page }) => {
     await page.goto("/saves");
     await expect(page.getByRole("heading", { name: "历史存档" })).toBeVisible();

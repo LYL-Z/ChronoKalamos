@@ -248,6 +248,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
       {effectiveMfaGate === "clear" && saves.length > 0 && (
         <div className="save-list" aria-label="当前用户存档">
           <span>OWN ARCHIVES / {saves.length}</span>
+          <Link className="primary-button link-as-button" href={`/?session=${encodeURIComponent(saves[0].id)}`}>继续上次人生</Link>
           {saves.slice(0, 3).map((save) => (
             <div key={save.id}>
               <Link href={`/?session=${encodeURIComponent(save.id)}`}>

@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ChronoKalamos · 742 CE Chang’an",
-  description: "一个有史料边界的 AI 历史人生模拟器，从742年的长安开始。",
+  description: "有史料边界的 AI 历史人生模拟。公元 742 年长安，三种出身。SMALL PUBLIC BETA。16+。史料记载 / 合理重建 / 叙事虚构。",
   applicationName: "ChronoKalamos",
   keywords: ["ChronoKalamos", "长安", "742", "天宝", "历史模拟", "史料边界"],
   authors: [{ name: "ChronoKalamos" }],
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "ChronoKalamos · 742 CE Chang’an",
-    description: "一个有史料边界的 AI 历史人生模拟器，从742年的长安开始。",
+    description: "有史料边界的 AI 历史人生模拟。公元 742 年长安，三种出身。SMALL PUBLIC BETA。16+。史料记载 / 合理重建 / 叙事虚构。",
     locale: "zh_CN",
     type: "website",
     siteName: "ChronoKalamos",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "ChronoKalamos · 742 CE Chang’an",
-    description: "一个有史料边界的 AI 历史人生模拟器，从742年的长安开始。",
+    description: "有史料边界的 AI 历史人生模拟。公元 742 年长安，三种出身。SMALL PUBLIC BETA。16+。史料记载 / 合理重建 / 叙事虚构。",
   },
 };
 

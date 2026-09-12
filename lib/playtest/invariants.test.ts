@@ -81,7 +81,9 @@ describe("cross-file product invariants", () => {
     expect(PHASE14_PLAYTEST.editionLabel).toBe(release.editionLabel);
     expect(page).toContain("PHASE14_PLAYTEST.editionLabel");
     expect(page).toContain("PHASE 11 · PUBLIC BETA");
+    expect(page).toContain("公开版 16+");
     expect(page).not.toMatch(/PHASE 14/);
+    expect(page).not.toMatch(/阶段 7 \/ 7/);
     expect(productShell).toContain("PHASE14_PLAYTEST.editionLabel");
     expect(productShell).not.toMatch(/PHASE 14/);
     expect(gameShell).toContain("权威事务回路 · 外部审阅待定");

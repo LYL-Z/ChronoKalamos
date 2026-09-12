@@ -73,32 +73,26 @@ export default function SupportPage() {
 
       <div className="support-grid">
         <article className="support-card">
-          <span>01</span>
           <h2>回合失败或断线</h2>
           <p>失败回合不会提交世界状态。先恢复网络，再使用原回合的“重试本回合”。系统会复用同一个 clientTurnId，避免重复推进。</p>
         </article>
         <article className="support-card">
-          <span>02</span>
           <h2>存档不可见</h2>
           <p>确认当前浏览器使用的是创建存档的身份。游客退出或清除浏览器数据后无法恢复。正式账户可用邮箱和 TOTP 恢复。</p>
         </article>
         <article className="support-card">
-          <span>03</span>
           <h2>史料与地图争议</h2>
           <p>记录事件 ID、来源编号和地图节点 ID。示意地图不声称复原精确坐标。外部历史学者认证目前待定。</p>
         </article>
         <article className="support-card">
-          <span>04</span>
           <h2>当前不可用能力</h2>
           <p>图片叙事、短信、微信、QQ、支付和 Passkey 均未启用。界面不会请求相机或麦克风权限。</p>
         </article>
         <article className="support-card">
-          <span>05</span>
           <h2>查找与键位</h2>
           <p>全站使用 Ctrl+K 或 Cmd+K 查找页面，使用问号键打开键位说明。游戏内 M/P/B/R/J 切换系统，1 到 5 只聚焦选项，空格只聚焦行动卷宗，不会自动提交。</p>
         </article>
         <article className="support-card">
-          <span>06</span>
           <h2>隐私与权限</h2>
           <p>浏览器只携带公开项目地址和 publishable key。相机、麦克风、地理位置和支付权限保持关闭。游客存档不能跨设备恢复。诊断摘要不含密钥、邮箱或叙事正文。</p>
         </article>

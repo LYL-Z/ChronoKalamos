@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChapterTimeline } from "@/components/chapter-timeline";
 import { EvidenceMap } from "@/components/evidence-map";
 import { IdentityPanel } from "@/components/identity-panel";
@@ -92,7 +92,7 @@ function Phase11ReleaseDisclosure() {
   return (
     <div className="release-disclosure" role="note">
       <strong>PHASE 11 · PUBLIC BETA</strong>
-      <span>未经外部历史学家认证。新增章节、人物与地点仍标为 provisional；公开可玩不等于史实获批。</span>
+      <span>未经外部历史学家认证。新增章节、人物与地点仍标为 provisional；公开可玩不等于史实获批。公开版 16+，本站不核验年龄。</span>
     </div>
   );
 }
@@ -195,13 +195,23 @@ export default function Home() {
   }, [syncHistoricalContent]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
     const client = getSupabaseBrowserClient();
-    const sessionId = new URLSearchParams(window.location.search).get("session");
-    const shouldStart = new URLSearchParams(window.location.search).get("start") === "1";
+    const sessionId = params.get("session");
+    const shouldStart = params.get("start") === "1";
+    if (shouldStart) {
+      params.delete("start");
+      const query = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+    }
     const setupTimer = shouldStart
       ? window.setTimeout(() => setShowSetup(true), 0)
       : undefined;
-    if (!client || !sessionId) return;
+    if (!client || !sessionId) {
+      return () => {
+        if (setupTimer !== undefined) window.clearTimeout(setupTimer);
+      };
+    }
 
     let active = true;
     void (async () => {
@@ -254,9 +264,12 @@ export default function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    if (readInitialSkipBoot()) {
+  useLayoutEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const intentArrival = params.get("start") === "1" || Boolean(params.get("session"));
+    if (readInitialSkipBoot() || intentArrival) {
       const skipTimer = window.setTimeout(() => {
+        if (intentArrival) setBriefingClosed(true);
         setProgress(100);
         setBooting(false);
       }, 0);
@@ -673,15 +686,20 @@ export default function Home() {
         <BrandLockup homeLabel={chrome.brandHome} />
         <nav className="mast-nav" aria-label="主导航">
           <span className="edition"><span className="status-dot" />{PHASE14_PLAYTEST.editionLabel}</span>
-          <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? chrome.restoreMotion : chrome.lowMotion}</button>
+          <details className="mast-tools">
+            <summary>界面</summary>
+            <div className="mast-tools-panel">
+              <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+              <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? chrome.restoreMotion : chrome.lowMotion}</button>
+            </div>
+          </details>
         </nav>
       </header>
       {!online && <div className="network-banner" role="alert"><strong>{chrome.offlineTitle}</strong><span>{chrome.offlineBody}</span></div>}
       <Phase11ReleaseDisclosure />
       {showBriefing && (
         <div className="arrival-briefing" role="note">
-          <p>先看地图与三种出身。90 秒内应能决定从哪条社会位置进入。姓名、性别和性格不会改写时代、地点或史料等级。</p>
+          <p>先看地图与三种出身。90 秒内应能决定从哪条社会位置进入。姓名、性别和性格不会改写时代、地点或史料等级。公开版建议 16+：含制度压迫与风险叙事，不含露骨成人内容。本站不核验年龄。</p>
           <button
             className="text-button"
             type="button"
@@ -734,7 +752,7 @@ export default function Home() {
         <aside className="login-sheet" aria-label="游客入口">
           <span className="sheet-tab">IDENTITY BOUNDARY</span><p className="sheet-label">ARCHIVE GATE / 03</p><h2>先留下一个入口。</h2><p className="sheet-copy">游客与邮箱账户使用同一用户 ID 升级路径。数据库和私有文件均由 RLS 限定为本人可见。</p>
           <IdentityPanel originId={selectedOrigin} onGuestStarted={() => setShowSetup(true)} onMessage={setMessage} />
-          <div className="in-prep"><span>阶段 7 / 7</span><span>{phase7ActiveTrackLabel}</span></div>
+          <div className="in-prep"><span>16+</span><span>{phase7ActiveTrackLabel}</span></div>
         </aside>
       </div>
 

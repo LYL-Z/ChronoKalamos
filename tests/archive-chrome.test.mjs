@@ -5,7 +5,7 @@ import test from "node:test";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("archive chrome unifies preferences, findability, and honest recovery", async () => {
-  const [providers, chrome, preferences, page, settings, support, notFound, shell, evidence, styles, productShell] = await Promise.all([
+  const [providers, chrome, preferences, page, settings, support, notFound, shell, evidence, styles, productShell, identity] = await Promise.all([
     read("components/app-providers.tsx"),
     read("lib/ui/chrome.ts"),
     read("lib/ui/preferences.ts"),
@@ -17,6 +17,7 @@ test("archive chrome unifies preferences, findability, and honest recovery", asy
     read("components/evidence-map.tsx"),
     read("app/globals.css"),
     read("components/product-shell.tsx"),
+    read("components/identity-panel.tsx"),
   ]);
   const chromeSurface = `${providers}\n${chrome}`;
 
@@ -41,6 +42,8 @@ test("archive chrome unifies preferences, findability, and honest recovery", asy
   assert.match(support, /查找与键位/);
   assert.match(support, /史料记载/);
   assert.match(notFound, /这份档案不在当前切片里/);
+  assert.match(notFound, /公开版 16\+/);
+  assert.doesNotMatch(support, /<span>0[1-6]<\/span>/);
   assert.match(shell, /variant="embedded"/);
   assert.match(shell, /1–5：聚焦选项，不自动提交/);
   assert.match(shell, /下一拍改到/);
@@ -67,4 +70,12 @@ test("archive chrome unifies preferences, findability, and honest recovery", asy
   assert.doesNotMatch(shell, /PHASE 18/);
   assert.match(shell, /className="phase15-more"/);
   assert.match(shell, />更多</);
+  assert.match(page, /公开版 16\+/);
+  assert.match(page, /本站不核验年龄/);
+  assert.match(page, /className="mast-tools"/);
+  assert.match(page, /useLayoutEffect/);
+  assert.doesNotMatch(page, /阶段 7 \/ 7/);
+  assert.match(identity, /继续上次人生/);
+  assert.match(styles, /::selection/);
+  assert.match(productShell, /16\+ · 外部历史学者认证待定/);
 });
