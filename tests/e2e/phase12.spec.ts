@@ -8,11 +8,20 @@ async function finishBoot(page: Page) {
   await expect(page.getByRole("heading", { name: "历史总是对我紧追不舍。" })).toBeVisible();
 }
 
+async function assertNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+}
+
 test.describe("Phase 12 product routes", () => {
   test("home evidence filters and chapter state are operable", async ({ page }) => {
     await finishBoot(page);
 
     await expect(page.getByRole("form", { name: "证据图层筛选" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "三种出身，三个证据入口。" })).toBeVisible();
     const chapter = page.getByRole("region", { name: "merchant-ledger-day" });
     await expect(chapter).toBeVisible();
     await expect(chapter.getByText("当前事件", { exact: true })).toBeVisible();
@@ -21,6 +30,16 @@ test.describe("Phase 12 product routes", () => {
     await expect(page.getByText("没有符合筛选条件的证据要素。")).toBeVisible();
     await page.getByRole("button", { name: "恢复 742 年全部图层" }).click();
     await expect(page.getByRole("button", { name: /西市，合理重建/ })).toBeVisible();
+    await page.getByRole("searchbox", { name: "证据地点检索" }).fill("京兆");
+    await expect(page.getByRole("button", { name: /京兆府/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /西市，合理重建/ })).toHaveCount(0);
+  });
+
+  test("intent start skips the boot ceremony and opens setup", async ({ page }) => {
+    await page.goto("/?start=1");
+    await expect(page.getByRole("heading", { name: "把时间落在一个人身上。" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "跳过启动" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test("archives is a real identity-bound state, not demo records", async ({ page }) => {
@@ -48,6 +67,12 @@ test.describe("Phase 12 product routes", () => {
     await page.getByRole("radio", { name: "证据视图" }).check();
     await expect(page.getByText("法语、希腊语和俄语仅处于界面翻译状态。")).toBeVisible();
     await expect(page.getByText("仅界面翻译")).toHaveCount(3);
+    await page.getByLabel("当前界面偏好").selectOption("en");
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+    await expect(page.locator("html")).toHaveAttribute("data-locale", "en");
+    const nav = page.getByRole("navigation", { name: "主导航" });
+    await expect(nav.getByRole("link", { name: /Settings/ })).toBeVisible();
+    await expect(nav.getByRole("link", { name: /历史存档/ })).toBeVisible();
   });
 
   test("support presents health and recovery paths", async ({ page }) => {
@@ -102,21 +127,13 @@ test.describe("Phase 12 accessibility and responsive regression", () => {
     test(`${viewport.name} has no horizontal page overflow`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await finishBoot(page);
-      const dimensions = await page.evaluate(() => ({
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-      }));
-      expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+      await assertNoHorizontalOverflow(page);
       await expect(page.getByRole("form", { name: "证据图层筛选" })).toBeVisible();
       await expect(page.getByRole("complementary", { name: "游客入口" })).toBeVisible();
 
       await page.goto("/settings");
       await expect(page.getByRole("heading", { name: "个人设置" })).toBeVisible();
-      const settingsDimensions = await page.evaluate(() => ({
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-      }));
-      expect(settingsDimensions.scrollWidth).toBeLessThanOrEqual(settingsDimensions.clientWidth + 1);
+      await assertNoHorizontalOverflow(page);
     });
   }
 
@@ -151,5 +168,62 @@ test.describe("Phase 12 accessibility and responsive regression", () => {
     expect(metrics.domContentLoaded).toBeLessThan(2_500);
     expect(metrics.transferred).toBeLessThan(1_800_000);
     expect(metrics.resourceCount).toBeLessThan(80);
+  });
+
+  test("command palette reaches archives without using the nav row", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "个人设置" })).toBeVisible();
+    await page.keyboard.press("Control+k");
+    await expect(page.getByRole("dialog", { name: "查找页面" })).toBeVisible();
+    await page.getByRole("option", { name: /历史存档/ }).click();
+    await expect(page).toHaveURL(/\/saves$/);
+  });
+
+  test("missing routes keep a branded recovery path", async ({ page }) => {
+    const response = await page.goto("/this-folio-does-not-exist");
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { name: "这份档案不在当前切片里。" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "回到新开始" })).toBeVisible();
+  });
+
+  test("200% text at 390px does not create horizontal overflow", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await finishBoot(page);
+    await assertNoHorizontalOverflow(page);
+    await expect(page.getByRole("heading", { name: "三种出身，三个证据入口。" })).toBeVisible();
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "个人设置" })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  });
+
+  test("in-product large type at 390px does not overflow product routes", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/settings");
+    await page.getByRole("radio", { name: "较大" }).check();
+    await expect(page.locator("html")).toHaveAttribute("data-text-scale", "large");
+    await assertNoHorizontalOverflow(page);
+    await finishBoot(page);
+    await expect(page.locator("html")).toHaveAttribute("data-text-scale", "large");
+    await expect(page.getByRole("heading", { name: "三种出身，三个证据入口。" })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  });
+
+  test("forced-colors keeps product routes readable without overflow", async ({ page }) => {
+    await page.emulateMedia({ forcedColors: "active" });
+    await finishBoot(page);
+    await expect(page.getByRole("heading", { name: "三种出身，三个证据入口。" })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "个人设置" })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await page.goto("/support");
+    await expect(page.getByRole("heading", { name: "支持说明" })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await page.goto("/this-folio-does-not-exist");
+    await expect(page.getByRole("heading", { name: "这份档案不在当前切片里。" })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
   });
 });

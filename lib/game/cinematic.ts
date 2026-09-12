@@ -1,3 +1,6 @@
+import { phase11Content } from "@/lib/historical/phase11";
+import { phase11CinematicScenes } from "@/lib/historical/phase11-cinematic";
+
 export type CinematicOrigin = "merchant" | "craft" | "clerk";
 
 export type PublishedCinematicScene = {
@@ -166,8 +169,32 @@ const publishedScenes = [
 
 const sceneIndex = new Map(publishedScenes.map((scene) => [scene.eventId, scene]));
 
+function sceneFromPhase11(eventId: string): PublishedCinematicScene | null {
+  const scene = phase11CinematicScenes.find((entry) => entry.eventId === eventId);
+  if (!scene) return null;
+  const voice = phase11Content.voiceLines.find((line) => line.id === scene.dialogueLineId);
+  if (!voice) return null;
+  const shot = scene.shot === "close-detail" ? "tabletop" : scene.shot;
+  return {
+    eventId: scene.eventId,
+    originId: scene.originId,
+    shot,
+    titleCard: scene.titleCard,
+    atmosphere: scene.light,
+    motionCue: scene.motion,
+    soundscape: scene.soundscape.join("、"),
+    voiceLine: {
+      speaker: voice.speaker,
+      role: voice.roleZh,
+      text: voice.textZh,
+      classification: "叙事虚构",
+      language: "zh-CN",
+    },
+  };
+}
+
 export function getPublishedCinematicScene(eventId: string): PublishedCinematicScene | null {
-  return sceneIndex.get(eventId) ?? null;
+  return sceneIndex.get(eventId) ?? sceneFromPhase11(eventId);
 }
 
 export const publishedCinematicScenes = Object.freeze(publishedScenes);

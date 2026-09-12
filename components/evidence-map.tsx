@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { sourceLabel, sourceSummary, type HistoricalSource, type MapFeature } from "@/lib/historical/content";
+import { copyPlainText } from "@/lib/ui/preferences";
 
 type EvidenceMapProps = {
   features: MapFeature[];
@@ -9,7 +10,9 @@ type EvidenceMapProps = {
   contentSource: "syncing" | "database" | "fallback";
   contentError?: string;
   currentEventId: string | null;
+  currentLocationId?: string | null;
   onRetry: () => void;
+  variant?: "hero" | "embedded";
 };
 
 const eventFeatureMap: Record<string, string> = {
@@ -47,28 +50,48 @@ export function EvidenceMap({
   contentSource,
   contentError,
   currentEventId,
+  currentLocationId = null,
   onRetry,
+  variant = "hero",
 }: EvidenceMapProps) {
   const [year, setYear] = useState(742);
   const [sourceId, setSourceId] = useState("all");
   const [classification, setClassification] = useState("all");
   const [uncertainty, setUncertainty] = useState("all");
-  const currentFeatureId = featureIdForEvent(currentEventId);
+  const [query, setQuery] = useState("");
+  const [copyState, setCopyState] = useState("");
+  const copyTimerRef = useRef<number>(0);
+  const currentFeatureId = (currentLocationId ? eventFeatureMap[currentLocationId] : undefined)
+    ?? featureIdForEvent(currentEventId);
+  const embedded = variant === "embedded";
 
   const sourceOptions = useMemo(() => {
-    const referenced = new Set(features.flatMap((feature) => feature.sourceIds));
+    const published = features.filter((feature) => feature.published);
+    const referenced = new Set(published.flatMap((feature) => feature.sourceIds));
     return sources.filter((source) => referenced.has(source.id));
   }, [features, sources]);
 
-  const visibleFeatures = useMemo(() => features.filter((feature) => {
+  const layerFeatures = useMemo(
+    () => features.filter((feature) => feature.published),
+    [features],
+  );
+
+  const visibleFeatures = useMemo(() => layerFeatures.filter((feature) => {
     if (year < feature.validFrom || year > feature.validTo) return false;
     if (sourceId !== "all" && !feature.sourceIds.includes(sourceId)) return false;
     if (classification !== "all" && feature.classification !== classification) return false;
     if (uncertainty !== "all" && feature.uncertaintyCode !== uncertainty) return false;
+    const needle = query.trim().toLowerCase();
+    if (needle) {
+      const haystack = `${feature.nameZh} ${feature.nameEn ?? ""} ${feature.id}`.toLowerCase();
+      if (!haystack.includes(needle)) return false;
+    }
     return true;
-  }), [classification, features, sourceId, uncertainty, year]);
+  }), [classification, layerFeatures, query, sourceId, uncertainty, year]);
 
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string>(features[0]?.id ?? "");
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string>(
+    () => features.find((feature) => feature.published)?.id ?? "",
+  );
 
   const selected = visibleFeatures.find((feature) => feature.id === selectedFeatureId)
     ?? visibleFeatures.find((feature) => feature.id === currentFeatureId)
@@ -80,15 +103,42 @@ export function EvidenceMap({
     setSourceId("all");
     setClassification("all");
     setUncertainty("all");
+    setQuery("");
+  }
+
+  async function copySelectedCitation() {
+    if (!selected) return;
+    const text = [
+      selected.nameZh,
+      sourceLabel(selected.classification),
+      sourceSummary(selected.sourceIds),
+      `${selected.validFrom}-${selected.validTo}`,
+      selected.licenseCode,
+      selected.attribution,
+    ].join(" · ");
+    const ok = await copyPlainText(text);
+    window.clearTimeout(copyTimerRef.current);
+    setCopyState(ok ? "出处已复制到剪贴板。" : "当前浏览器拒绝复制。请手动摘录出处字段。");
+    copyTimerRef.current = window.setTimeout(() => setCopyState(""), 2400);
   }
 
   return (
-    <section className="evidence-map" aria-labelledby="hero-title">
+    <section className={`evidence-map${embedded ? " evidence-map-embedded" : ""}`} aria-labelledby={embedded ? "embedded-map-title" : "hero-title"}>
       <header className="evidence-map-heading">
         <div>
-          <span className="eyebrow">HISTORICAL EVIDENCE LAYER</span>
-          <h1 id="hero-title">历史总是对我紧追不舍。</h1>
-          <p>Chang’an, 742 CE · a bounded beginning</p>
+          {embedded ? (
+            <>
+              <span className="eyebrow">WORKBENCH LAYER</span>
+              <h2 id="embedded-map-title">证据图层工作台</h2>
+              <p>筛选只作用于当前已发布地点；provisional 节点不进入图层</p>
+            </>
+          ) : (
+            <>
+              <span className="eyebrow">HISTORICAL EVIDENCE LAYER</span>
+              <h1 id="hero-title">历史总是对我紧追不舍。</h1>
+              <p>Chang’an, 742 CE · a bounded beginning</p>
+            </>
+          )}
         </div>
         <div className={`content-sync-flow ${contentSource}`} data-content-source={contentSource} role="status">
           <span className="status-dot" />
@@ -120,31 +170,46 @@ export function EvidenceMap({
           />
         </label>
         <label>
-          来源
-          <select value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
-            <option value="all">全部来源</option>
-            {sourceOptions.map((source) => <option key={source.id} value={source.id}>{source.id} · {source.title}</option>)}
-          </select>
-        </label>
-        <label>
-          证据等级
-          <select value={classification} onChange={(event) => setClassification(event.target.value)}>
-            <option value="all">全部等级</option>
-            <option value="史料记载">史料记载</option>
-            <option value="合理重建">合理重建</option>
-            <option value="叙事虚构">叙事虚构</option>
-          </select>
-        </label>
-        <label>
-          地理不确定性
-          <select value={uncertainty} onChange={(event) => setUncertainty(event.target.value)}>
-            <option value="all">全部</option>
-            <option value="low">低</option>
-            <option value="medium">中</option>
-            <option value="high">高</option>
-          </select>
+          地点
+          <input
+            aria-label="证据地点检索"
+            type="search"
+            value={query}
+            placeholder="西市、金光门、京兆"
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </label>
         <button className="text-button" type="button" onClick={resetFilters}>重置筛选</button>
+        <details className="map-filter-advanced">
+          <summary>来源与等级</summary>
+          <div className="map-filter-advanced-grid">
+            <label>
+              来源
+              <select value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
+                <option value="all">全部来源</option>
+                {sourceOptions.map((source) => <option key={source.id} value={source.id}>{source.id} · {source.title}</option>)}
+              </select>
+            </label>
+            <label>
+              证据等级
+              <select value={classification} onChange={(event) => setClassification(event.target.value)}>
+                <option value="all">全部等级</option>
+                <option value="史料记载">史料记载</option>
+                <option value="合理重建">合理重建</option>
+                <option value="叙事虚构">叙事虚构</option>
+              </select>
+            </label>
+            <label>
+              地理不确定性
+              <select value={uncertainty} onChange={(event) => setUncertainty(event.target.value)}>
+                <option value="all">全部</option>
+                <option value="low">低</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+              </select>
+            </label>
+          </div>
+        </details>
       </form>
 
       <div className="evidence-workbench">
@@ -192,6 +257,8 @@ export function EvidenceMap({
                 <div><dt>许可</dt><dd>{selected.licenseCode}</dd></div>
               </dl>
               <small>{selected.attribution}</small>
+              <button className="text-button evidence-copy" type="button" onClick={() => void copySelectedCitation()}>复制出处</button>
+              {copyState && <p className="evidence-copy-status" role="status">{copyState}</p>}
             </>
           ) : (
             <p>选择一个证据节点查看来源、时间和许可。</p>

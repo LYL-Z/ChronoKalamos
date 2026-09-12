@@ -1,20 +1,25 @@
+import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 
+const release = JSON.parse(
+  await readFile(new URL("../lib/playtest/release.json", import.meta.url), "utf8"),
+);
+
+const apply = process.argv.includes("--apply");
+const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 const url = process.env.SUPABASE_TEST_URL ?? process.env.SUPABASE_URL;
 const secretKey = process.env.SUPABASE_TEST_SECRET_KEY ?? process.env.SUPABASE_SECRET_KEY;
 if (!url || !secretKey) {
   throw new Error("SUPABASE_TEST_URL/SUPABASE_URL and SUPABASE_TEST_SECRET_KEY/SUPABASE_SECRET_KEY are required");
 }
 
-const apply = process.argv.includes("--apply");
-const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 const client = createClient(url, secretKey, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
 });
 const { data, error } = await client
   .from("playtest_enrollments")
   .select("id")
-  .eq("app_release", "39")
+  .eq("app_release", release.appRelease)
   .lt("consented_at", cutoff)
   .limit(1000);
 if (error) throw error;

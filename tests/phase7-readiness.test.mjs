@@ -29,6 +29,8 @@ test("phase 7 advances TOTP while keeping SMS and Passkey disabled", async () =>
   assert.match(policySource, /active\.length > 1/);
   assert.match(identitySource, /phase7PublicIdentityStatus/);
   assert.match(identitySource, /TotpMfaPanel/);
+  assert.match(identitySource, /图片叙事筹备中/);
+  assert.doesNotMatch(identitySource, /type="file"/);
   assert.doesNotMatch(identitySource, /PhoneAuthPanel/);
   assert.doesNotMatch(identitySource, /signInWithOtp\(\{\s*phone:/);
   assert.match(panelSource, /添加备用验证器/);

@@ -130,8 +130,11 @@ class FakeRepository implements GameTurnRepository {
     };
     return this.committed;
   }
-  async failTurn(): Promise<void> {
+  failTurnImpl: () => Promise<void> = async () => {
     this.failCount += 1;
+  };
+  async failTurn(): Promise<void> {
+    await this.failTurnImpl();
   }
 }
 
@@ -204,5 +207,34 @@ describe("phase 5 workflow", () => {
       code: "ai_daily_user_limit",
       notCommitted: true,
     });
+  });
+
+  it("still emits an uncommitted failure when failTurn itself cannot write", async () => {
+    const repository = new FakeRepository();
+    repository.aiReservationResult = {
+      status: "user_daily_limit",
+      userDailyCount: 40,
+      globalDailyCount: 41,
+    };
+    repository.failTurnImpl = async () => {
+      throw new Error("lease_write_failed");
+    };
+    const failures: Array<{ message: string; notCommitted: boolean }> = [];
+
+    await runTurnWorkflow({
+      sessionId,
+      request,
+      repository,
+      provider: new FakeProvider(),
+      emit: (event) => {
+        if (event.event === "turn.failed") failures.push(event.data);
+      },
+    });
+
+    expect(failures.at(-1)).toMatchObject({
+      notCommitted: true,
+    });
+    expect(failures.at(-1)?.message).toContain("本回合仍未提交");
+    expect(failures.at(-1)?.message).toContain("失败记录未能写入");
   });
 });

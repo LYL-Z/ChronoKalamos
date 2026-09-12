@@ -48,13 +48,14 @@ export async function streamGameTurn(options: {
     body: JSON.stringify(request),
     signal: options.signal,
   });
-  if (!response.ok || !response.body) {
+  if (!response.body) {
     throw new Error(`回合流无法建立（HTTP ${response.status}）。`);
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let received = false;
   while (true) {
     const { done, value } = await reader.read();
     buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done }).replace(/\r\n/g, "\n");
@@ -63,13 +64,22 @@ export async function streamGameTurn(options: {
       const frame = buffer.slice(0, separator);
       buffer = buffer.slice(separator + 2);
       const parsed = parseFrame(frame);
-      if (parsed) options.onEvent(parsed);
+      if (parsed) {
+        received = true;
+        options.onEvent(parsed);
+      }
       separator = buffer.indexOf("\n\n");
     }
     if (done) break;
   }
   const trailing = parseFrame(buffer);
-  if (trailing) options.onEvent(trailing);
+  if (trailing) {
+    received = true;
+    options.onEvent(trailing);
+  }
+  if (!response.ok && !received) {
+    throw new Error(`回合流无法建立（HTTP ${response.status}）。`);
+  }
 }
 
 export async function commitAuthoritativeSystemAction(options: {

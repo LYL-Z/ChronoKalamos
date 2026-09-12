@@ -1,4 +1,5 @@
-// Intentionally empty by default.
-// Add Drizzle tables here when the site actually needs a database.
-// See examples/d1/db/schema.ts for an opt-in example.
+// ChronoKalamos game data is not modeled here.
+// Authoritative tables live in supabase/migrations (Postgres + RLS).
+// This empty Drizzle module remains for the hosting template; getDb() is
+// only used by examples/d1. Do not add a second product database.
 export {};

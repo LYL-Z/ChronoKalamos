@@ -11,11 +11,14 @@ const client = createClient(url, secretKey, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
 });
 
+const release = JSON.parse(
+  await readFile(new URL("../lib/playtest/release.json", import.meta.url), "utf8"),
+);
 const context = {
-  appRelease: "39",
-  contentVersion: "11.0.0",
-  scenarioId: "tang-changan-742",
-  scenarioVersion: "1.0.0",
+  appRelease: release.appRelease,
+  contentVersion: release.contentVersion,
+  scenarioId: release.scenarioId,
+  scenarioVersion: release.scenarioVersion,
 };
 const thresholds = {
   minimumParticipants: 8,

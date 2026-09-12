@@ -219,7 +219,7 @@ export function getPhase16SettlementChanges(
     ["risk", "风险进度", totalRiskProgress(state) - totalRiskProgress(previousState)],
   ] as const;
 
-  return candidates
+  const changes: Phase16SettlementChange[] = candidates
     .filter(([, , delta]) => delta !== 0)
     .map(([id, label, delta]) => ({
       id,
@@ -229,4 +229,15 @@ export function getPhase16SettlementChanges(
         ? (delta > 0 ? "negative" : "positive")
         : (delta > 0 ? "positive" : "negative"),
     }));
+
+  if (previousState.location.id !== state.location.id) {
+    changes.push({
+      id: "location",
+      label: `地点 · ${state.location.label}`,
+      delta: 0,
+      tone: "neutral",
+    });
+  }
+
+  return changes;
 }

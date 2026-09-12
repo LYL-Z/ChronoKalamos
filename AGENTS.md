@@ -10,7 +10,7 @@
 ## Privacy and safety
 
 - Camera, microphone, payments, SMS, WeChat, and QQ remain disabled until the corresponding consent, provider, and policy work is complete.
-- Guest saves must disclose browser-data loss. Do not imply cross-device recovery before Supabase Auth and RLS are implemented.
+- Guest saves must disclose browser-data loss. Do not imply cross-device recovery for guest sessions. Authenticated saves are scoped by Supabase Auth and RLS to the current user.
 - Do not place API keys, source prompts, private images, or service credentials in client bundles.
 - Motion must respect `prefers-reduced-motion` and the in-product low-motion toggle. No repeated flash effects.
 

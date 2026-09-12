@@ -1,5 +1,6 @@
 import { getEventTemplate } from "@/lib/game/event-catalog";
 import type { OriginId, WorldState } from "@/lib/game/schemas";
+import { publishedMapFeatureCount } from "@/lib/historical/content";
 
 export const phase15ModuleIds = [
   "map",
@@ -43,6 +44,7 @@ export type ChoiceDisclosure = {
   minutes: number;
   risk: "low" | "medium" | "high";
   moneyCost: number | null;
+  locationShift: string | null;
   affectedDomains: string[];
   note: string;
 };
@@ -88,7 +90,10 @@ export function getSocialPosition(state: WorldState): SocialPosition {
   return originPositions[state.socialIdentity];
 }
 
-export function getModuleDescriptors(state: WorldState): ModuleDescriptor[] {
+export function getModuleDescriptors(
+  state: WorldState,
+  publishedMapCount = publishedMapFeatureCount,
+): ModuleDescriptor[] {
   const activeRisks = state.story.riskClocks.filter((risk) => risk.status !== "resolved");
   const activeQuests = state.quests.filter((quest) => quest.status === "active");
   const relationshipCount = new Set([
@@ -102,7 +107,7 @@ export function getModuleDescriptors(state: WorldState): ModuleDescriptor[] {
       shortcut: "M",
       label: "地图",
       eyebrow: "EVIDENCE MAP",
-      count: 8,
+      count: publishedMapCount,
       summary: "已发布证据地点与当前事件位置",
       empty: false,
     },
@@ -175,6 +180,7 @@ export function getChoiceDisclosure(
   if (!choice) throw new Error(`choice_not_found:${choiceId}`);
   const delta = choice.consequence.stateDelta;
   const affectedDomains = [
+    delta.location ? "地点" : null,
     delta.moneyDelta !== 0 ? "钱财" : null,
     delta.healthDelta !== 0 || delta.healthCondition ? "健康" : null,
     delta.relationshipDeltas.length > 0 ? "关系" : null,
@@ -194,6 +200,7 @@ export function getChoiceDisclosure(
     minutes: delta.minutesElapsed,
     risk: choice.risk,
     moneyCost: delta.moneyDelta < 0 ? Math.abs(delta.moneyDelta) : null,
+    locationShift: delta.location?.label ?? null,
     affectedDomains,
     note: "只披露编辑模板声明的方向，不展示隐藏事件或完整数值后果。",
   };

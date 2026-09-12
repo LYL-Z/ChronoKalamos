@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 export const interfaceLocales = ["zh", "en", "fr", "el", "ru"] as const;
 export type InterfaceLocale = (typeof interfaceLocales)[number];
@@ -44,13 +51,47 @@ export function readInitialEvidenceMode(): boolean {
   return readStorage("chronokalamos-evidence-default") === "evidence";
 }
 
-export function useProductPreferences() {
+export function readInitialSkipBoot(): boolean {
+  if (typeof window === "undefined") return false;
+  return readStorage("chronokalamos-skip-boot") === "true";
+}
+
+export function readInitialBriefingDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  return readStorage("chronokalamos-briefing-dismissed") === "true";
+}
+
+export type ProductPreferences = {
+  locale: InterfaceLocale;
+  lowMotion: boolean;
+  textScale: TextScale;
+  density: InterfaceDensity;
+  highContrast: boolean;
+  evidenceDefault: EvidenceDefault;
+  skipBoot: boolean;
+  briefingDismissed: boolean;
+  ready: boolean;
+  setLocale: (value: InterfaceLocale) => void;
+  setLowMotion: (value: boolean) => void;
+  setTextScale: (value: TextScale) => void;
+  setDensity: (value: InterfaceDensity) => void;
+  setHighContrast: (value: boolean) => void;
+  setEvidenceDefault: (value: EvidenceDefault) => void;
+  setSkipBoot: (value: boolean) => void;
+  dismissBriefing: () => void;
+};
+
+const ProductPreferencesContext = createContext<ProductPreferences | null>(null);
+
+export function useProductPreferencesController(): ProductPreferences {
   const [locale, setLocaleState] = useState<InterfaceLocale>("zh");
   const [lowMotion, setLowMotionState] = useState(false);
   const [textScale, setTextScaleState] = useState<TextScale>("standard");
   const [density, setDensityState] = useState<InterfaceDensity>("standard");
   const [highContrast, setHighContrastState] = useState(false);
   const [evidenceDefault, setEvidenceDefaultState] = useState<EvidenceDefault>("game");
+  const [skipBoot, setSkipBootState] = useState(false);
+  const [briefingDismissed, setBriefingDismissed] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -69,6 +110,8 @@ export function useProductPreferences() {
         : "standard");
       setHighContrastState(readStorage("chronokalamos-high-contrast") === "true");
       setEvidenceDefaultState(storedEvidenceDefault === "evidence" ? "evidence" : "game");
+      setSkipBootState(readInitialSkipBoot());
+      setBriefingDismissed(readInitialBriefingDismissed());
       setReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -76,7 +119,8 @@ export function useProductPreferences() {
 
   useEffect(() => {
     if (!ready) return;
-    document.documentElement.lang = locale === "zh" ? "zh-CN" : locale;
+    document.documentElement.lang = "zh-CN";
+    document.documentElement.dataset.locale = locale;
     document.documentElement.dataset.motion = lowMotion ? "reduced" : "full";
     document.documentElement.dataset.textScale = textScale;
     document.documentElement.dataset.density = density;
@@ -113,13 +157,25 @@ export function useProductPreferences() {
     writeStorage("chronokalamos-evidence-default", value);
   }, []);
 
-  return {
+  const setSkipBoot = useCallback((value: boolean) => {
+    setSkipBootState(value);
+    writeStorage("chronokalamos-skip-boot", String(value));
+  }, []);
+
+  const dismissBriefing = useCallback(() => {
+    setBriefingDismissed(true);
+    writeStorage("chronokalamos-briefing-dismissed", "true");
+  }, []);
+
+  return useMemo(() => ({
     locale,
     lowMotion,
     textScale,
     density,
     highContrast,
     evidenceDefault,
+    skipBoot,
+    briefingDismissed,
     ready,
     setLocale,
     setLowMotion,
@@ -127,7 +183,37 @@ export function useProductPreferences() {
     setDensity,
     setHighContrast,
     setEvidenceDefault,
-  };
+    setSkipBoot,
+    dismissBriefing,
+  }), [
+    briefingDismissed,
+    density,
+    dismissBriefing,
+    evidenceDefault,
+    highContrast,
+    locale,
+    lowMotion,
+    ready,
+    setDensity,
+    setEvidenceDefault,
+    setHighContrast,
+    setLocale,
+    setLowMotion,
+    setSkipBoot,
+    setTextScale,
+    skipBoot,
+    textScale,
+  ]);
+}
+
+export { ProductPreferencesContext };
+
+export function useProductPreferences(): ProductPreferences {
+  const context = useContext(ProductPreferencesContext);
+  if (!context) {
+    throw new Error("useProductPreferences requires ProductPreferencesProvider");
+  }
+  return context;
 }
 
 export function useOnlineStatus(): boolean {
@@ -145,4 +231,13 @@ export function useOnlineStatus(): boolean {
   }, []);
 
   return online;
+}
+
+export async function copyPlainText(value: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
 }

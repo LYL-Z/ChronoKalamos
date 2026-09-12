@@ -27,6 +27,41 @@ export function validateUpload(file: Pick<File, "name" | "type" | "size">) {
   return uploadDescriptorSchema.parse(file);
 }
 
+function hasPrefix(bytes: Uint8Array, prefix: number[]): boolean {
+  return prefix.length <= bytes.length && prefix.every((value, index) => bytes[index] === value);
+}
+
+export function matchesDeclaredImageMagic(
+  bytes: Uint8Array,
+  declaredType: (typeof ALLOWED_UPLOAD_MIME_TYPES)[number],
+): boolean {
+  if (declaredType === "image/png") {
+    return hasPrefix(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  }
+  if (declaredType === "image/jpeg") {
+    return hasPrefix(bytes, [0xff, 0xd8, 0xff]);
+  }
+  return bytes.length >= 12
+    && hasPrefix(bytes, [0x52, 0x49, 0x46, 0x46])
+    && bytes[8] === 0x57
+    && bytes[9] === 0x45
+    && bytes[10] === 0x42
+    && bytes[11] === 0x50;
+}
+
+export async function assertUploadBytes(
+  file: Pick<Blob, "size" | "slice">,
+  declaredType: (typeof ALLOWED_UPLOAD_MIME_TYPES)[number],
+): Promise<void> {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("图片不得超过 5 MiB。");
+  }
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (!matchesDeclaredImageMagic(bytes, declaredType)) {
+    throw new Error("文件内容与声明的图片类型不符。");
+  }
+}
+
 export function sanitizeUploadFilename(name: string): string {
   const normalized = name.normalize("NFKC").replace(/[^a-zA-Z0-9._-]+/g, "-");
   const safe = normalized.replace(/^[.-]+|[.-]+$/g, "").slice(0, 96);
@@ -38,6 +73,7 @@ export async function uploadPrivateImage(
   file: File,
 ): Promise<UserUploadRecord> {
   const descriptor = validateUpload(file);
+  await assertUploadBytes(file, descriptor.type);
   const { data: userData, error: userError } = await client.auth.getUser();
   if (userError) throw userError;
   if (!userData.user) throw new Error("请先创建游客身份或登录邮箱账户。");

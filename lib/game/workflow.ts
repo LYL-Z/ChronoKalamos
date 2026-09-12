@@ -287,14 +287,21 @@ export async function runTurnWorkflow(options: {
     throw new TurnFailure("validation_failed", "模型输出两次未通过规则校验，本回合未提交。", true);
   } catch (error) {
     const failure = classifyUnexpected(error);
+    let failRecorded = true;
     if (reserved && failure.code !== "turn_in_progress") {
-      await repository.failTurn(sessionId, request.clientTurnId, failure.code, failure.message).catch(() => undefined);
+      try {
+        await repository.failTurn(sessionId, request.clientTurnId, failure.code, failure.message);
+      } catch {
+        failRecorded = false;
+      }
     }
     await emit({
       event: "turn.failed",
       data: {
         code: failure.code,
-        message: failure.message,
+        message: failRecorded
+          ? failure.message
+          : `${failure.message} 失败记录未能写入，本回合仍未提交。`,
         retryable: failure.retryable,
         notCommitted: true,
       },

@@ -24,7 +24,11 @@ test("phase 16 shortcuts navigate but never submit a turn", async () => {
   assert.match(shell, /data-phase16-choice/);
   assert.match(shell, /1–5：聚焦选项/);
   assert.match(shell, /1–5：聚焦选项，不自动提交/);
+  assert.match(shell, /下一拍改到/);
+  assert.match(shell, /className="phase15-more"/);
+  assert.match(shell, />更多</);
   assert.doesNotMatch(shell, /event\.code === "Space"[\s\S]{0,300}onSubmitAction/);
+  assert.doesNotMatch(shell, /event\.code === "Space"[\s\S]{0,120}preventDefault/);
 });
 
 test("phase 16 adult content gate fails closed and stays server-only", async () => {

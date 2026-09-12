@@ -1,6 +1,7 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ZodError } from "zod";
 import { phase7PublicIdentityStatus } from "@/lib/capabilities/phase7";
@@ -8,7 +9,6 @@ import { isAnonymousUser, linkGuestToEmail, sendEmailMagicLink, signInAsGuest, s
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { listOwnSaves, savePrototypeSession, type SaveSummary } from "@/lib/supabase/saves";
 import { getTotpMfaSnapshot } from "@/lib/supabase/totp";
-import { uploadPrivateImage } from "@/lib/supabase/uploads";
 import { TotpMfaPanel } from "@/components/totp-mfa-panel";
 
 type IdentityPanelProps = {
@@ -175,21 +175,6 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
     });
   }
 
-  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || !client || !user) return;
-    if (effectiveMfaGate !== "clear") {
-      onMessage("请先完成 TOTP 验证，再上传私有图片。");
-      return;
-    }
-
-    await run(async () => {
-      await uploadPrivateImage(client, file);
-      onMessage("图片已写入私有桶。阶段5接入内容审核前，它不会进入叙事流程。 ");
-    });
-  }
-
   async function signOut() {
     if (!client) return;
     await run(async () => {
@@ -229,7 +214,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
           <div className="email-heading"><label htmlFor="identity-email">{user ? "升级游客账户" : "邮箱登录入口"}</label><span>真实 Supabase Auth</span></div>
           {!user && <div className="email-mode" role="group" aria-label="邮箱登录方式"><button type="button" className={emailMode === "magic" ? "selected" : ""} aria-pressed={emailMode === "magic"} onClick={() => setEmailMode("magic")} disabled={busy}>验证链接</button><button type="button" className={emailMode === "password" ? "selected" : ""} aria-pressed={emailMode === "password"} onClick={() => setEmailMode("password")} disabled={busy}>密码登录</button></div>}
           <input id="identity-email" data-testid="identity-email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy} />
-          {!user && emailMode === "password" && <><label htmlFor="identity-password">密码</label><input id="identity-password" data-testid="identity-password" type="password" autoComplete="current-password" placeholder="至少 6 位密码" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
+          {!user && emailMode === "password" && <><label htmlFor="identity-password">密码</label><input id="identity-password" data-testid="identity-password" type="password" autoComplete="current-password" placeholder="已设置的邮箱密码" value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></>}
           <button className="primary-button" data-testid="identity-submit" type="submit" disabled={busy}>{user ? "绑定并保留存档" : emailMode === "password" ? "登录邮箱账户" : "发送验证链接"}</button>
           {!user && <p className="email-hint">验证链接适合首次登录或忘记密码；密码登录适合已设置密码的账户。</p>}
         </form>
@@ -255,10 +240,7 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
           {isAnonymousUser(user) && <p className="identity-warning">游客凭证只在当前浏览器保留。清除数据、退出登录或换设备后无法恢复。</p>}
           {effectiveMfaGate === "required" && <p className="identity-warning">该账户已启用 TOTP。二次验证前，数据库会拒绝存档与私有文件访问。</p>}
           <button className="primary-button" type="button" onClick={persistPrototypeSave} disabled={busy || effectiveMfaGate !== "clear"}>保存当前出身</button>
-          <label className="upload-control">
-            <span>上传私有图片</span>
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadImage} disabled={busy || effectiveMfaGate !== "clear"} />
-          </label>
+          <p className="identity-warning">图片叙事筹备中。当前不会请求相册或相机，也不会把图片交给模型。</p>
           <button className="text-button" type="button" onClick={signOut} disabled={busy}>退出当前身份</button>
         </div>
       )}
@@ -266,9 +248,12 @@ export function IdentityPanel({ originId, onGuestStarted, onMessage }: IdentityP
       {effectiveMfaGate === "clear" && saves.length > 0 && (
         <div className="save-list" aria-label="当前用户存档">
           <span>OWN ARCHIVES / {saves.length}</span>
+          <Link className="primary-button link-as-button" href={`/?session=${encodeURIComponent(saves[0].id)}`}>继续上次人生</Link>
           {saves.slice(0, 3).map((save) => (
             <div key={save.id}>
-              <strong>{save.title}</strong>
+              <Link href={`/?session=${encodeURIComponent(save.id)}`}>
+                <strong>{save.title}</strong>
+              </Link>
               <small>v{save.state_version} · {new Date(save.updated_at).toLocaleDateString("zh-CN")}</small>
             </div>
           ))}

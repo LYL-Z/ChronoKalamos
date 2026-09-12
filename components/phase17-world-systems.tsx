@@ -190,7 +190,7 @@ export function Phase17WorldSystems({
     return (
       <div className="phase18-transaction-header">
         <div>
-          <span>PHASE 18 · AUTHORITATIVE TRANSACTION</span>
+          <span>AUTHORITATIVE TRANSACTION</span>
           <strong>事务提交会推进时间、增加状态版本并建立存档点。</strong>
         </div>
         <label>

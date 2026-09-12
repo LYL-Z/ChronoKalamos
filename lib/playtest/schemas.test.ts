@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PHASE14_PLAYTEST } from "./config";
 import {
   clientPlaytestEventSchema,
   playtestEnrollmentSchema,
@@ -31,8 +32,8 @@ describe("phase 14 playtest schemas", () => {
     expect(playtestEnrollmentSchema.safeParse({
       id: "8c075f47-329e-4aa3-b80f-0243ca5bcfe9",
       owner_id: "5739ed97-1e91-4c4b-99d9-88106261494b",
-      app_release: "36",
-      content_version: "11.0.0",
+      app_release: PHASE14_PLAYTEST.appRelease,
+      content_version: PHASE14_PLAYTEST.contentVersion,
       scenario_id: "second-scenario",
       scenario_version: "1.0.0",
       consent_version: "phase14-v1",

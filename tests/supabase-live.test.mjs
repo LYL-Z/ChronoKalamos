@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { describe } from "node:test";
 import { createClient } from "@supabase/supabase-js";
+
+const release = JSON.parse(readFileSync(new URL("../lib/playtest/release.json", import.meta.url), "utf8"));
 
 const url = process.env.SUPABASE_TEST_URL;
 const publishableKey = process.env.SUPABASE_TEST_PUBLISHABLE_KEY;
@@ -694,10 +697,10 @@ test("voluntary enrollments and sparse events stay isolated and delete by cascad
     .from("playtest_enrollments")
     .insert({
       owner_id: ownerId,
-      app_release: "36",
-      content_version: "11.0.0",
-      scenario_id: "tang-changan-742",
-      scenario_version: "1.0.0",
+      app_release: release.appRelease,
+      content_version: release.contentVersion,
+      scenario_id: release.scenarioId,
+      scenario_version: release.scenarioVersion,
       consent_version: "phase14-v1",
       cohort: "small-public-beta",
     })
@@ -718,10 +721,10 @@ test("voluntary enrollments and sparse events stay isolated and delete by cascad
       enrollment_id: enrollmentA,
       owner_id: authA.data.user.id,
       event_key: `client:${crypto.randomUUID()}`,
-      app_release: "36",
-      content_version: "11.0.0",
-      scenario_id: "tang-changan-742",
-      scenario_version: "1.0.0",
+      app_release: release.appRelease,
+      content_version: release.contentVersion,
+      scenario_id: release.scenarioId,
+      scenario_version: release.scenarioVersion,
       event_name: "client_error",
       result_code: "injected",
     });
@@ -735,10 +738,10 @@ test("voluntary enrollments and sparse events stay isolated and delete by cascad
         enrollment_id: enrollmentId,
         owner_id: ownerId,
         event_key: `client:${crypto.randomUUID()}`,
-        app_release: "36",
-        content_version: "11.0.0",
-        scenario_id: "tang-changan-742",
-        scenario_version: "1.0.0",
+        app_release: release.appRelease,
+        content_version: release.contentVersion,
+        scenario_id: release.scenarioId,
+        scenario_version: release.scenarioVersion,
         event_name: "session_started",
         origin_id: origin,
         result_code: "ready",
