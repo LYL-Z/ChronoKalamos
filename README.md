@@ -2,6 +2,10 @@
 
 ChronoKalamos／ΧΡΟΝΟΚΑΛΑΜΟΣ 是有史料边界的 AI 历史人生模拟器。首发切片锁定公元 742 年的唐代长安，地图与时间轴是主要入口。
 
+当前对外版本是小规模公开测试版 **`SMALL PUBLIC BETA`**（`app_release` 40）。从第 0 版到现在的迭代、核心机制和创新如何在本机复现，见 [`docs/open-source.md`](docs/open-source.md)。
+
+软件按 MIT 开源。史料、第三方数据库和文物图像不随 MIT 转让，见 [`LICENSE`](LICENSE) 与 [`docs/data-licenses.md`](docs/data-licenses.md)。
+
 ## 当前边界
 
 - 三种出身：西市粟特商户家庭后辈、长安工匠家庭学徒、京兆基层吏员家庭成员。
@@ -77,6 +81,7 @@ npm run test:supabase:live
 
 ## 文档入口
 
+- `docs/open-source.md`：迭代路程、技术创新与复现方法。
 - `docs/product-brief.md`：产品边界与验收目标。
 - `docs/implementation-plan.md`：阶段状态、实测证据与剩余风险。
 - `docs/brand-and-ui.md`、`docs/motion-spec.md`、`docs/i18n-copy.md`：视觉、动效和翻译边界。

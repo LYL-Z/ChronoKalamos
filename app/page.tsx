@@ -6,6 +6,7 @@ import { ChapterTimeline } from "@/components/chapter-timeline";
 import { EvidenceMap } from "@/components/evidence-map";
 import { IdentityPanel } from "@/components/identity-panel";
 import { Phase15GameShell } from "@/components/phase15-game-shell";
+import { BrandLockup } from "@/components/product-shell";
 import { phase7ActiveTrackLabel } from "@/lib/capabilities/phase7";
 import { commitAuthoritativeSystemAction, streamGameTurn } from "@/lib/game/client";
 import { getEventTemplate, getFirstEventId } from "@/lib/game/event-catalog";
@@ -30,12 +31,13 @@ import {
   type GameSession,
 } from "@/lib/supabase/saves";
 import type { HistoricalContent } from "@/lib/historical/content";
-import { readInitialLowMotion, useOnlineStatus } from "@/lib/ui/preferences";
+import { PHASE14_PLAYTEST } from "@/lib/playtest/config";
+import { getChromeCopy } from "@/lib/ui/chrome";
+import { readInitialSkipBoot, useOnlineStatus, useProductPreferences } from "@/lib/ui/preferences";
 import { recordClientPlaytestEvent } from "@/lib/playtest/client";
 import type { ClientPlaytestEvent } from "@/lib/playtest/schemas";
 
 type Locale = "zh" | "en" | "fr" | "el" | "ru";
-type NavId = "new" | "saves" | "settings" | "support" | "playtest";
 type CharacterProfileDraft = {
   origin: NonNullable<CharacterProfile["origin"]>;
   name: string;
@@ -50,68 +52,6 @@ const localeOptions: Array<{ value: Locale; label: string }> = [
   { value: "el", label: "Ελληνικά" },
   { value: "ru", label: "Русский" },
 ];
-
-const uiCopy: Record<Locale, {
-  nav: Record<NavId, string>;
-  lowMotion: string;
-  restoreMotion: string;
-  method: string;
-  mapLayer: string;
-  mapNote: string;
-  languageNote: string;
-  loaded: (title: string) => string;
-}> = {
-  zh: {
-    nav: { new: "新开始", saves: "历史存档", settings: "个人设置", support: "支持说明", playtest: "公开测试" },
-    lowMotion: "低动态",
-    restoreMotion: "恢复动态",
-    method: "每段内容都标明：史料记载、合理重建或叙事虚构。",
-    mapLayer: "HISTORICAL MAP LAYER",
-    mapNote: "图层来自已审计的阶段4内容包。几何是手绘证据示意，不能当作742年的测量边界；点击节点查看来源、时间和许可。",
-    languageNote: "中文内容已完成内部校验；Phase 11 外部历史学家认证待定。其他语言仅翻译界面骨架。",
-    loaded: (title) => `已载入 ${title}。第一回合尚未提交。`,
-  },
-  en: {
-    nav: { new: "Begin", saves: "Archives", settings: "Settings", support: "Support", playtest: "Playtest" },
-    lowMotion: "Low motion",
-    restoreMotion: "Restore motion",
-    method: "Each passage is marked as record, reconstruction, or fiction.",
-    mapLayer: "HISTORICAL MAP LAYER",
-    mapNote: "This audited phase-4 layer is schematic evidence, not a surveyed 742 CE boundary. Select a node to inspect sources, dates, and licensing.",
-    languageNote: "Chinese content has passed internal checks; external historian certification for Phase 11 is pending. Other languages translate interface chrome only.",
-    loaded: (title) => `${title} loaded. Turn one has not been submitted.`,
-  },
-  fr: {
-    nav: { new: "Commencer", saves: "Archives", settings: "Réglages", support: "Assistance", playtest: "Test public" },
-    lowMotion: "Mouvement réduit",
-    restoreMotion: "Rétablir le mouvement",
-    method: "Chaque passage indique : source, reconstruction ou fiction.",
-    mapLayer: "COUCHE CARTOGRAPHIQUE HISTORIQUE",
-    mapNote: "Cette couche auditée reste une esquisse de preuve, pas une limite mesurée en 742. Sélectionnez un nœud pour voir les sources et les licences.",
-    languageNote: "Le contenu chinois a passé les contrôles internes ; la certification historique externe de la phase 11 reste en attente. Les autres langues ne traduisent que l’interface.",
-    loaded: (title) => `${title} chargé. Le premier tour n'est pas soumis.`,
-  },
-  el: {
-    nav: { new: "Νέα αρχή", saves: "Αρχεία", settings: "Ρυθμίσεις", support: "Υποστήριξη", playtest: "Δοκιμή" },
-    lowMotion: "Ήπια κίνηση",
-    restoreMotion: "Επαναφορά κίνησης",
-    method: "Κάθε απόσπασμα σημειώνεται ως πηγή, ανακατασκευή ή μυθοπλασία.",
-    mapLayer: "ΙΣΤΟΡΙΚΟ ΕΠΙΠΕΔΟ ΧΑΡΤΗ",
-    mapNote: "Το ελεγμένο επίπεδο είναι σχηματικό τεκμήριο, όχι μετρημένο όριο του 742. Επιλέξτε κόμβο για πηγές, χρονολογία και άδεια.",
-    languageNote: "Το κινεζικό περιεχόμενο πέρασε εσωτερικό έλεγχο· η εξωτερική ιστορική πιστοποίηση της Φάσης 11 εκκρεμεί. Οι άλλες γλώσσες καλύπτουν μόνο το περιβάλλον.",
-    loaded: (title) => `Φορτώθηκε: ${title}. Ο πρώτος γύρος δεν υποβλήθηκε.`,
-  },
-  ru: {
-    nav: { new: "Начать", saves: "Архивы", settings: "Настройки", support: "Поддержка", playtest: "Тест" },
-    lowMotion: "Меньше движения",
-    restoreMotion: "Вернуть движение",
-    method: "Каждый фрагмент отмечен как источник, реконструкция или вымысел.",
-    mapLayer: "ИСТОРИЧЕСКИЙ СЛОЙ КАРТЫ",
-    mapNote: "Этот проверенный слой — схематическое свидетельство, а не измеренная граница 742 года. Выберите узел для источников, дат и лицензии.",
-    languageNote: "Китайский контент прошёл внутреннюю проверку; внешняя историческая сертификация Phase 11 ожидается. Другие языки пока переводят только интерфейс.",
-    loaded: (title) => `Загружено: ${title}. Первый ход ещё не отправлен.`,
-  },
-};
 
 const profileTemperaments: Array<{ value: NonNullable<CharacterProfile["temperament"]>; label: string; detail: string }> = [
   { value: "谨慎", label: "谨慎", detail: "先核验，再行动" },
@@ -146,14 +86,6 @@ function choicesForEvent(eventId: string | null, contentVersion = "11.0.0"): Tur
     intent,
     risk,
   }));
-}
-
-function BrandMark() {
-  return (
-    <span className="brand-mark" aria-hidden="true">
-      <span>ZW</span>
-    </span>
-  );
 }
 
 function Phase11ReleaseDisclosure() {
@@ -205,25 +137,20 @@ export default function Home() {
     clientTurnId: string;
     expectedStateVersion: number;
   } | null>(null);
-  const [language, setLanguage] = useState<Locale>(() => {
-    if (typeof window === "undefined") return "zh";
-    try {
-      const stored = window.localStorage.getItem("chronokalamos-locale");
-      return localeOptions.some((option) => option.value === stored) ? stored as Locale : "zh";
-    } catch {
-      return "zh";
-    }
-  });
-  const [lowMotion, setLowMotion] = useState(readInitialLowMotion);
+  const preferences = useProductPreferences();
+  const language = preferences.locale;
+  const lowMotion = preferences.lowMotion;
+  const [briefingClosed, setBriefingClosed] = useState(false);
   const [message, setMessage] = useState("");
   const setupCloseButtonRef = useRef<HTMLButtonElement>(null);
   const online = useOnlineStatus();
-  const copy = uiCopy[language];
+  const chrome = getChromeCopy(language);
   const origins: HistoricalOrigin[] = content.origins;
   const publishedClaimCount = content.claims.filter((claim) => claim.published).length;
   const fictionClaimCount = content.claims.filter((claim) => claim.published && claim.classification === "叙事虚构").length;
   const provisionalClaimCount = changanContent.claims.filter((claim) => claim.publicationStatus === "provisional").length;
   const worldState = gameSession?.world_state ?? null;
+  const showBriefing = preferences.ready && !preferences.briefingDismissed && !briefingClosed;
 
   const syncHistoricalContent = useCallback(async () => {
     const client = getSupabaseBrowserClient();
@@ -242,8 +169,14 @@ export default function Home() {
       const nextContent = await loadPublishedChanganContent(client);
       const mergedSources = new Map(changanContent.sources.map((source) => [source.id, source]));
       nextContent.sources.forEach((source) => mergedSources.set(source.id, source));
-      const mergedFeatures = new Map(changanContent.mapFeatures.map((feature) => [feature.id, feature]));
-      nextContent.mapFeatures.forEach((feature) => mergedFeatures.set(feature.id, feature));
+      const mergedFeatures = new Map(
+        changanContent.mapFeatures
+          .filter((feature) => feature.published)
+          .map((feature) => [feature.id, feature]),
+      );
+      nextContent.mapFeatures
+        .filter((feature) => feature.published)
+        .forEach((feature) => mergedFeatures.set(feature.id, feature));
       setContent({
         ...nextContent,
         sources: [...mergedSources.values()],
@@ -322,7 +255,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (readInitialSkipBoot()) {
+      const skipTimer = window.setTimeout(() => {
+        setProgress(100);
+        setBooting(false);
+      }, 0);
+      return () => window.clearTimeout(skipTimer);
+    }
     const startedAt = window.performance.now();
+    let finishTimer: number | undefined;
     const timer = window.setInterval(() => {
       const elapsed = window.performance.now() - startedAt;
       const next = Math.min(100, Math.round((elapsed / 1600) * 100));
@@ -333,12 +274,17 @@ export default function Home() {
       }
     }, 50);
 
-    let finishTimer: number | undefined;
     return () => {
       window.clearInterval(timer);
       if (finishTimer !== undefined) window.clearTimeout(finishTimer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 5200);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   useEffect(() => {
     if (!showSetup) return;
@@ -347,6 +293,22 @@ export default function Home() {
     const focusTimer = window.setTimeout(() => setupCloseButtonRef.current?.focus(), 0);
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") closeSetupWithExit();
+      if (event.key !== "Tab") return;
+      const sheet = document.querySelector<HTMLElement>(".setup-sheet");
+      if (!sheet) return;
+      const nodes = [...sheet.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]",
+      )];
+      if (!nodes.length) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => {
@@ -377,24 +339,11 @@ export default function Home() {
     [origins, selectedOrigin],
   );
   function toggleLowMotion() {
-    setLowMotion((current) => {
-      const next = !current;
-      try {
-        window.localStorage.setItem("chronokalamos-low-motion", String(next));
-      } catch {
-        setMessage("浏览器拒绝保存显示偏好；本次会话仍已切换。 ");
-      }
-      return next;
-    });
+    preferences.setLowMotion(!preferences.lowMotion);
   }
 
   function changeLanguage(nextLanguage: Locale) {
-    setLanguage(nextLanguage);
-    try {
-      window.localStorage.setItem("chronokalamos-locale", nextLanguage);
-    } catch {
-      setMessage("浏览器拒绝保存语言偏好；本次会话仍已切换。 ");
-    }
+    preferences.setLocale(nextLanguage);
   }
 
   function updateCharacterProfile(next: Partial<CharacterProfileDraft>) {
@@ -609,7 +558,7 @@ export default function Home() {
       );
       setMessage(`权威事务 ${committed.stateVersion} 已原子提交，并建立存档点。`);
     } catch (error) {
-      setSystemTransactionMessage(`${error instanceof Error ? error.message : "事务失败"} 数据库状态未改变。`);
+      setSystemTransactionMessage(`${error instanceof Error ? error.message : "事务失败"} 数据库状态未改变。本回合未提交。`);
     } finally {
       setSystemTransactionBusy(false);
     }
@@ -646,21 +595,32 @@ export default function Home() {
           <span style={{ width: `${progress}%` }} />
         </div>
         <div className="boot-meta"><span>742 CE · CHANG’AN</span><span>{String(progress).padStart(3, "0")} / 100</span></div>
-        <button className="text-button boot-skip" type="button" onClick={() => { setProgress(100); setBooting(false); }}>跳过启动</button>
+        <div className="boot-actions">
+          <button className="text-button boot-skip" type="button" onClick={() => { setProgress(100); setBooting(false); }}>跳过启动</button>
+          <button className="text-button boot-skip" type="button" onClick={() => { preferences.setSkipBoot(true); setProgress(100); setBooting(false); }}>下次直接进入</button>
+        </div>
       </main>
     );
   }
+
+  const statusToast = message && !showSetup ? (
+    <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>
+  ) : null;
 
   if (showGame) {
     const state = worldState;
     if (!state || !gameSession) {
       return (
-        <main className="game-shell">
-          <p className="inline-message" role="status">正在恢复权威存档…</p>
-        </main>
+        <>
+          <main className="game-shell">
+            <p className="inline-message" role="status">正在恢复权威存档…</p>
+          </main>
+          {statusToast}
+        </>
       );
     }
     return (
+      <>
       <Phase15GameShell
         state={state}
         previousState={lastStateBefore}
@@ -681,7 +641,7 @@ export default function Home() {
         customAction={customAction}
         lowMotion={lowMotion}
         online={online}
-        lowMotionLabel={lowMotion ? copy.restoreMotion : copy.lowMotion}
+        lowMotionLabel={lowMotion ? chrome.restoreMotion : chrome.lowMotion}
         onCustomActionChange={setCustomAction}
         onSubmitAction={submitGameAction}
         onCommitSystemAction={commitSystemAction}
@@ -701,34 +661,51 @@ export default function Home() {
           setShowGame(false);
         }}
       />
+      {statusToast}
+      </>
     );
   }
 
   return (
     <main className={`site-frame ${lowMotion ? "low-motion" : ""}`}>
-      <a className="skip-link" href="#main-content">跳到主要内容</a>
+      <a className="skip-link" href="#main-content">{chrome.skip}</a>
       <header className="masthead">
-        <Link className="brand" href="/"><BrandMark /><span className="brand-copy"><strong>CHRONOKALAMOS</strong><small>史料边界 · A LIFE IN RECORD</small></span></Link>
+        <BrandLockup homeLabel={chrome.brandHome} />
         <nav className="mast-nav" aria-label="主导航">
-          <span className="edition"><span className="status-dot" />PHASE 14 · SMALL BETA</span>
+          <span className="edition"><span className="status-dot" />{PHASE14_PLAYTEST.editionLabel}</span>
           <label className="language-select"><span className="sr-only">选择语言</span><select value={language} onChange={(event) => changeLanguage(event.target.value as Locale)}>{localeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? copy.restoreMotion : copy.lowMotion}</button>
+          <button className="text-button" type="button" aria-pressed={lowMotion} onClick={toggleLowMotion}>{lowMotion ? chrome.restoreMotion : chrome.lowMotion}</button>
         </nav>
       </header>
-      {!online && <div className="network-banner" role="alert"><strong>当前离线</strong><span>证据镜像和身份状态可能不是最新；恢复网络后可重试同步。</span></div>}
+      {!online && <div className="network-banner" role="alert"><strong>{chrome.offlineTitle}</strong><span>{chrome.offlineBody}</span></div>}
       <Phase11ReleaseDisclosure />
+      {showBriefing && (
+        <div className="arrival-briefing" role="note">
+          <p>先看地图与三种出身。90 秒内应能决定从哪条社会位置进入。姓名、性别和性格不会改写时代、地点或史料等级。</p>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              preferences.dismissBriefing();
+              setBriefingClosed(true);
+            }}
+          >
+            知道了
+          </button>
+        </div>
+      )}
 
       <div id="main-content" className="site-layout" tabIndex={-1}>
         <aside className="side-nav" aria-label="账户与存档">
           <p className="side-kicker">ARCHIVE / 01</p>
           <div className="side-links">
-            <button className="side-link active" type="button" onClick={openSetup}><span>{copy.nav.new}</span><small>Begin</small></button>
-            <Link className="side-link" href="/saves"><span>{copy.nav.saves}</span><small>Archives</small></Link>
-            <Link className="side-link" href="/settings"><span>{copy.nav.settings}</span><small>Settings</small></Link>
-            <Link className="side-link" href="/support"><span>{copy.nav.support}</span><small>Support</small></Link>
-            <Link className="side-link" href="/playtest"><span>{copy.nav.playtest}</span><small>Playtest</small></Link>
+            <button className="side-link active" type="button" onClick={openSetup}><span>{chrome.primaryNav("home")}</span><small>{chrome.secondaryNav("home")}</small></button>
+            <Link className="side-link" href="/saves"><span>{chrome.primaryNav("saves")}</span><small>{chrome.secondaryNav("saves")}</small></Link>
+            <Link className="side-link" href="/settings"><span>{chrome.primaryNav("settings")}</span><small>{chrome.secondaryNav("settings")}</small></Link>
+            <Link className="side-link" href="/support"><span>{chrome.primaryNav("support")}</span><small>{chrome.secondaryNav("support")}</small></Link>
+            <Link className="side-link" href="/playtest"><span>{chrome.primaryNav("playtest")}</span><small>{chrome.secondaryNav("playtest")}</small></Link>
           </div>
-          <div className="side-note"><span className="eyebrow">METHOD</span><p>{copy.method}</p></div>
+          <div className="side-note"><span className="eyebrow">METHOD</span><p>{chrome.method}</p></div>
         </aside>
 
         <div className="map-column">
@@ -738,7 +715,9 @@ export default function Home() {
             contentSource={contentSource}
             contentError={contentSyncError}
             currentEventId={gameSession?.world_state.story.currentEventId ?? getFirstEventId(selectedOrigin as CharacterProfile["origin"])}
+            currentLocationId={gameSession?.world_state.location.id}
             onRetry={() => void syncHistoricalContent()}
+            variant="hero"
           />
           <ChapterTimeline
             originId={selectedOrigin as CharacterProfile["origin"]}
@@ -746,6 +725,10 @@ export default function Home() {
             completedEventIds={gameSession?.world_state.story.completedEventIds ?? []}
             turn={gameSession?.world_state.time.turn ?? 0}
           />
+          <section className="origin-deck" aria-labelledby="origins-title">
+            <div className="origin-intro"><p className="eyebrow">FIRST RECORDED LIFE</p><h2 id="origins-title">三种出身，三个证据入口。</h2><p>先选择社会位置，再让故事获得边界。</p></div>
+            {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
+          </section>
         </div>
 
         <aside className="login-sheet" aria-label="游客入口">
@@ -755,15 +738,10 @@ export default function Home() {
         </aside>
       </div>
 
-      <section className="origin-deck" aria-labelledby="origins-title">
-        <div className="origin-intro"><p className="eyebrow">FIRST RECORDED LIFE</p><h2 id="origins-title">三种出身，三个证据入口。</h2><p>先选择社会位置，再让故事获得边界。</p></div>
-        {origins.map((origin) => <label className={`origin-card ${selectedOrigin === origin.id ? "selected" : ""}`} key={origin.id}><input type="radio" name="origin" value={origin.id} checked={selectedOrigin === origin.id} onChange={() => setSelectedOrigin(origin.id)} /><span className="origin-sigil" aria-hidden="true">{origin.code.slice(-1)}</span><span><span className="origin-code">{origin.code}</span><strong>{origin.title}</strong><small>{origin.english}</small><p>{origin.detail}</p><em>{sourceLabel(origin.classification)} · {sourceSummary(origin.sourceIds)}</em></span><span className="origin-arrow" aria-hidden="true">↗</span></label>)}
-      </section>
-
-      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · Phase 11 provisional {provisionalClaimCount} 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{copy.languageNote} · {contentSource === "database" ? "基础证据来自 Supabase 已发布镜像" : "基础证据来自本地校验包"} · 16+ · No real payments</span></footer>
+      <footer className="status-bar"><span><strong>史料边界：</strong> 已发布 {publishedClaimCount} 条 · Phase 11 provisional {provisionalClaimCount} 条 · 叙事虚构 {fictionClaimCount} 条</span><span>{chrome.languageNote} · {contentSource === "database" ? "基础证据来自 Supabase 已发布镜像" : "基础证据来自本地校验包"} · 16+ · No real payments</span></footer>
 
       {showSetup && <div className="setup-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) closeSetupWithExit(); }}><section className="setup-sheet" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-description"><div className="setup-header"><div><p className="eyebrow">NEW SESSION / 742 CE</p><h2 id="setup-title">把时间落在一个人身上。</h2></div><button ref={setupCloseButtonRef} className="icon-button" type="button" aria-label="关闭设定" onClick={closeSetupWithExit}>×</button></div><p id="setup-description" className="setup-copy">这是有限自定义的首发模板。你可以调整姓名、性别和性格；时代、地点与社会边界不会被自由输入覆盖。</p><div className="setup-options">{origins.map((origin) => <button type="button" className={selectedOrigin === origin.id ? "setup-option selected" : "setup-option"} key={origin.id} aria-pressed={selectedOrigin === origin.id} onClick={() => { setSelectedOrigin(origin.id); updateCharacterProfile({ origin: origin.id as CharacterProfile["origin"] }); }}><span>{origin.code}</span><strong>{origin.title}</strong><small>{origin.detail}</small></button>)}</div><div className="profile-fields"><label htmlFor="character-name">姓名<input id="character-name" name="character-name" type="text" maxLength={40} placeholder="例如：阿史那·..." value={characterProfile.name} onChange={(event) => updateCharacterProfile({ name: event.target.value })} /></label><label htmlFor="character-gender">性别<select id="character-gender" value={characterProfile.gender} onChange={(event) => updateCharacterProfile({ gender: event.target.value as CharacterProfile["gender"] })}><option value="unspecified">不预设</option><option value="female">女性</option><option value="male">男性</option><option value="nonbinary">不二元</option></select></label><div className="temperament-field"><span>性格倾向</span><div>{profileTemperaments.map((item) => <button key={item.value} className={characterProfile.temperament === item.value ? "temperament-choice selected" : "temperament-choice"} type="button" aria-pressed={characterProfile.temperament === item.value} onClick={() => updateCharacterProfile({ temperament: item.value })}><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div></div></div><div className="setup-footer"><span><strong>标签：</strong>{sourceLabel(selected.classification)} · {sourceSummary(selected.sourceIds)}</span><button className="primary-button" type="button" onClick={() => void startGame()} disabled={sessionBusy || !characterProfile.name.trim()}>{sessionBusy ? "正在建立存档…" : "确认并进入"}</button></div></section></div>}
-      {message && !showSetup && <div className="toast" role="status">{message}<button className="icon-button" type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></div>}
+      {statusToast}
     </main>
   );
 }

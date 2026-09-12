@@ -51,4 +51,19 @@ describe("phase 16 gameplay progression", () => {
       expect.objectContaining({ id: "risk", delta: 2, tone: "negative" }),
     ]));
   });
+
+  it("reports a location move even when numeric deltas are zero", () => {
+    const before = createInitialWorldState("merchant");
+    const after = structuredClone(before);
+    after.location = { id: "jin-guang-gate", label: "长安 · 金光门" };
+
+    expect(getPhase16SettlementChanges(before, after)).toEqual([
+      expect.objectContaining({
+        id: "location",
+        label: expect.stringContaining("金光门"),
+        delta: 0,
+        tone: "neutral",
+      }),
+    ]);
+  });
 });

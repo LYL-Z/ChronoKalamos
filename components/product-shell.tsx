@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PHASE14_PLAYTEST } from "@/lib/playtest/config";
+import { getChromeCopy, type ChromeNavId } from "@/lib/ui/chrome";
+import { requestArchiveFind } from "@/lib/ui/find";
 import { useOnlineStatus, useProductPreferences } from "@/lib/ui/preferences";
 
 type ProductPageShellProps = {
@@ -12,18 +15,18 @@ type ProductPageShellProps = {
   children: ReactNode;
 };
 
-const navigation = [
-  { id: "home", href: "/", label: "新开始", english: "Begin" },
-  { id: "saves", href: "/saves", label: "历史存档", english: "Archives" },
-  { id: "settings", href: "/settings", label: "个人设置", english: "Settings" },
-  { id: "support", href: "/support", label: "支持说明", english: "Support" },
-  { id: "playtest", href: "/playtest", label: "公开测试", english: "Playtest" },
-] as const;
+const navigation: Array<{ id: ChromeNavId; href: string }> = [
+  { id: "home", href: "/" },
+  { id: "saves", href: "/saves" },
+  { id: "settings", href: "/settings" },
+  { id: "support", href: "/support" },
+  { id: "playtest", href: "/playtest" },
+];
 
-export function BrandLockup() {
+export function BrandLockup({ homeLabel = "ChronoKalamos 首页" }: { homeLabel?: string }) {
   return (
-    <Link className="brand" href="/" aria-label="ChronoKalamos 首页">
-      <span className="brand-mark" aria-hidden="true"><span>ZW</span></span>
+    <Link className="brand" href="/" aria-label={homeLabel}>
+      <span className="brand-mark" aria-hidden="true" title="朱文印"><span>ZW</span></span>
       <span className="brand-copy">
         <strong>CHRONOKALAMOS</strong>
         <small>史料边界 · A LIFE IN RECORD</small>
@@ -41,12 +44,13 @@ export function ProductPageShell({
 }: ProductPageShellProps) {
   const preferences = useProductPreferences();
   const online = useOnlineStatus();
+  const chrome = getChromeCopy(preferences.locale);
 
   return (
     <main className={`product-page ${preferences.lowMotion ? "low-motion" : ""}`}>
-      <a className="skip-link" href="#main-content">跳到主要内容</a>
+      <a className="skip-link" href="#main-content">{chrome.skip}</a>
       <header className="masthead product-masthead">
-        <BrandLockup />
+        <BrandLockup homeLabel={chrome.brandHome} />
         <nav className="product-nav" aria-label="主导航">
           {navigation.map((item) => (
             <Link
@@ -54,16 +58,25 @@ export function ProductPageShell({
               href={item.href}
               aria-current={current === item.id ? "page" : undefined}
             >
-              <span>{item.label}</span>
-              <small>{item.english}</small>
+              <span>{chrome.primaryNav(item.id)}</span>
+              <small>{chrome.secondaryNav(item.id)}</small>
             </Link>
           ))}
+          <button
+            className="product-find"
+            type="button"
+            aria-keyshortcuts="Control+K"
+            onClick={requestArchiveFind}
+          >
+            <span>{chrome.findButton}</span>
+            <small>Ctrl+K</small>
+          </button>
         </nav>
       </header>
       {!online && (
         <div className="network-banner" role="alert">
-          <strong>当前离线</strong>
-          <span>页面偏好仍可使用，但身份、存档与回合不会提交。恢复网络后请重试。</span>
+          <strong>{chrome.offlineTitle}</strong>
+          <span>{chrome.offlineBody}</span>
         </div>
       )}
       <section className="product-heading">
@@ -75,8 +88,8 @@ export function ProductPageShell({
         {children}
       </div>
       <footer className="product-footer">
-        <span>742 CE · CHANG’AN · PHASE 14 SMALL BETA</span>
-        <span>外部历史学者认证待定 · 不接支付、短信、微信、QQ 或 Passkey</span>
+        <span>742 CE · CHANG’AN · {PHASE14_PLAYTEST.editionLabel}</span>
+        <span>外部历史学者认证待定 · 不接支付、短信、微信、QQ 或 Passkey · Ctrl+K 查找 · ? 键位</span>
       </footer>
     </main>
   );

@@ -110,11 +110,27 @@ test.describe("Phase 16 authenticated playable shell", () => {
     expect(desktopAxe.violations).toEqual([]);
     await page.screenshot({ path: path.resolve("audit/phase16/e2e-desktop.png"), fullPage: true });
 
+    await page.getByRole("button", { name: "更多" }).click();
     await page.getByRole("button", { name: "低动态" }).click();
     await expect(page.locator("main.phase15-shell")).toHaveClass(/low-motion/);
     await page.setViewportSize({ width: 390, height: 844 });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
+
+    await page.emulateMedia({ forcedColors: "active" });
+    await expect(page.locator("main.phase15-shell")).toBeVisible();
+    const forcedOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(forcedOverflow).toBeLessThanOrEqual(1);
+    await page.emulateMedia({ forcedColors: "none" });
+
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    const scaledOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(scaledOverflow).toBeLessThanOrEqual(1);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "";
+    });
 
     const mobileAxe = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])

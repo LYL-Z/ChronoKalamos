@@ -5,7 +5,7 @@ import { localeOptions, useProductPreferences } from "@/lib/ui/preferences";
 
 const localizationRows = [
   { code: "zh", language: "中文", interface: "已校验", history: "已完成内部校验", status: "主要语言" },
-  { code: "en", language: "English", interface: "可用", history: "边界说明与部分内容", status: "辅助语言" },
+  { code: "en", language: "English", interface: "部分导航", history: "边界说明与部分内容", status: "辅助语言" },
   { code: "fr", language: "Français", interface: "测试中", history: "未完成", status: "仅界面翻译" },
   { code: "el", language: "Ελληνικά", interface: "测试中", history: "未完成", status: "仅界面翻译" },
   { code: "ru", language: "Русский", interface: "测试中", history: "未完成", status: "仅界面翻译" },
@@ -34,6 +34,17 @@ export default function SettingsPage() {
             <span>
               <strong>低动态模式</strong>
               <small>停止非必要动画、平滑滚动和装饰性位移。系统“减少动态”偏好会作为首次默认值。</small>
+            </span>
+          </label>
+          <label className="setting-toggle">
+            <input
+              type="checkbox"
+              checked={preferences.skipBoot}
+              onChange={(event) => preferences.setSkipBoot(event.target.checked)}
+            />
+            <span>
+              <strong>跳过启动幕</strong>
+              <small>下次打开首页时直接进入档案桌面。启动仪式仍可用“跳过启动”临时关闭。</small>
             </span>
           </label>
         </section>
@@ -123,7 +134,7 @@ export default function SettingsPage() {
           </label>
           <div className="translation-warning" role="note">
             <strong>法语、希腊语和俄语仅处于界面翻译状态。</strong>
-            <span>它们不是完整史实翻译，也未经过相应语言的历史内容审校。</span>
+            <span>它们不是完整史实翻译，也未经过相应语言的历史内容审校。English 目前只改少量首页导航；读屏语言保持中文，以免把未翻译正文标成英文。</span>
           </div>
           <div className="table-scroll" tabIndex={0} aria-label="语言完成状态，可横向滚动">
             <table>

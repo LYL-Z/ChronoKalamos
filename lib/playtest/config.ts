@@ -1,8 +1,11 @@
+import release from "@/lib/playtest/release.json";
+
 export const PHASE14_PLAYTEST = {
-  appRelease: "39",
-  contentVersion: "11.0.0",
-  scenarioId: "tang-changan-742",
-  scenarioVersion: "1.0.0",
+  appRelease: release.appRelease,
+  contentVersion: release.contentVersion,
+  scenarioId: release.scenarioId,
+  scenarioVersion: release.scenarioVersion,
+  editionLabel: release.editionLabel,
   consentVersion: "phase14-v1",
   cohort: "small-public-beta",
   retentionDays: 30,

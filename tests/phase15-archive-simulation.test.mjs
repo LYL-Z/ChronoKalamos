@@ -18,6 +18,7 @@ test("phase 15 exposes seven real archive modules and a bounded action docket", 
   assert.match(`${shell}\n${simulation}`, /胥吏不等于品官|当前切片不提供任官/);
   assert.match(shell, /图片、短信、微信、QQ、支付与 Passkey 均未启用/);
   assert.doesNotMatch(shell, /一键登基|全国调兵|后宫管理/);
+  assert.doesNotMatch(shell, /id="phase15-module-content"[\s\S]{0,240}aria-live="polite"/);
 });
 
 test("phase 15 day settlement remains part of one deterministic turn", async () => {
@@ -31,6 +32,7 @@ test("phase 15 day settlement remains part of one deterministic turn", async () 
   assert.match(rules, /current: closesDay[\s\S]*state\.energy\.max/);
   assert.match(simulation, /const remainingSlots = 3 - usedSlots/);
   assert.match(simulation, /只披露编辑模板声明的方向/);
+  assert.match(simulation, /locationShift/);
 });
 
 test("phase 15 responsive shell preserves no-document-overflow contract", async () => {
@@ -39,6 +41,11 @@ test("phase 15 responsive shell preserves no-document-overflow contract", async 
 
   assert.match(css, /\.phase15-workspace/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.phase15-module-nav/);
+  assert.match(css, /@media \(forced-colors: active\)[\s\S]*\.phase15-shell/);
+  assert.match(css, /\.phase15-statusbar[\s\S]*max-width: calc\(100vw - 16px\)/);
+  assert.match(css, /\.phase15-choice-list > button strong[\s\S]*0\.8125rem/);
+  assert.match(css, /\.phase15-statusbar span[\s\S]*0\.6875rem/);
+  assert.match(css, /\.phase15-shell[\s\S]*padding: 14px 18px 5\.25rem/);
   assert.match(css, /\.phase15-statusbar/);
   assert.match(page, /<Phase15GameShell/);
 });

@@ -5,6 +5,8 @@ import {
   getModuleDescriptors,
   getSocialPosition,
 } from "./phase15-simulation";
+import { getEventTemplate } from "./event-catalog";
+import { publishedMapFeatureCount } from "@/lib/historical/content";
 import { createInitialWorldState, normalizeWorldState } from "./rules";
 
 describe("phase 15 archive simulation contracts", () => {
@@ -61,6 +63,7 @@ describe("phase 15 archive simulation contracts", () => {
       "household",
     ]);
     expect(modules.find((module) => module.id === "inventory")?.empty).toBe(true);
+    expect(modules.find((module) => module.id === "map")?.count).toBe(publishedMapFeatureCount);
   });
 
   it("discloses direction and cost without leaking the hidden consequence graph", () => {
@@ -68,8 +71,29 @@ describe("phase 15 archive simulation contracts", () => {
     const disclosure = getChoiceDisclosure(state, "choice-1", "11.0.0");
     expect(disclosure.actionSlots).toBe(1);
     expect(disclosure.minutes).toBeGreaterThanOrEqual(5);
+    expect(disclosure.locationShift).toBeNull();
     expect(disclosure.note).toContain("不展示隐藏事件");
     expect(disclosure).not.toHaveProperty("nextEventId");
     expect(disclosure).not.toHaveProperty("consequenceKey");
+  });
+
+  it("shows a published location fork on merchant choice-2 without splitting the railroad", () => {
+    const state = createInitialWorldState("merchant");
+    const event = getEventTemplate("merchant-ledger-mark", "11.0.0");
+    const stay = event.choices.find((choice) => choice.id === "choice-1");
+    const forkChoice = event.choices.find((choice) => choice.id === "choice-2");
+    expect(stay?.consequence.nextEventId).toBe("merchant-seal-trace");
+    expect(forkChoice?.consequence.nextEventId).toBe("merchant-seal-trace");
+    expect(stay?.consequence.stateDelta.location).toBeNull();
+    expect(forkChoice?.consequence.stateDelta.location).toEqual({
+      id: "jin-guang-gate",
+      label: "长安 · 金光门",
+    });
+
+    const fork = getChoiceDisclosure(state, "choice-2", "11.0.0");
+    expect(fork.locationShift).toContain("金光门");
+    expect(fork.affectedDomains).toContain("地点");
+    expect(fork).not.toHaveProperty("nextEventId");
+    expect(fork).not.toHaveProperty("consequenceKey");
   });
 });

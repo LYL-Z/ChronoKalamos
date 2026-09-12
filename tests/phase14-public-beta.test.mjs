@@ -1,20 +1,29 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("phase 14 is voluntary, version-bound, and refuses commercial completion without evidence", async () => {
-  const [config, protocol, reportScript, page] = await Promise.all([
+  const release = JSON.parse(await read("lib/playtest/release.json"));
+  const migrations = (await readdir(new URL("../supabase/migrations", import.meta.url)))
+    .filter((name) => name.includes("phase14_playtest_release_"))
+    .sort();
+  const latestReleaseMigration = migrations.at(-1);
+  const [config, protocol, reportScript, page, releaseSql] = await Promise.all([
     read("lib/playtest/config.ts"),
     read("docs/playtest-protocol.md"),
     read("scripts/report-phase14-playtest.mjs"),
     read("app/playtest/page.tsx"),
+    read(`supabase/migrations/${latestReleaseMigration}`),
   ]);
-  assert.match(config, /appRelease: "39"/);
-  assert.match(config, /contentVersion: "11\.0\.0"/);
-  assert.match(config, /scenarioId: "tang-changan-742"/);
-  assert.match(config, /scenarioVersion: "1\.0\.0"/);
+  assert.match(config, /from "@\/lib\/playtest\/release.json"/);
+  assert.match(protocol, new RegExp(`发布版本为 \`${release.appRelease}\``));
+  assert.match(releaseSql, new RegExp(`check \\(app_release = '${release.appRelease}'\\)`));
+  assert.match(releaseSql, new RegExp(`and app_release = '${release.appRelease}'`));
+  assert.match(config, /contentVersion: release.contentVersion/);
+  assert.match(config, /editionLabel: release.editionLabel/);
+  assert.match(config, /scenarioId: release.scenarioId/);
   assert.match(protocol, /主动加入/);
   assert.match(protocol, /insufficient_evidence/);
   assert.match(reportScript, /smallCellsSuppressedBelow: 3/);

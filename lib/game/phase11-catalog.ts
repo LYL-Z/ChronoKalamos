@@ -51,7 +51,9 @@ function buildDelta(event: Phase11EventBeat, choice: Phase11EventBeat["choices"]
 
   return stateDeltaSchema.parse({
     minutesElapsed: choice.risk === "low" ? 30 : choice.risk === "medium" ? 25 : 15,
-    location: null,
+    location: event.sequence === 1 && event.originId === "merchant" && choice.id === "choice-2"
+      ? { id: "jin-guang-gate", label: "长安 · 金光门" }
+      : null,
     occupation: null,
     moneyDelta: has("money") ? (choice.risk === "high" ? -12 : -8) : 0,
     healthDelta: has("health") ? -1 : 0,
@@ -86,7 +88,7 @@ function buildEvent(event: Phase11EventBeat): EventTemplate {
     classification: event.classification,
     prerequisites: [
       { kind: "origin_is", originId: event.originId },
-      { kind: "turn_between", min: event.sequence - 1, max: event.sequence - 1 },
+      { kind: "turn_between", min: event.sequence - 1, max: 99 },
       ...(event.sequence === 1
         ? [{ kind: "location_is" as const, locationId: event.locationId }]
         : []),

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ProductPageShell } from "@/components/product-shell";
-import { useOnlineStatus } from "@/lib/ui/preferences";
+import { copyPlainText, useOnlineStatus } from "@/lib/ui/preferences";
 
 type HealthState = "loading" | "healthy" | "degraded" | "offline";
 
@@ -46,9 +46,9 @@ export default function SupportPage() {
       `Time: ${new Date().toISOString()}`,
       `User agent: ${navigator.userAgent}`,
     ].join("\n");
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    const ok = await copyPlainText(text);
+    setCopied(ok);
+    if (ok) window.setTimeout(() => setCopied(false), 1800);
   }
 
   return (
@@ -92,7 +92,36 @@ export default function SupportPage() {
           <h2>当前不可用能力</h2>
           <p>图片叙事、短信、微信、QQ、支付和 Passkey 均未启用。界面不会请求相机或麦克风权限。</p>
         </article>
+        <article className="support-card">
+          <span>05</span>
+          <h2>查找与键位</h2>
+          <p>全站使用 Ctrl+K 或 Cmd+K 查找页面，使用问号键打开键位说明。游戏内 M/P/B/R/J 切换系统，1 到 5 只聚焦选项，空格只聚焦行动卷宗，不会自动提交。</p>
+        </article>
+        <article className="support-card">
+          <span>06</span>
+          <h2>隐私与权限</h2>
+          <p>浏览器只携带公开项目地址和 publishable key。相机、麦克风、地理位置和支付权限保持关闭。游客存档不能跨设备恢复。诊断摘要不含密钥、邮箱或叙事正文。</p>
+        </article>
       </div>
+
+      <section className="method-ledger" aria-labelledby="method-ledger-title">
+        <p className="eyebrow">HISTORICAL METHOD</p>
+        <h2 id="method-ledger-title">三级史料标签</h2>
+        <div className="method-ledger-grid">
+          <article>
+            <strong>史料记载</strong>
+            <p>存在可定位的古籍或制度记录。标签只覆盖来源能支撑的范围，不等于角色真实存在。</p>
+          </article>
+          <article>
+            <strong>合理重建</strong>
+            <p>多个来源共同支持背景，但细节不能全部坐实。重建必须写出推断边界。</p>
+          </article>
+          <article>
+            <strong>叙事虚构</strong>
+            <p>姓名、家庭、账簿、对话和结局用于让游戏继续。虚构条目不伪装成史料人物。</p>
+          </article>
+        </div>
+      </section>
 
       <section className="diagnostic-card" aria-labelledby="diagnostic-title">
         <div>

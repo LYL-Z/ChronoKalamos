@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { phase10EventTemplates } from "./event-catalog";
+import { phase11PublicBetaEventTemplates } from "./phase11-catalog";
 import {
   assessActionBoundary,
   createInitialWorldState,
@@ -222,6 +223,23 @@ describe("phase 10 adversarial contract evaluations", () => {
       { kind: "choice", choiceId: event.choices[0].id, text: event.choices[0].label },
       phase10EventTemplates,
     )).toThrow(/event_origin_violation|event_prerequisite_failed/);
+  });
+
+  it("still resolves a public-beta beat after world-system actions advance time.turn", () => {
+    const event = phase11PublicBetaEventTemplates.find((item) => item.eventId === "merchant-ledger-mark");
+    if (!event) throw new Error("missing merchant-ledger-mark");
+    const state = worldStateSchema.parse({
+      ...stateFor(event),
+      time: {
+        ...stateFor(event).time,
+        turn: turnFor(event) + 5,
+      },
+    });
+    expect(() => resolveEventAction(
+      state,
+      { kind: "choice", choiceId: event.choices[0].id, text: event.choices[0].label },
+      phase11PublicBetaEventTemplates,
+    )).not.toThrow();
   });
 
   it.each(phase10EventTemplates)("rejects model-supplied state delta for $eventId", (event) => {

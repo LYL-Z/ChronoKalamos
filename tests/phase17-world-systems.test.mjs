@@ -19,6 +19,8 @@ test("phase 17 exposes world systems while preserving the authoritative turn bou
   assert.match(registry, /最终结果仍由当前事件规则决定/);
   assert.doesNotMatch(registry, /supabase|fetch\(|insert\(|update\(|rpc\(/i);
   assert.doesNotMatch(workbench, /onSubmitAction|state\.[a-zA-Z]+\s*=/);
+  assert.match(workbench, /AUTHORITATIVE TRANSACTION/);
+  assert.doesNotMatch(workbench, /PHASE 18/);
 });
 
 test("phase 17 copy states the catalogue and map limitations", async () => {

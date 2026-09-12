@@ -153,6 +153,12 @@ export const changanContent = validateChanganContent({
   mapFeatures: mapFeaturesJson,
 });
 
+export function countPublishedMapFeatures(features: MapFeature[]): number {
+  return features.filter((feature) => feature.published).length;
+}
+
+export const publishedMapFeatureCount = countPublishedMapFeatures(changanContent.mapFeatures);
+
 export function sourceLabel(classification: HistoricalClaim["classification"]): string {
   return classification;
 }

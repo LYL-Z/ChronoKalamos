@@ -311,7 +311,11 @@ export function applyStateDelta(state: WorldState, delta: StateDelta): WorldStat
 
 function ruleMatches(rule: RuleExpression, state: WorldState): boolean {
   if (rule.kind === "origin_is") return state.socialIdentity === rule.originId;
-  if (rule.kind === "turn_between") return state.time.turn >= rule.min && state.time.turn <= rule.max;
+  if (rule.kind === "turn_between") {
+    // Upper bound is advisory. World-system actions share time.turn with story
+    // beats; pinning max === min made a household transaction block the chapter.
+    return state.time.turn >= rule.min;
+  }
   if (rule.kind === "location_is") return state.location.id === rule.locationId;
   if (rule.kind === "money_at_least") return state.money.cash >= rule.amount;
   if (rule.kind === "relationship_at_least") {

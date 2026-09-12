@@ -41,6 +41,12 @@ test("ChronoKalamos prototype keeps the evidence-bound core visible", async () =
   assert.match(identitySource, /真实 Supabase Auth/);
   assert.match(identitySource, /密码登录/);
   assert.match(identitySource, /data-testid="identity-email-form"/);
+  assert.match(identitySource, /已设置的邮箱密码/);
+  assert.doesNotMatch(identitySource, /至少 6 位密码/);
+  assert.match(identitySource, /图片叙事筹备中/);
+  assert.doesNotMatch(identitySource, /type="file"/);
+  assert.match(preferencesSource, /document.documentElement.lang = "zh-CN"/);
+  assert.match(layoutSource, /d.lang='zh-CN'/);
   assert.match(evidenceSource, /SUPABASE \/ PUBLISHED MIRROR/);
   assert.match(pageSource, /loadPublishedChanganContent/);
   assert.match(historicalSource, /from\("historical_origins"\)/);
@@ -48,4 +54,9 @@ test("ChronoKalamos prototype keeps the evidence-bound core visible", async () =
   assert.doesNotMatch(pageSource, /SkeletonPreview|codex-preview/);
   assert.match(layoutSource, /ChronoKalamos/);
   assert.match(layoutSource, /zh-CN/);
+  assert.match(layoutSource, /AppProviders/);
+  assert.match(layoutSource, /chronokalamos-preference-boot/);
+  assert.match(evidenceSource, /variant === "embedded"|variant = "hero"/);
+  assert.match(preferencesSource, /chronokalamos-skip-boot/);
+  assert.match(stylesSource, /100dvh/);
 });

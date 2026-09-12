@@ -30,6 +30,8 @@ test("phase 6 bounds turn requests and publishes a safe health endpoint", async 
   assert.match(securitySource, /Content-Security-Policy/);
   assert.match(securitySource, /X-Content-Type-Options/);
   assert.match(securitySource, /Permissions-Policy/);
+  assert.match(securitySource, /https:\/\/static\.cloudflareinsights\.com/);
+  assert.match(securitySource, /https:\/\/cloudflareinsights\.com/);
   assert.doesNotMatch(securitySource, /["']unsafe-eval["']/);
   assert.match(healthSource, /status: "ok"/);
   assert.match(migrationSource, /turn_rate_limited/);
